@@ -69,6 +69,15 @@ npm run preflight
 
 This checks: env shape, **DB connectivity**, **migration table**, **writable storage**, and warns on missing LLM/image keys.
 
+### Verify TypeScript and lint (optional)
+
+```bash
+npm run typecheck
+npm run lint
+```
+
+`typecheck` runs `tsc` without incremental reuse so it does not break if `.next` was deleted after a build.
+
 ## 6. Bootstrap realistic QA data (optional)
 
 Creates two premium-style clients, Brand Bibles, blueprints, briefs (campaign + identity), runs both workflows to **EXPORT**, and attempts one visual generation if a prompt package exists:

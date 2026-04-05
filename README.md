@@ -64,8 +64,9 @@ Open [http://localhost:3000](http://localhost:3000). If the database is not runn
 Full steps: **[docs/LOCAL_DEV.md](docs/LOCAL_DEV.md)**.
 
 ```bash
-npm run build   # production build
-npm run lint    # ESLint
+npm run build      # production build
+npm run lint       # ESLint
+npm run typecheck  # TypeScript (CI-friendly; no stale .next incremental refs)
 ```
 
 ---

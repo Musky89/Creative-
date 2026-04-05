@@ -19,10 +19,7 @@ import {
 } from "../src/server/domain/service-blueprint";
 import { getPrisma } from "../src/server/db/prisma";
 import { orchestrator } from "../src/server/orchestrator/orchestrator-service";
-import {
-  buildV1PipelineRows,
-  stageOrderIndex,
-} from "../src/server/orchestrator/v1-pipeline";
+import { stageOrderIndex } from "../src/server/orchestrator/v1-pipeline";
 import { generateVisualAssetFromPromptPackageDefaultDb } from "../src/server/visual-generation/generate-visual-asset-from-prompt-package";
 
 const RETAIL_CLIENT = {
@@ -315,7 +312,6 @@ function serviceBlueprint(): ServiceBlueprintFormInput {
 }
 
 async function driveWorkflowToEnd(briefId: string, identityFlow: boolean) {
-  const rows = buildV1PipelineRows(identityFlow);
   const maxSteps = 80;
   const log: string[] = [];
   for (let i = 0; i < maxSteps; i++) {
@@ -447,7 +443,7 @@ async function main() {
   console.log("[qa] Identity workflow:", identityRun.ok ? "OK" : "INCOMPLETE");
   identityRun.log.forEach((l) => console.log("   ", l));
 
-  let visualGen: {
+  const visualGen: {
     attempted: boolean;
     result?: string;
     error?: string;

@@ -1,6 +1,6 @@
 # Data model overview
 
-Conceptual entities for AgenticForce **before** physical schema design (no Prisma in the foundation). Relationships are described in business terms; cardinality and keys are decided at schema time.
+Conceptual entities for AgenticForce in **business terms**. The **implemented schema** lives in [`prisma/schema.prisma`](../prisma/schema.prisma) and migrations under `prisma/migrations/` — use those as the source of truth for fields, enums, and relations. This document stays aligned with product language (what each entity *means*).
 
 ## Client
 
