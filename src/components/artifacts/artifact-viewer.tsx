@@ -305,6 +305,10 @@ export function ConceptArtifactCard({
                     label="Visual direction"
                     value={asString(raw.visualDirection) || "—"}
                   />
+                  <Field
+                    label="Why it works for brand"
+                    value={asString(raw.whyItWorksForBrand) || "—"}
+                  />
                 </div>
               </div>
             );
@@ -414,6 +418,23 @@ export function ReviewReportArtifactCard({ content }: { content: unknown }) {
           label="Brand alignment"
           value={asString(content.brandAlignmentAssessment) || "—"}
         />
+        <Field
+          label="Tone alignment (Brand OS)"
+          value={asString(content.toneAlignment) || "—"}
+        />
+        <Field
+          label="Language compliance"
+          value={asString(content.languageCompliance) || "—"}
+        />
+        <div>
+          <p className="text-xs font-medium text-zinc-500">
+            Banned phrase violations
+          </p>
+          <StringList
+            items={content.bannedPhraseViolations}
+            empty="None listed."
+          />
+        </div>
         {content.regenerationRecommended === true ? (
           <div className="text-xs text-amber-800">
             <p className="font-medium">Regeneration recommended (for next cycle)</p>

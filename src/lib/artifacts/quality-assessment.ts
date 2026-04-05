@@ -2,6 +2,12 @@
  * Pre-persist quality assessment (concept / copy / optional strategy).
  * Used by the orchestrator agent runner — not stored as its own artifact type.
  */
+import {
+  collectArtifactTextForQuality,
+  findBannedPhraseHits,
+  findGenericMarketingHits,
+  findVagueMarketingAdjectives,
+} from "@/lib/brand/anti-generic";
 import { z } from "zod";
 
 export const prePersistQualitySchema = z.object({
@@ -14,24 +20,6 @@ export const prePersistQualitySchema = z.object({
 });
 
 export type PrePersistQuality = z.infer<typeof prePersistQualitySchema>;
-
-const GENERIC_PHRASES = [
-  "unlock the power",
-  "game-changer",
-  "game changer",
-  "cutting-edge",
-  "cutting edge",
-  "world-class",
-  "world class",
-  "best-in-class",
-  "best in class",
-  "leverage synerg",
-  "in today's world",
-  "innovative solution",
-  "seamless experience",
-  "take your business to the next level",
-  "next level",
-];
 
 function tokenize(s: string): Set<string> {
   return new Set(
@@ -53,19 +41,49 @@ function jaccard(a: Set<string>, b: Set<string>): number {
   return union === 0 ? 0 : inter / union;
 }
 
-function countGenericPhrases(text: string): number {
-  const t = text.toLowerCase();
-  let n = 0;
-  for (const p of GENERIC_PHRASES) {
-    if (t.includes(p)) n++;
-  }
-  return n;
-}
-
 export type DeterministicQualityResult = {
   issues: string[];
   recommendRegeneration: boolean;
 };
+
+/** Deterministic anti-generic + Brand OS banned phrase pass (feeds quality loop). */
+export function mergeAntiGenericIssues(
+  stage: "STRATEGY" | "CONCEPTING" | "COPY_DEVELOPMENT",
+  content: Record<string, unknown>,
+  bannedPhrases: string[],
+): DeterministicQualityResult {
+  const blob = collectArtifactTextForQuality(stage, content);
+  const issues: string[] = [];
+  const gen = findGenericMarketingHits(blob);
+  const bannedHits = findBannedPhraseHits(blob, bannedPhrases);
+  const vague = findVagueMarketingAdjectives(blob);
+
+  if (bannedHits.length) {
+    issues.push(
+      `Brand OS banned phrase(s) in draft: ${bannedHits.slice(0, 8).join("; ")} — remove or rephrase.`,
+    );
+  }
+  if (gen.length >= 2) {
+    issues.push(
+      `Anti-generic: multiple cliché phrases (${gen.slice(0, 5).join(", ")}) — use specific, brand-grounded language.`,
+    );
+  } else if (gen.length === 1 && (stage === "COPY_DEVELOPMENT" || stage === "CONCEPTING")) {
+    issues.push(`Anti-generic: "${gen[0]}" reads as generic filler — replace.`);
+  }
+  if (vague.length >= 4) {
+    issues.push(
+      `Anti-generic: stacked vague adjectives (${vague.slice(0, 6).join(", ")}) — add concrete proof or imagery.`,
+    );
+  }
+
+  const recommendRegeneration =
+    bannedHits.length > 0 ||
+    gen.length >= 2 ||
+    (stage === "COPY_DEVELOPMENT" && gen.length >= 1) ||
+    vague.length >= 4;
+
+  return { issues, recommendRegeneration };
+}
 
 export function deterministicConceptChecks(content: Record<string, unknown>): DeterministicQualityResult {
   const issues: string[] = [];
@@ -77,11 +95,11 @@ export function deterministicConceptChecks(content: Record<string, unknown>): De
   const texts = concepts.map((c) => {
     if (!c || typeof c !== "object") return "";
     const o = c as Record<string, unknown>;
-    return `${String(o.hook ?? "")} ${String(o.rationale ?? "")}`;
+    return `${String(o.hook ?? "")} ${String(o.rationale ?? "")} ${String(o.whyItWorksForBrand ?? "")}`;
   });
 
   for (let i = 0; i < texts.length; i++) {
-    if (countGenericPhrases(texts[i]!) >= 2) {
+    if (findGenericMarketingHits(texts[i]!).length >= 2) {
       issues.push(`Concept ${i + 1}: generic marketing phrasing detected in hook/rationale.`);
     }
     if (String(concepts[i] && typeof concepts[i] === "object" ? (concepts[i] as { hook?: string }).hook : "").length < 28) {
@@ -89,6 +107,16 @@ export function deterministicConceptChecks(content: Record<string, unknown>): De
     }
     if (String(concepts[i] && typeof concepts[i] === "object" ? (concepts[i] as { rationale?: string }).rationale : "").length < 90) {
       issues.push(`Concept ${i + 1}: rationale is thin; needs sharper strategic justification.`);
+    }
+    const why = String(
+      concepts[i] && typeof concepts[i] === "object"
+        ? (concepts[i] as { whyItWorksForBrand?: string }).whyItWorksForBrand
+        : "",
+    );
+    if (why.length < 36) {
+      issues.push(
+        `Concept ${i + 1}: whyItWorksForBrand is too thin — tie the route to Brand OS and positioning with specifics.`,
+      );
     }
   }
 
@@ -131,7 +159,7 @@ export function deterministicCopyChecks(content: Record<string, unknown>): Deter
   }
   const hs = headlines.map((h) => String(h).toLowerCase());
   for (let i = 0; i < hs.length; i++) {
-    if (countGenericPhrases(hs[i]!) >= 1) {
+    if (findGenericMarketingHits(hs[i]!).length >= 1) {
       issues.push(`Headline ${i + 1} leans on generic marketing language.`);
     }
   }
@@ -143,7 +171,7 @@ export function deterministicCopyChecks(content: Record<string, unknown>): Deter
   const bodies = content.bodyCopyOptions;
   if (Array.isArray(bodies)) {
     const joined = bodies.map((b) => String(b)).join(" ");
-    if (countGenericPhrases(joined) >= 3) {
+    if (findGenericMarketingHits(joined).length >= 3) {
       issues.push("Body copy contains multiple generic filler phrases.");
     }
   }
@@ -159,7 +187,7 @@ export function deterministicStrategyChecks(content: Record<string, unknown>): D
   if (prop.length < 40) {
     issues.push("Proposition is too short to be single-minded and testable.");
   }
-  if (countGenericPhrases(prop) >= 1) {
+  if (findGenericMarketingHits(prop).length >= 1) {
     issues.push("Proposition uses generic phrasing.");
   }
   const angles = content.strategicAngles;

@@ -16,10 +16,10 @@ export default async function BrandBiblePage({
   return (
     <>
       <PageHeader
-        title="Brand Bible"
-        description="Canonical voice, audience, and guardrails. Injected server-side into agent context when execution ships."
+        title="Brand Bible & Brand OS"
+        description="Canonical positioning plus Brand Operating System rules (language, emotion, creative patterns, visual language). Injected server-side into every agent prompt."
       />
-      <Card className="max-w-2xl">
+      <Card className="max-w-3xl">
         <BrandBibleForm clientId={clientId} initial={client.brandBible} />
       </Card>
     </>

@@ -101,6 +101,8 @@ When no provider is configured, **STRATEGY / CONCEPTING / COPY / REVIEW** tasks 
 
 **Brand Bible gate:** agent stages (Strategist → Brand Guardian) **cannot start** until the client Brand Bible includes positioning, target audience, tone of voice, and at least one messaging pillar.
 
+**Brand Operating System (Brand OS):** extended fields on `BrandBible` (language rules, emotional profile, creative patterns, visual language) are formatted as a readable **BRAND OPERATING SYSTEM** section in `formatContextForPrompt`. Deterministic anti-generic checks and client **banned phrases** can trigger the pre-persist regeneration loop.
+
 **Exports:** `GET /api/export/briefs/[briefId]?clientId=...&format=json|markdown` returns an attachment (pipeline snapshot; `_agenticforce*` keys stripped from artifact bodies in JSON).
 
 **JSON repair:** if primary model output fails Zod validation, one **repair** LLM pass runs; artifacts record `_agenticforceGenerationPath` (`primary` \| `repair`) and `_agenticforceRepaired`.

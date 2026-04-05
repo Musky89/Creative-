@@ -1,4 +1,10 @@
-import type { Prisma } from "@/generated/prisma/client";
+import type {
+  PersuasionStyle,
+  PrimaryEmotion,
+  Prisma,
+  SentenceStyle,
+  VocabularyStyle,
+} from "@/generated/prisma/client";
 import { getPrisma } from "@/server/db/prisma";
 
 export type BrandBibleFormInput = {
@@ -10,6 +16,22 @@ export type BrandBibleFormInput = {
   channelGuidelines: Prisma.InputJsonValue;
   mandatoryInclusions: Prisma.InputJsonValue;
   thingsToAvoid: Prisma.InputJsonValue;
+  vocabularyStyle: VocabularyStyle;
+  sentenceStyle: SentenceStyle;
+  bannedPhrases: Prisma.InputJsonValue;
+  preferredPhrases: Prisma.InputJsonValue;
+  signaturePatterns: Prisma.InputJsonValue;
+  primaryEmotion: PrimaryEmotion;
+  emotionalToneDescription: string;
+  emotionalBoundaries: Prisma.InputJsonValue;
+  hookStyles: Prisma.InputJsonValue;
+  narrativeStyles: Prisma.InputJsonValue;
+  persuasionStyle: PersuasionStyle;
+  visualStyle: string;
+  colorPhilosophy: string;
+  compositionStyle: string;
+  textureFocus: string;
+  lightingStyle: string;
 };
 
 export async function upsertBrandBible(

@@ -28,6 +28,8 @@ export const conceptSubSchema = z.object({
   hook: z.string().min(1),
   rationale: z.string().min(1),
   visualDirection: z.string().min(1),
+  /** Ties the route to Brand OS / positioning (not generic praise). */
+  whyItWorksForBrand: z.string().min(1),
 });
 
 export const conceptArtifactSchema = z.object({
@@ -55,6 +57,12 @@ export const reviewReportArtifactSchema = z.object({
   qualityVerdict: z.enum(["STRONG", "ACCEPTABLE", "WEAK"]),
   distinctivenessAssessment: z.string().min(1),
   brandAlignmentAssessment: z.string().min(1),
+  /** Brand OS: vocabulary, sentence style, emotion vs draft. */
+  toneAlignment: z.string().min(1),
+  /** Brand OS rule adherence (banned phrases = FAIL). */
+  languageCompliance: z.enum(["PASS", "WARN", "FAIL"]),
+  /** Brand OS banned phrases or close variants found in evaluated copy (empty if none). */
+  bannedPhraseViolations: z.array(z.string()).max(20),
   regenerationRecommended: z.boolean(),
   regenerationReasons: z.array(z.string()).max(10),
 });
@@ -77,7 +85,7 @@ export const ARTIFACT_SHAPE_HINTS = {
 }`,
   CONCEPT: `{
   "frameworkUsed": string (summary of which frameworks drive the pack),
-  "concepts": array (min 2, max 3) of { "frameworkId", "conceptName", "hook", "rationale", "visualDirection" } — each frameworkId must be one of the provided Creative Canon ids; concepts must be DISTINCT routes
+  "concepts": array (min 2, max 3) of { "frameworkId", "conceptName", "hook", "rationale", "visualDirection", "whyItWorksForBrand" } — each frameworkId must be one of the provided Creative Canon ids; concepts must be DISTINCT routes; whyItWorksForBrand must tie the route to Brand OS / positioning
 }`,
   COPY: `{
   "frameworkUsed": string,
@@ -95,6 +103,9 @@ export const ARTIFACT_SHAPE_HINTS = {
   "qualityVerdict": "STRONG" | "ACCEPTABLE" | "WEAK",
   "distinctivenessAssessment": string,
   "brandAlignmentAssessment": string,
+  "toneAlignment": string (Brand OS: vocabulary, sentence style, emotion),
+  "languageCompliance": "PASS" | "WARN" | "FAIL",
+  "bannedPhraseViolations": string[] (Brand OS banned phrases found in copy/concepts, or empty),
   "regenerationRecommended": boolean,
   "regenerationReasons": string[]
 }`,

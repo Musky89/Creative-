@@ -2,6 +2,12 @@ import type { Artifact, BrandBible, ServiceBlueprint } from "@/generated/prisma/
 import { getPrisma } from "@/server/db/prisma";
 import { stageOrderIndex } from "@/server/orchestrator/v1-pipeline";
 import type { WorkflowStage } from "@/generated/prisma/client";
+import {
+  formatBrandOperatingSystemSection,
+  type BrandOperatingSystemContext,
+} from "@/server/brand/brand-os-prompt";
+
+export type { BrandOperatingSystemContext };
 
 export type UpstreamArtifactSummary = {
   stage: WorkflowStage;
@@ -37,6 +43,8 @@ export type TaskAgentContext = {
     thingsToAvoid: string[];
     visualIdentityBullets: string[];
     channelGuidelinesBullets: string[];
+    /** Structured Brand OS (same row as Brand Bible). */
+    operatingSystem: BrandOperatingSystemContext;
   } | null;
   blueprint: {
     templateType: string;
@@ -147,6 +155,24 @@ export async function loadTaskAgentContext(taskId: string): Promise<{
           thingsToAvoid: asStringArray(bb.thingsToAvoid, 12),
           visualIdentityBullets: asStringArray(bb.visualIdentity, 12),
           channelGuidelinesBullets: asStringArray(bb.channelGuidelines, 12),
+          operatingSystem: {
+            vocabularyStyle: bb.vocabularyStyle,
+            sentenceStyle: bb.sentenceStyle,
+            bannedPhrases: asStringArray(bb.bannedPhrases, 40),
+            preferredPhrases: asStringArray(bb.preferredPhrases, 40),
+            signaturePatterns: asStringArray(bb.signaturePatterns, 24),
+            primaryEmotion: bb.primaryEmotion,
+            emotionalToneDescription: bb.emotionalToneDescription,
+            emotionalBoundaries: asStringArray(bb.emotionalBoundaries, 24),
+            hookStyles: asStringArray(bb.hookStyles, 16),
+            narrativeStyles: asStringArray(bb.narrativeStyles, 16),
+            persuasionStyle: bb.persuasionStyle,
+            visualStyle: bb.visualStyle,
+            colorPhilosophy: bb.colorPhilosophy,
+            compositionStyle: bb.compositionStyle,
+            textureFocus: bb.textureFocus,
+            lightingStyle: bb.lightingStyle,
+          },
         }
       : null,
     blueprint: bp
@@ -201,6 +227,8 @@ export function formatContextForPrompt(ctx: TaskAgentContext): string {
       `- Things to avoid: ${ctx.brand.thingsToAvoid.join("; ") || "—"}`,
       `- Visual identity notes: ${ctx.brand.visualIdentityBullets.join("; ") || "—"}`,
       `- Channel guidelines: ${ctx.brand.channelGuidelinesBullets.join("; ") || "—"}`,
+      "",
+      formatBrandOperatingSystemSection(ctx.brand.operatingSystem),
     );
   } else {
     lines.push("", "## Brand Bible", "(Not configured — infer carefully from brief.)");

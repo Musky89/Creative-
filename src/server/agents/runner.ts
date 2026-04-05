@@ -178,7 +178,9 @@ export async function executeAgentForTask(
 
     const qStage = stage as QualityLoopStage;
     const stripped = stripInternalKeys(gen.content);
-    const det = mergeDeterministicIssues(qStage, stripped);
+    const brandBanned =
+      context.brand?.operatingSystem.bannedPhrases ?? [];
+    const det = mergeDeterministicIssues(qStage, stripped, brandBanned);
     const llmQ = await assessPrePersistQuality(
       provider,
       qStage,
@@ -209,7 +211,7 @@ export async function executeAgentForTask(
 
     const critique = [...det.issues, ...llmQ.regenerationReasons].join("\n");
     const mustPreserve =
-      "Output MUST match the same JSON schema as this stage. Honor Brand Bible, brief, and upstream artifacts. Apply Creative Canon visibly — no generic marketing filler. For CONCEPTING: concepts must use different frameworkIds and be clearly distinct routes.";
+      "Output MUST match the same JSON schema as this stage. Honor Brand Bible, Brand Operating System (banned phrases, vocabulary/sentence style, emotional boundaries), brief, and upstream artifacts. Apply Creative Canon visibly — no generic marketing filler. For CONCEPTING: concepts must use different frameworkIds, include whyItWorksForBrand per route, and be clearly distinct.";
 
     const regenUser = buildRegenerationUserPrompt({
       stage: qStage,
@@ -246,7 +248,7 @@ export async function executeAgentForTask(
     }
 
     const stripped2 = stripInternalKeys(regen.content);
-    const det2 = mergeDeterministicIssues(qStage, stripped2);
+    const det2 = mergeDeterministicIssues(qStage, stripped2, brandBanned);
     const llmQ2 = await assessPrePersistQuality(
       provider,
       qStage,

@@ -3,6 +3,7 @@ import {
   deterministicConceptChecks,
   deterministicCopyChecks,
   deterministicStrategyChecks,
+  mergeAntiGenericIssues,
   prePersistQualitySchema,
   type PrePersistQuality,
 } from "@/lib/artifacts/quality-assessment";
@@ -14,6 +15,8 @@ const QUALITY_SYSTEM = `You are a senior creative director doing a FAST pre-revi
 Output a single JSON object only. No markdown.
 
 You must judge whether the draft is specific and framework-grounded vs generic filler.
+The user message includes Brand Operating System rules: treat **banned phrases** as hard failures (flag regeneration).
+Also flag generic marketing clichés ("best in class", "innovative solution", "premium feel", vague superlatives without proof).
 
 Fields:
 - qualityVerdict: "STRONG" | "ACCEPTABLE" | "WEAK"
@@ -80,17 +83,31 @@ export async function assessPrePersistQuality(
 export function mergeDeterministicIssues(
   stage: QualityLoopStage,
   content: Record<string, unknown>,
+  brandOsBannedPhrases: string[],
 ): { issues: string[]; recommend: boolean } {
+  const anti = mergeAntiGenericIssues(stage, content, brandOsBannedPhrases);
   if (stage === "CONCEPTING") {
     const r = deterministicConceptChecks(content);
-    return { issues: r.issues, recommend: r.recommendRegeneration };
+    const issues = [...anti.issues, ...r.issues];
+    return {
+      issues,
+      recommend: anti.recommendRegeneration || r.recommendRegeneration,
+    };
   }
   if (stage === "COPY_DEVELOPMENT") {
     const r = deterministicCopyChecks(content);
-    return { issues: r.issues, recommend: r.recommendRegeneration };
+    const issues = [...anti.issues, ...r.issues];
+    return {
+      issues,
+      recommend: anti.recommendRegeneration || r.recommendRegeneration,
+    };
   }
   const r = deterministicStrategyChecks(content);
-  return { issues: r.issues, recommend: r.recommendRegeneration };
+  const issues = [...anti.issues, ...r.issues];
+  return {
+    issues,
+    recommend: anti.recommendRegeneration || r.recommendRegeneration,
+  };
 }
 
 export function shouldRegenerate(

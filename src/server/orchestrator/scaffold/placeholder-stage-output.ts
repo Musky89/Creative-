@@ -81,6 +81,8 @@ export function buildPlaceholderArtifactContent(
             hook: "[Placeholder] Before → after hook using transformation logic.",
             rationale: "[Placeholder] Why this fits the strategy.",
             visualDirection: "[Placeholder] Visual notes for Route A.",
+            whyItWorksForBrand:
+              "[Placeholder] How Route A reinforces positioning and Brand OS emotional register.",
           },
           {
             frameworkId: "problem-agitation",
@@ -88,6 +90,8 @@ export function buildPlaceholderArtifactContent(
             hook: "[Placeholder] Pain-forward hook using agitation logic.",
             rationale: "[Placeholder] Why this fits the strategy.",
             visualDirection: "[Placeholder] Visual notes for Route B.",
+            whyItWorksForBrand:
+              "[Placeholder] How Route B reinforces positioning and Brand OS emotional register.",
           },
         ],
       };
@@ -122,6 +126,9 @@ export function buildPlaceholderArtifactContent(
         qualityVerdict: "ACCEPTABLE" as const,
         distinctivenessAssessment: "[Placeholder] Not evaluated in scaffold.",
         brandAlignmentAssessment: "[Placeholder] Not evaluated in scaffold.",
+        toneAlignment: "[Placeholder] Brand OS tone vs draft — not evaluated in scaffold.",
+        languageCompliance: "WARN" as const,
+        bannedPhraseViolations: [],
         regenerationRecommended: false,
         regenerationReasons: [],
       };

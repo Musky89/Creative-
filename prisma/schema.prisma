@@ -64,6 +64,41 @@ enum ArtifactOutcomeType {
   REJECTED
 }
 
+/// Brand Operating System — language vocabulary register.
+enum VocabularyStyle {
+  SIMPLE
+  ELEVATED
+  TECHNICAL
+  POETIC
+  MIXED
+}
+
+/// Brand Operating System — typical sentence construction.
+enum SentenceStyle {
+  SHORT
+  MEDIUM
+  LONG
+  VARIED
+}
+
+/// Brand Operating System — primary emotional register.
+enum PrimaryEmotion {
+  ASPIRATION
+  TRUST
+  DESIRE
+  URGENCY
+  CALM
+  BOLD
+}
+
+/// Brand Operating System — persuasion mode.
+enum PersuasionStyle {
+  SUBTLE
+  DIRECT
+  STORY_LED
+  PROOF_LED
+}
+
 /// Class of engagement / template used to instantiate work from a Brief.
 enum ServiceBlueprintTemplateType {
   FULL_PIPELINE
@@ -104,6 +139,30 @@ model BrandBible {
   channelGuidelines   Json
   mandatoryInclusions Json
   thingsToAvoid       Json
+
+  /// Brand Operating System — language rules
+  vocabularyStyle   VocabularyStyle @default(SIMPLE)
+  sentenceStyle     SentenceStyle   @default(MEDIUM)
+  bannedPhrases     Json            @default("[]")
+  preferredPhrases  Json            @default("[]")
+  signaturePatterns Json            @default("[]")
+
+  /// Brand Operating System — emotional profile
+  primaryEmotion             PrimaryEmotion @default(TRUST)
+  emotionalToneDescription   String         @default("") @db.Text
+  emotionalBoundaries        Json           @default("[]")
+
+  /// Brand Operating System — creative patterns
+  hookStyles        Json            @default("[]")
+  narrativeStyles   Json            @default("[]")
+  persuasionStyle   PersuasionStyle @default(DIRECT)
+
+  /// Brand Operating System — visual language (future image workflows)
+  visualStyle        String @default("") @db.Text
+  colorPhilosophy    String @default("") @db.Text
+  compositionStyle   String @default("") @db.Text
+  textureFocus       String @default("") @db.Text
+  lightingStyle      String @default("") @db.Text
 
   updatedAt DateTime @updatedAt
 }
