@@ -285,6 +285,11 @@ export class OrchestratorService {
           generationPath: agentResult.generationPath,
           repaired: agentResult.repaired,
           usedPlaceholderFallback: false,
+          qualityLoop:
+            content._agenticforceQuality &&
+            typeof content._agenticforceQuality === "object"
+              ? content._agenticforceQuality
+              : undefined,
         };
       } else {
         usedPlaceholder = true;

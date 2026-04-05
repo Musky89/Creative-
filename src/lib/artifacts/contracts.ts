@@ -52,6 +52,11 @@ export const reviewReportArtifactSchema = z.object({
   /** How well Creative Canon frameworks were executed in concept + copy. */
   frameworkAssessment: z.string().min(1),
   frameworkExecution: z.enum(["STRONG", "MIXED", "WEAK", "NOT_APPLICABLE"]),
+  qualityVerdict: z.enum(["STRONG", "ACCEPTABLE", "WEAK"]),
+  distinctivenessAssessment: z.string().min(1),
+  brandAlignmentAssessment: z.string().min(1),
+  regenerationRecommended: z.boolean(),
+  regenerationReasons: z.array(z.string()).max(10),
 });
 
 export type StrategyArtifact = z.infer<typeof strategyArtifactSchema>;
@@ -75,7 +80,7 @@ export const ARTIFACT_SHAPE_HINTS = {
   "concepts": array (min 2, max 3) of { "frameworkId", "conceptName", "hook", "rationale", "visualDirection" } — each frameworkId must be one of the provided Creative Canon ids; concepts must be DISTINCT routes
 }`,
   COPY: `{
-  "frameworkUsed": string optional,
+  "frameworkUsed": string,
   "headlineOptions": string[] (min 2, max 8),
   "bodyCopyOptions": string[] (min 1, max 6),
   "ctaOptions": string[] (min 1, max 6)
@@ -86,7 +91,12 @@ export const ARTIFACT_SHAPE_HINTS = {
   "issues": string[],
   "recommendations": string[],
   "frameworkAssessment": string,
-  "frameworkExecution": "STRONG" | "MIXED" | "WEAK" | "NOT_APPLICABLE"
+  "frameworkExecution": "STRONG" | "MIXED" | "WEAK" | "NOT_APPLICABLE",
+  "qualityVerdict": "STRONG" | "ACCEPTABLE" | "WEAK",
+  "distinctivenessAssessment": string,
+  "brandAlignmentAssessment": string,
+  "regenerationRecommended": boolean,
+  "regenerationReasons": string[]
 }`,
 } as const;
 

@@ -8,6 +8,7 @@ function stripMeta(obj: Record<string, unknown>): Record<string, unknown> {
   for (const [k, v] of Object.entries(obj)) {
     if (k.startsWith("_agenticforce")) continue;
     if (k.startsWith("_creativeCanon")) continue;
+    if (k === "_agenticforceQuality") continue;
     out[k] = v;
   }
   return out;

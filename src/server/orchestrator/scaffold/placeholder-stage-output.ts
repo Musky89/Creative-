@@ -119,6 +119,11 @@ export function buildPlaceholderArtifactContent(
         frameworkAssessment:
           "[Placeholder] Scaffold — framework execution not evaluated.",
         frameworkExecution: "NOT_APPLICABLE" as const,
+        qualityVerdict: "ACCEPTABLE" as const,
+        distinctivenessAssessment: "[Placeholder] Not evaluated in scaffold.",
+        brandAlignmentAssessment: "[Placeholder] Not evaluated in scaffold.",
+        regenerationRecommended: false,
+        regenerationReasons: [],
       };
     case "EXPORT":
       return {

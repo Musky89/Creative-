@@ -107,6 +107,8 @@ When no provider is configured, **STRATEGY / CONCEPTING / COPY / REVIEW** tasks 
 
 **Creative Canon:** in-code frameworks (`src/lib/canon/frameworks.ts`) are selected per stage (`selectFrameworksForTask`); agents receive them in prompts and outputs include framework fields. Persisted artifacts also carry `_creativeCanonFrameworkIds` for audit.
 
+**Pre-persist quality loop (strategy / concept / copy):** after a valid JSON artifact, a fast LLM quality pass plus deterministic checks may trigger **one** regeneration with explicit critique; metadata is stored on the artifact as `_agenticforceQuality` and mirrored in `AgentRun.metadata.qualityLoop`. If the second pass still fails, the **best available** draft is kept with `stillWeakAfterRegen`.
+
 The initial migration is [`prisma/migrations/20260405120000_init_core_domain/migration.sql`](prisma/migrations/20260405120000_init_core_domain/migration.sql). If your database was empty, `prisma migrate dev` will apply it and record it in `_prisma_migrations`.
 
 ---

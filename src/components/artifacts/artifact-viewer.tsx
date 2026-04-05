@@ -6,6 +6,49 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+function QualityStrip({ content }: { content: unknown }) {
+  if (!isRecord(content)) return null;
+  const q = content._agenticforceQuality;
+  if (!isRecord(q)) return null;
+  const attempted = q.regenerationAttempted === true;
+  const triggered = q.regenerationTriggered === true;
+  const stillWeak = q.stillWeakAfterRegen === true;
+  const preQ = q.prePersistQuality;
+  const verdict =
+    isRecord(q.postRegenQuality) && typeof q.postRegenQuality.qualityVerdict === "string"
+      ? String(q.postRegenQuality.qualityVerdict)
+      : isRecord(preQ) && typeof preQ.qualityVerdict === "string"
+        ? String(preQ.qualityVerdict)
+        : typeof q.qualityVerdictSummary === "string"
+          ? q.qualityVerdictSummary
+          : null;
+  if (!attempted && !triggered) return null;
+
+  return (
+    <div className="mb-3 rounded-lg border border-sky-200/80 bg-sky-50/50 px-3 py-2 text-xs text-sky-950">
+      <span className="font-medium">Quality pass</span>
+      {triggered ? (
+        <span className="ml-2 text-sky-800">· Regenerated once</span>
+      ) : attempted ? (
+        <span className="ml-2 text-sky-800">· No regen needed</span>
+      ) : null}
+      {verdict ? (
+        <span className="ml-2">· Verdict: {verdict}</span>
+      ) : null}
+      {stillWeak ? (
+        <span className="ml-2 font-medium text-amber-900">
+          · Still flagged weak — best draft kept
+        </span>
+      ) : null}
+      {typeof q.note === "string" && q.note ? (
+        <p className="mt-1 text-[11px] leading-snug text-sky-900/85">
+          {q.note}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function ArtifactProvenance({ content }: { content: unknown }) {
   if (!isRecord(content)) return null;
   const src = content._agenticforceSource;
@@ -319,6 +362,27 @@ export function ReviewReportArtifactCard({ content }: { content: unknown }) {
             />
           </div>
         ) : null}
+        <Field
+          label="Quality verdict"
+          value={asString(content.qualityVerdict) || "—"}
+        />
+        <Field
+          label="Distinctiveness"
+          value={asString(content.distinctivenessAssessment) || "—"}
+        />
+        <Field
+          label="Brand alignment"
+          value={asString(content.brandAlignmentAssessment) || "—"}
+        />
+        {content.regenerationRecommended === true ? (
+          <div className="text-xs text-amber-800">
+            <p className="font-medium">Regeneration recommended (for next cycle)</p>
+            <StringList
+              items={content.regenerationReasons}
+              empty="(no reasons listed)"
+            />
+          </div>
+        ) : null}
         <div>
           <p className="text-xs font-medium text-zinc-500">Issues</p>
           <StringList items={content.issues} empty="None listed." />
@@ -399,6 +463,7 @@ export function ArtifactByType({
   return (
     <div>
       <ArtifactProvenance content={content} />
+      <QualityStrip content={content} />
       {inner}
     </div>
   );
