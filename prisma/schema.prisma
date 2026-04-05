@@ -41,6 +41,8 @@ enum AgentType {
 }
 
 enum ArtifactType {
+  /// Structured confirmation of brief intake (orchestrator-owned shape until agents exist).
+  INTAKE_SUMMARY
   STRATEGY
   CONCEPT
   COPY
@@ -144,7 +146,8 @@ model Task {
   brief   Brief  @relation(fields: [briefId], references: [id], onDelete: Cascade)
 
   stage          WorkflowStage
-  agentType      AgentType
+  /// Null for system stages (e.g. brief intake, export packaging) that do not invoke an agent role.
+  agentType      AgentType?
   status         TaskStatus    @default(PENDING)
   requiresReview Boolean       @default(false)
 
