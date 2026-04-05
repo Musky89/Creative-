@@ -5,10 +5,10 @@ const base =
 
 const variants = {
   primary:
-    "bg-zinc-900 text-white hover:bg-zinc-800 focus-visible:outline-zinc-900",
+    "bg-zinc-100 text-zinc-950 hover:bg-white focus-visible:outline-zinc-300",
   secondary:
-    "border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50 focus-visible:outline-zinc-400",
-  ghost: "text-zinc-700 hover:bg-zinc-100 focus-visible:outline-zinc-400",
+    "border border-zinc-600 bg-zinc-900/60 text-zinc-100 hover:border-zinc-500 hover:bg-zinc-800/80 focus-visible:outline-zinc-500",
+  ghost: "text-zinc-400 hover:bg-zinc-800/80 focus-visible:outline-zinc-500",
 };
 
 export function ButtonLink({

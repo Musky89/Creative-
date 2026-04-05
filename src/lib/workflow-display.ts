@@ -1,10 +1,13 @@
 import type { WorkflowStage } from "@/generated/prisma/client";
 import { buildV1PipelineRows } from "@/server/orchestrator/v1-pipeline";
 
+/** Ordered stages for a brief — matches server pipeline. */
+export type WorkflowStageOrder = readonly WorkflowStage[];
+
 /** UI ordering for timeline + studio — must match server pipeline for this brief. */
 export function workflowStageOrderForBrief(
   identityWorkflowEnabled: boolean,
-): readonly WorkflowStage[] {
+): WorkflowStageOrder {
   return buildV1PipelineRows(identityWorkflowEnabled).map((r) => r.stage);
 }
 
