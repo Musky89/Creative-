@@ -1,4 +1,7 @@
 import type { Prisma, PrismaClient, Task, TaskStatus } from "@/generated/prisma/client";
+import { executeAgentForTask } from "@/server/agents/runner";
+import { buildAgentRunInput } from "@/server/agents/run-input";
+import { getAgentForStage } from "@/server/agents/registry";
 import { getPrisma } from "@/server/db/prisma";
 import {
   arePrerequisitesSatisfied,
@@ -17,10 +20,7 @@ import {
 } from "./task-state";
 import type { WorkflowStateResponse, WorkflowTaskSnapshot } from "./types";
 import { getV1PipelineRow, stageOrderIndex, V1_PIPELINE } from "./v1-pipeline";
-import {
-  buildPlaceholderAgentRunInput,
-  buildPlaceholderArtifactContent,
-} from "./scaffold/placeholder-stage-output";
+import { buildPlaceholderArtifactContent } from "./scaffold/placeholder-stage-output";
 
 function toIso(d: Date | null): string | null {
   return d ? d.toISOString() : null;
@@ -191,9 +191,6 @@ export class OrchestratorService {
     }
 
     const now = new Date();
-    const brief = await this.db.brief.findUniqueOrThrow({
-      where: { id: task.briefId },
-    });
 
     return this.db.$transaction(async (tx) => {
       const updated = await tx.task.update({
@@ -202,17 +199,19 @@ export class OrchestratorService {
       });
 
       if (task.agentType) {
+        const runInput = await buildAgentRunInput(
+          taskId,
+          task.stage,
+          task.agentType,
+        );
         await tx.agentRun.create({
           data: {
             taskId,
             agentType: task.agentType,
-            input: buildPlaceholderAgentRunInput(
-              { brief },
-              task.stage,
-            ) as Prisma.InputJsonValue,
+            input: runInput as unknown as Prisma.InputJsonValue,
             output: {
-              _agenticforcePlaceholder: true,
-              note: "Run not finished — output filled on completeTask.",
+              _agenticforcePending: true,
+              note: "Filled on completeTask after LLM or fallback.",
             } as Prisma.InputJsonValue,
             duration: null,
           },
@@ -238,10 +237,40 @@ export class OrchestratorService {
       where: { id: task.briefId },
     });
 
-    const usedPlaceholder = artifactPayload === undefined;
-    const content: Record<string, unknown> = usedPlaceholder
-      ? buildPlaceholderArtifactContent(task.stage, row.artifactType, { brief })
-      : { ...artifactPayload, _agenticforceUserPayload: true };
+    let usedPlaceholder: boolean;
+    let content: Record<string, unknown>;
+
+    if (artifactPayload !== undefined) {
+      usedPlaceholder = false;
+      content = { ...artifactPayload, _agenticforceUserPayload: true };
+    } else if (task.agentType && getAgentForStage(task.stage)) {
+      const agentResult = await executeAgentForTask(taskId, task.stage);
+      if (agentResult.ok) {
+        usedPlaceholder = false;
+        content = {
+          ...agentResult.content,
+          _agenticforceSource: "llm",
+          _agenticforceModel: {
+            provider: agentResult.providerId,
+            model: agentResult.model,
+          },
+        };
+      } else {
+        usedPlaceholder = true;
+        content = {
+          ...buildPlaceholderArtifactContent(task.stage, row.artifactType, {
+            brief,
+          }),
+          _agenticforceSource: "placeholder_fallback",
+          _agenticforceLlmError: agentResult.error,
+        };
+      }
+    } else {
+      usedPlaceholder = true;
+      content = buildPlaceholderArtifactContent(task.stage, row.artifactType, {
+        brief,
+      });
+    }
 
     const latest = await this.db.artifact.findFirst({
       where: { taskId, type: row.artifactType },

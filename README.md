@@ -93,6 +93,12 @@ npm run lint    # ESLint
 
 **Prisma 7** reads the datasource URL from [`prisma.config.ts`](prisma.config.ts) (`DATABASE_URL`), not from `schema.prisma`.
 
+### LLM agents (v1)
+
+Set **`OPENAI_API_KEY`** and/or **`ANTHROPIC_API_KEY`**. Optional: **`LLM_PROVIDER`** (`auto` \| `openai` \| `anthropic`), **`OPENAI_MODEL`**, **`ANTHROPIC_MODEL`**. See [`.env.example`](.env.example).
+
+When no provider is configured, **STRATEGY / CONCEPTING / COPY / REVIEW** tasks still complete but persist **labeled placeholder** artifacts with `_agenticforceSource: "placeholder_fallback"` and the error reason in `_agenticforceLlmError` when an API key exists but the call failed.
+
 The initial migration is [`prisma/migrations/20260405120000_init_core_domain/migration.sql`](prisma/migrations/20260405120000_init_core_domain/migration.sql). If your database was empty, `prisma migrate dev` will apply it and record it in `_prisma_migrations`.
 
 ---
