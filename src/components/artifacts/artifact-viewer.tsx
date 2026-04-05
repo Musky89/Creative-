@@ -341,6 +341,159 @@ export function ConceptArtifactCard({
  * Visual Intelligence artifact — structured art direction for future image/video/logo pipelines.
  * Extension: read these fields in a future `buildImagePromptFromVisualSpec()` (not implemented here).
  */
+/**
+ * Assembled prompt packages for future `generateVisualAssetFromPromptPackage(artifactId, provider)`.
+ * Compare `providerVariants.GENERIC` vs GEMINI_IMAGE vs GPT_IMAGE side-by-side.
+ */
+export function VisualPromptPackageArtifactCard({ content }: { content: unknown }) {
+  if (!isRecord(content)) return <JsonFallback content={content} />;
+  const variants = content.providerVariants;
+  const meta = content.optionalPromptMetadata;
+
+  return (
+    <Card>
+      <SectionTitle>Visual prompt package</SectionTitle>
+      <p className="mt-1 text-xs text-zinc-500">
+        Deterministic assembly — ready for provider adapters; no image generation yet.
+      </p>
+      <div className="mt-4 space-y-4 rounded-xl border border-emerald-200/60 bg-emerald-50/30 p-4">
+        <Field
+          label="Source visual spec"
+          value={asString(content.sourceVisualSpecId) || "—"}
+        />
+        <Field
+          label="Canonical provider target"
+          value={asString(content.providerTarget) || "—"}
+        />
+      </div>
+      <div className="mt-6 space-y-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            Primary prompt (neutral)
+          </p>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-zinc-800">
+            {asString(content.primaryPrompt) || "—"}
+          </p>
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-red-800/80">
+            Avoid / negative
+          </p>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-zinc-800">
+            {asString(content.negativePrompt) || "—"}
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <p className="text-[11px] font-medium text-zinc-500">Style</p>
+            <p className="mt-1 text-sm text-zinc-800 whitespace-pre-wrap">
+              {asString(content.styleInstructions) || "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] font-medium text-zinc-500">Composition</p>
+            <p className="mt-1 text-sm text-zinc-800 whitespace-pre-wrap">
+              {asString(content.compositionInstructions) || "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] font-medium text-zinc-500">Lighting</p>
+            <p className="mt-1 text-sm text-zinc-800 whitespace-pre-wrap">
+              {asString(content.lightingInstructions) || "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] font-medium text-zinc-500">Color</p>
+            <p className="mt-1 text-sm text-zinc-800 whitespace-pre-wrap">
+              {asString(content.colorInstructions) || "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] font-medium text-zinc-500">Texture</p>
+            <p className="mt-1 text-sm text-zinc-800 whitespace-pre-wrap">
+              {asString(content.textureInstructions) || "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] font-medium text-zinc-500">Typography</p>
+            <p className="mt-1 text-sm text-zinc-800 whitespace-pre-wrap">
+              {asString(content.typographyInstructions) || "—"}
+            </p>
+          </div>
+        </div>
+        <div>
+          <p className="text-[11px] font-medium text-zinc-500">References</p>
+          <p className="mt-1 text-sm text-zinc-800 whitespace-pre-wrap">
+            {asString(content.referenceInstructions) || "—"}
+          </p>
+        </div>
+        <div>
+          <p className="text-[11px] font-medium text-zinc-500">Brand alignment</p>
+          <p className="mt-1 text-sm text-zinc-800 whitespace-pre-wrap">
+            {asString(content.brandAlignmentNotes) || "—"}
+          </p>
+        </div>
+        {Array.isArray(content.optionalShotVariants) &&
+        content.optionalShotVariants.length > 0 ? (
+          <div>
+            <p className="text-[11px] font-medium text-zinc-500">Shot variants</p>
+            <StringList items={content.optionalShotVariants} empty="—" />
+          </div>
+        ) : null}
+      </div>
+
+      {isRecord(variants) ? (
+        <div className="mt-8 space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-violet-800">
+            Provider-ready variants
+          </p>
+          <div className="grid gap-4 lg:grid-cols-3">
+            {(["GENERIC", "GEMINI_IMAGE", "GPT_IMAGE"] as const).map((key) => {
+              const v = variants[key];
+              if (!isRecord(v)) return null;
+              return (
+                <div
+                  key={key}
+                  className="rounded-lg border border-violet-200/70 bg-violet-50/40 p-3"
+                >
+                  <p className="text-xs font-semibold text-violet-950">{key.replace(/_/g, " ")}</p>
+                  {typeof v.adapterNote === "string" && v.adapterNote ? (
+                    <p className="mt-1 text-[11px] text-violet-900/80">{v.adapterNote}</p>
+                  ) : null}
+                  <p className="mt-2 text-[10px] font-medium uppercase text-zinc-500">Prompt</p>
+                  <p className="mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap font-mono text-[11px] leading-snug text-zinc-800">
+                    {asString(v.prompt) || "—"}
+                  </p>
+                  <p className="mt-2 text-[10px] font-medium uppercase text-zinc-500">
+                    Negative / avoid
+                  </p>
+                  <p className="mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap font-mono text-[11px] text-zinc-700">
+                    {asString(v.negativeOrAvoid) || "—"}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {isRecord(meta) && Object.keys(meta).length > 0 ? (
+        <div className="mt-6 rounded-lg border border-zinc-200 bg-zinc-50/50 p-3">
+          <p className="text-[11px] font-medium text-zinc-500">Assembly metadata</p>
+          <ul className="mt-2 space-y-1 text-xs text-zinc-700">
+            {Object.entries(meta).map(([k, val]) => (
+              <li key={k}>
+                <span className="text-zinc-500">{k}: </span>
+                {asString(val)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </Card>
+  );
+}
+
 export function VisualSpecArtifactCard({
   content,
   preferredFrameworkIds,
@@ -629,6 +782,8 @@ export function ArtifactByType({
             preferredFrameworkIds={preferredFrameworkIds}
           />
         );
+      case "VISUAL_PROMPT_PACKAGE":
+        return <VisualPromptPackageArtifactCard content={content} />;
       case "COPY":
         return (
           <CopyArtifactCard

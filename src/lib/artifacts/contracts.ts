@@ -4,6 +4,49 @@
  */
 import { z } from "zod";
 
+/** Matches Prisma `VisualPromptProviderTarget` — image adapters (no generation yet). */
+export const visualPromptProviderTargetSchema = z.enum([
+  "GENERIC",
+  "GEMINI_IMAGE",
+  "GPT_IMAGE",
+]);
+
+const providerReadyBundleSchema = z.object({
+  prompt: z.string().min(1),
+  negativeOrAvoid: z.string(),
+  adapterNote: z.string(),
+});
+
+/**
+ * Deterministic assembly output: bridge VISUAL_SPEC + Brand OS → provider-ready packages.
+ * Extension: `generateVisualAssetFromPromptPackage(id, provider)` consumes `providerVariants`.
+ */
+export const visualPromptPackageArtifactSchema = z.object({
+  sourceVisualSpecId: z.string().min(1),
+  /** Canonical row target; full multi-provider output lives in `providerVariants`. */
+  providerTarget: visualPromptProviderTargetSchema,
+  primaryPrompt: z.string().min(1),
+  /** Merged avoid list + OS boundaries — safe to pass as negative prompt where supported. */
+  negativePrompt: z.string(),
+  styleInstructions: z.string().min(1),
+  compositionInstructions: z.string().min(1),
+  lightingInstructions: z.string().min(1),
+  colorInstructions: z.string().min(1),
+  textureInstructions: z.string().min(1),
+  typographyInstructions: z.string().min(1),
+  referenceInstructions: z.string().min(1),
+  brandAlignmentNotes: z.string().min(1),
+  optionalShotVariants: z.array(z.string().min(1)).max(12).optional(),
+  optionalPromptMetadata: z.record(z.string(), z.unknown()).optional(),
+  providerVariants: z
+    .object({
+      GENERIC: providerReadyBundleSchema.optional(),
+      GEMINI_IMAGE: providerReadyBundleSchema.optional(),
+      GPT_IMAGE: providerReadyBundleSchema.optional(),
+    })
+    .strict(),
+});
+
 export const strategyArtifactSchema = z.object({
   objective: z.string().min(1),
   audience: z.string().min(1),
@@ -97,6 +140,9 @@ export type StrategyArtifact = z.infer<typeof strategyArtifactSchema>;
 export type ConceptArtifact = z.infer<typeof conceptArtifactSchema>;
 export type ConceptVariant = z.infer<typeof conceptSubSchema>;
 export type VisualSpecArtifact = z.infer<typeof visualSpecArtifactSchema>;
+export type VisualPromptPackageArtifact = z.infer<
+  typeof visualPromptPackageArtifactSchema
+>;
 export type CopyArtifact = z.infer<typeof copyArtifactSchema>;
 export type ReviewReportArtifact = z.infer<typeof reviewReportArtifactSchema>;
 

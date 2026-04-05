@@ -1,4 +1,11 @@
-import type { Prisma, PrismaClient, Task, TaskStatus } from "@/generated/prisma/client";
+import type {
+  Artifact,
+  ArtifactType,
+  Prisma,
+  PrismaClient,
+  Task,
+  TaskStatus,
+} from "@/generated/prisma/client";
 import { executeAgentForTask } from "@/server/agents/runner";
 import { buildAgentRunInput } from "@/server/agents/run-input";
 import { getAgentForStage } from "@/server/agents/registry";
@@ -6,7 +13,10 @@ import {
   assessBrandBibleReadiness,
   formatReadinessMessage,
 } from "@/server/brand/readiness";
+import { brandBibleToOperatingSystem } from "@/server/brand/brand-bible-operating-system";
 import { getPrisma } from "@/server/db/prisma";
+import { visualSpecArtifactSchema } from "@/lib/artifacts/contracts";
+import { buildVisualPromptPackage } from "@/server/visual-prompt/assemble-visual-prompt-package";
 import {
   arePrerequisitesSatisfied,
   statusMapFromTasks,
@@ -29,6 +39,17 @@ import { recordArtifactOutcomeAndPerformance } from "@/server/canon/outcomes";
 
 function toIso(d: Date | null): string | null {
   return d ? d.toISOString() : null;
+}
+
+async function findLatestArtifactForPipelineRow(
+  db: PrismaClient,
+  taskId: string,
+  artifactType: ArtifactType,
+): Promise<Artifact | null> {
+  return db.artifact.findFirst({
+    where: { taskId, type: artifactType },
+    orderBy: { version: "desc" },
+  });
 }
 
 function toTaskSnapshot(t: Task): WorkflowTaskSnapshot {
@@ -391,10 +412,12 @@ export class OrchestratorService {
     }
     assertTaskIsAwaitingReview(task.status);
 
-    const latestArtifact = await this.db.artifact.findFirst({
-      where: { taskId },
-      orderBy: { createdAt: "desc" },
-    });
+    const row = getV1PipelineRow(task.stage);
+    const latestArtifact = await findLatestArtifactForPipelineRow(
+      this.db,
+      taskId,
+      row.artifactType,
+    );
 
     await this.db.$transaction(async (tx) => {
       await tx.reviewItem.create({
@@ -425,6 +448,15 @@ export class OrchestratorService {
       });
     }
 
+    if (task.stage === "VISUAL_DIRECTION" && latestArtifact) {
+      await this.persistVisualPromptPackageAfterVisualApproval(
+        taskId,
+        task.brief.clientId,
+        latestArtifact,
+        feedback,
+      );
+    }
+
     await this.unlockDependentTasks(taskId);
     return this.getWorkflowState(task.briefId);
   }
@@ -450,10 +482,12 @@ export class OrchestratorService {
     }
     assertTaskIsAwaitingReview(task.status);
 
-    const latestArtifact = await this.db.artifact.findFirst({
-      where: { taskId },
-      orderBy: { createdAt: "desc" },
-    });
+    const row = getV1PipelineRow(task.stage);
+    const latestArtifact = await findLatestArtifactForPipelineRow(
+      this.db,
+      taskId,
+      row.artifactType,
+    );
 
     await this.db.$transaction(async (tx) => {
       await tx.reviewItem.create({
@@ -485,6 +519,62 @@ export class OrchestratorService {
     }
 
     return this.getWorkflowState(task.briefId);
+  }
+
+  /**
+   * Persists a derived VISUAL_PROMPT_PACKAGE on the same task as VISUAL_SPEC after approval.
+   * Future: `generateVisualAssetFromPromptPackage(artifactId, provider)` consumes `providerVariants`.
+   */
+  private async persistVisualPromptPackageAfterVisualApproval(
+    taskId: string,
+    clientId: string,
+    visualSpecArtifact: Artifact,
+    founderFeedback?: string,
+  ): Promise<void> {
+    const raw = visualSpecArtifact.content as Record<string, unknown>;
+    const stripped: Record<string, unknown> = { ...raw };
+    for (const k of Object.keys(stripped)) {
+      if (k.startsWith("_")) delete stripped[k];
+    }
+    const parsed = visualSpecArtifactSchema.safeParse(stripped);
+    if (!parsed.success) {
+      return;
+    }
+
+    const bb = await this.db.brandBible.findUnique({ where: { clientId } });
+    if (!bb) {
+      return;
+    }
+    const brandOs = brandBibleToOperatingSystem(bb);
+
+    const pkg = buildVisualPromptPackage({
+      sourceVisualSpecId: visualSpecArtifact.id,
+      spec: parsed.data,
+      brandOs,
+      founderDirection: founderFeedback?.trim() || undefined,
+      framework: null,
+    });
+
+    const latestPkg = await this.db.artifact.findFirst({
+      where: { taskId, type: "VISUAL_PROMPT_PACKAGE" },
+      orderBy: { version: "desc" },
+    });
+    const nextVersion = (latestPkg?.version ?? 0) + 1;
+
+    const content = {
+      ...pkg,
+      _agenticforceSource: "deterministic_assembly",
+      _agenticforceDerivedFromArtifactId: visualSpecArtifact.id,
+    };
+
+    await this.db.artifact.create({
+      data: {
+        taskId,
+        type: "VISUAL_PROMPT_PACKAGE",
+        content: content as Prisma.InputJsonValue,
+        version: nextVersion,
+      },
+    });
   }
 
   async resetTaskToReady(taskId: string): Promise<Task> {

@@ -49,6 +49,8 @@ enum ArtifactType {
   CONCEPT
   /// Structured art direction for future image/video/logo pipelines (pre-generation).
   VISUAL_SPEC
+  /// Deterministic prompt package derived from VISUAL_SPEC + Brand OS (pre-generation).
+  VISUAL_PROMPT_PACKAGE
   COPY
   REVIEW_REPORT
   EXPORT
@@ -101,6 +103,13 @@ enum PersuasionStyle {
   DIRECT
   STORY_LED
   PROOF_LED
+}
+
+/// Target image provider for assembled prompt packages (adapters; no generation yet).
+enum VisualPromptProviderTarget {
+  GENERIC
+  GEMINI_IMAGE
+  GPT_IMAGE
 }
 
 /// Class of engagement / template used to instantiate work from a Brief.

@@ -111,6 +111,8 @@ When no provider is configured, **STRATEGY / CONCEPTING / COPY / REVIEW** tasks 
 
 **Pre-persist quality loop (strategy, concept, visual direction, copy):** after a valid JSON artifact, a fast LLM quality pass plus deterministic checks may trigger **one** regeneration with explicit critique; metadata is stored on the artifact as `_agenticforceQuality` and mirrored in `AgentRun.metadata.qualityLoop`. If the second pass still fails, the **best available** draft is kept with `stillWeakAfterRegen`. Visual specs add deterministic checks against vague “luxury/cinematic” filler and thin `avoidList` / `referenceLogic`.
 
+**Visual prompt assembly:** approving the **visual direction** task creates a versioned **`VISUAL_PROMPT_PACKAGE`** artifact on the same task (deterministic: `VISUAL_SPEC` + Brand OS + optional founder approval note). It stores neutral instruction sections plus **GENERIC**, **GEMINI_IMAGE**, and **GPT_IMAGE** adapter bundles (`src/server/visual-prompt/`) for a future `generateVisualAssetFromPromptPackage` step — still **no image API calls**.
+
 **Client creative memory (lite):** `FrameworkPerformance` and `ArtifactOutcome` tables record review outcomes per client and framework id; `selectFrameworksForTask` ranks the global pool using heuristic position plus these stats (always keeps ≥1 heuristic id in the final four). Studio shows a short client Canon hint and “Strong for this client” on matching framework strips.
 
 The initial migration is [`prisma/migrations/20260405120000_init_core_domain/migration.sql`](prisma/migrations/20260405120000_init_core_domain/migration.sql). If your database was empty, `prisma migrate dev` will apply it and record it in `_prisma_migrations`.

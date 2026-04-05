@@ -263,23 +263,46 @@ export default async function BriefStudioPage({
                 ];
                 const at = rowTypes[WORKFLOW_STAGE_ORDER.indexOf(stage)];
                 const art = latestArtifact(task.id, at);
+                const promptPkg =
+                  stage === "VISUAL_DIRECTION"
+                    ? latestArtifact(task.id, "VISUAL_PROMPT_PACKAGE")
+                    : null;
+                const hasAny = art || promptPkg;
                 return (
                   <div key={stage}>
                     <p className="mb-2 text-sm font-medium text-zinc-800">
                       {STAGE_LABELS[stage]}
                     </p>
-                    {art ? (
-                      <ArtifactByType
-                        type={art.type}
-                        content={art.content}
-                        preferredFrameworkIds={preferredFrameworkIds}
-                      />
-                    ) : (
+                    {!hasAny ? (
                       <Card>
                         <p className="text-sm text-zinc-500">
                           No artifact yet for this stage.
                         </p>
                       </Card>
+                    ) : (
+                      <div className="space-y-6">
+                        {art ? (
+                          <ArtifactByType
+                            type={art.type}
+                            content={art.content}
+                            preferredFrameworkIds={preferredFrameworkIds}
+                          />
+                        ) : null}
+                        {promptPkg ? (
+                          <ArtifactByType
+                            type={promptPkg.type}
+                            content={promptPkg.content}
+                            preferredFrameworkIds={preferredFrameworkIds}
+                          />
+                        ) : stage === "VISUAL_DIRECTION" && art ? (
+                          <Card>
+                            <p className="text-sm text-zinc-500">
+                              Visual prompt package is created when you approve visual
+                              direction (deterministic assembly from spec + Brand OS).
+                            </p>
+                          </Card>
+                        ) : null}
+                      </div>
                     )}
                   </div>
                 );
