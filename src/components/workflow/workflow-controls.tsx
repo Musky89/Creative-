@@ -139,8 +139,8 @@ export function WorkflowControls({
           <Notice variant="info">
             <p className="font-medium">Brand Bible required for AI stages</p>
             <p className="mt-1 text-sm opacity-90">
-              Complete the following before running Strategist, Creative Director,
-              Copywriter, or Brand Guardian tasks:
+              Complete the following before running Strategist, Creative Director, Art
+              Director, Copywriter, or Brand Guardian tasks:
             </p>
             <ul className="mt-2 list-inside list-disc text-sm">
               {brandReadiness.missing.map((m) => (

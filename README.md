@@ -109,7 +109,7 @@ When no provider is configured, **STRATEGY / CONCEPTING / COPY / REVIEW** tasks 
 
 **Creative Canon:** in-code frameworks (`src/lib/canon/frameworks.ts`) are selected per stage (`selectFrameworksForTask`); agents receive them in prompts and outputs include framework fields. Persisted artifacts also carry `_creativeCanonFrameworkIds` for audit.
 
-**Pre-persist quality loop (strategy / concept / copy):** after a valid JSON artifact, a fast LLM quality pass plus deterministic checks may trigger **one** regeneration with explicit critique; metadata is stored on the artifact as `_agenticforceQuality` and mirrored in `AgentRun.metadata.qualityLoop`. If the second pass still fails, the **best available** draft is kept with `stillWeakAfterRegen`.
+**Pre-persist quality loop (strategy / concept / **visual direction** / copy):** after a valid JSON artifact, a fast LLM quality pass plus deterministic checks may trigger **one** regeneration with explicit critique; metadata is stored on the artifact as `_agenticforceQuality` and mirrored in `AgentRun.metadata.qualityLoop`. If the second pass still fails, the **best available** draft is kept with `stillWeakAfterRegen`. Visual specs add deterministic checks against vague “luxury/cinematic” filler and thin `avoidList` / `referenceLogic`.
 
 **Client creative memory (lite):** `FrameworkPerformance` and `ArtifactOutcome` tables record review outcomes per client and framework id; `selectFrameworksForTask` ranks the global pool using heuristic position plus these stats (always keeps ≥1 heuristic id in the final four). Studio shows a short client Canon hint and “Strong for this client” on matching framework strips.
 
@@ -123,7 +123,7 @@ All responses are JSON: success `{ ok: true, data }`, errors `{ ok: false, error
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `POST` | `/api/orchestrator/briefs/[briefId]/initialize` | Create the six-stage task graph for the brief; first task becomes `READY`. |
+| `POST` | `/api/orchestrator/briefs/[briefId]/initialize` | Create the canonical linear task graph for the brief (intake → strategy → concept → **visual direction** → copy → review → export); first task becomes `READY`. |
 | `GET` | `/api/orchestrator/briefs/[briefId]/workflow` | Full workflow state: tasks (pipeline order), edges, `nextExecutableTaskIds`. |
 | `POST` | `/api/orchestrator/briefs/[briefId]/execute-next` | `startTask` + `completeTask` on the next READY task (optional JSON body `{ "artifactPayload": { ... } }`). |
 | `POST` | `/api/orchestrator/tasks/[taskId]/start` | `READY` → `RUNNING`; creates `AgentRun` when `agentType` is set. |

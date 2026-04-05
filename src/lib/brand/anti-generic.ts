@@ -87,7 +87,11 @@ export function findVagueMarketingAdjectives(text: string): string[] {
 }
 
 export function collectArtifactTextForQuality(
-  stage: "STRATEGY" | "CONCEPTING" | "COPY_DEVELOPMENT",
+  stage:
+    | "STRATEGY"
+    | "CONCEPTING"
+    | "VISUAL_DIRECTION"
+    | "COPY_DEVELOPMENT",
   content: Record<string, unknown>,
 ): string {
   const parts: string[] = [];
@@ -122,6 +126,27 @@ export function collectArtifactTextForQuality(
         );
       }
     }
+  } else if (stage === "VISUAL_DIRECTION") {
+    const keys = [
+      "visualObjective",
+      "whyItWorksForBrand",
+      "mood",
+      "emotionalTone",
+      "composition",
+      "colorDirection",
+      "textureDirection",
+      "lightingDirection",
+      "typographyDirection",
+      "imageStyle",
+      "referenceLogic",
+      "distinctivenessNotes",
+      "optionalPromptSeed",
+    ] as const;
+    for (const k of keys) {
+      parts.push(String(content[k] ?? ""));
+    }
+    const avoid = content.avoidList;
+    if (Array.isArray(avoid)) parts.push(...avoid.map((x) => String(x)));
   } else {
     const heads = content.headlineOptions;
     const bodies = content.bodyCopyOptions;

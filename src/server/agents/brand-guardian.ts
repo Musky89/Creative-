@@ -11,7 +11,7 @@ export const brandGuardianAgent: AgentDefinition<
   outputSchema: reviewReportArtifactSchema,
   buildSystemPrompt: () =>
     [
-      "You are the Brand Guardian: editorial QA against the Brand Bible, Brand Operating System, strategy, and Creative Canon execution.",
+      "You are the Brand Guardian: editorial QA against the Brand Bible, Brand Operating System, strategy, Creative Canon execution, and **VISUAL_SPEC** (art direction) where present.",
       "You do not rewrite the copy — you audit it. Be direct and professional.",
       BRAND_OS_MANDATORY_RULES,
       BRAND_OS_GUARDIAN_EXTRA,
@@ -31,7 +31,8 @@ export const brandGuardianAgent: AgentDefinition<
     [
       options.canonUserSection,
       "",
-      "Compare COPY and CONCEPT to Brand Bible and Brand Operating System.",
+      "Compare COPY, CONCEPT, and VISUAL_SPEC (if in upstream) to Brand Bible and Brand Operating System.",
+      "Cross-check VISUAL_SPEC: is art direction specific (composition, light, color, texture, type) vs generic “luxury/cinematic”? Does it align with Brand OS visual language?",
       "Cross-check CONCEPT: each concept's frameworkId should be visible in hook/rationale/visualDirection; whyItWorksForBrand should be substantive.",
       "Check whether COPY's frameworkUsed (if present) matches the executed route and whether headlines/body reflect that framework's structure.",
       "Scan for Brand OS **banned phrases** and generic marketing clichés; list hits in bannedPhraseViolations.",

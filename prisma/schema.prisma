@@ -18,6 +18,7 @@ enum WorkflowStage {
   BRIEF_INTAKE
   STRATEGY
   CONCEPTING
+  VISUAL_DIRECTION
   COPY_DEVELOPMENT
   REVIEW
   EXPORT
@@ -36,6 +37,7 @@ enum TaskStatus {
 enum AgentType {
   STRATEGIST
   CREATIVE_DIRECTOR
+  ART_DIRECTOR
   COPYWRITER
   BRAND_GUARDIAN
 }
@@ -45,6 +47,8 @@ enum ArtifactType {
   INTAKE_SUMMARY
   STRATEGY
   CONCEPT
+  /// Structured art direction for future image/video/logo pipelines (pre-generation).
+  VISUAL_SPEC
   COPY
   REVIEW_REPORT
   EXPORT

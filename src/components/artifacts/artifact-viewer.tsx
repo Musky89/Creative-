@@ -337,6 +337,106 @@ export function ConceptArtifactCard({
   );
 }
 
+/**
+ * Visual Intelligence artifact — structured art direction for future image/video/logo pipelines.
+ * Extension: read these fields in a future `buildImagePromptFromVisualSpec()` (not implemented here).
+ */
+export function VisualSpecArtifactCard({
+  content,
+  preferredFrameworkIds,
+}: {
+  content: unknown;
+  preferredFrameworkIds?: string[];
+}) {
+  if (!isRecord(content)) return <JsonFallback content={content} />;
+  const fw = asString(content.frameworkUsed);
+  return (
+    <Card>
+      <SectionTitle>Visual spec</SectionTitle>
+      <p className="mt-1 text-xs text-zinc-500">
+        Art direction system — use for design execution or future generative pipelines.
+      </p>
+      {fw ? (
+        <div className="mt-4">
+          <FrameworkStrip
+            frameworkId={fw}
+            title="Primary framework"
+            isPreferredForClient={preferredFrameworkIds?.includes(fw.trim())}
+          />
+        </div>
+      ) : null}
+      <div className="mt-6 space-y-6">
+        <div className="rounded-xl border border-zinc-200/90 bg-gradient-to-b from-zinc-50/80 to-white p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            Concept & objective
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <Field label="Concept route" value={asString(content.conceptName) || "—"} />
+            <Field label="Visual objective" value={asString(content.visualObjective) || "—"} />
+          </div>
+          <div className="mt-3">
+            <Field
+              label="Why it works for brand"
+              value={asString(content.whyItWorksForBrand) || "—"}
+            />
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-violet-200/60 bg-violet-50/40 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-800/90">
+              Mood & emotion
+            </p>
+            <div className="mt-3 space-y-2">
+              <Field label="Mood" value={asString(content.mood) || "—"} />
+              <Field label="Emotional tone" value={asString(content.emotionalTone) || "—"} />
+            </div>
+          </div>
+          <div className="rounded-lg border border-amber-200/60 bg-amber-50/40 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-900/85">
+              Composition & style
+            </p>
+            <div className="mt-3 space-y-2">
+              <Field label="Composition" value={asString(content.composition) || "—"} />
+              <Field label="Image style" value={asString(content.imageStyle) || "—"} />
+            </div>
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Color direction" value={asString(content.colorDirection) || "—"} />
+          <Field label="Lighting" value={asString(content.lightingDirection) || "—"} />
+          <Field label="Texture" value={asString(content.textureDirection) || "—"} />
+          <Field label="Typography" value={asString(content.typographyDirection) || "—"} />
+        </div>
+        <div>
+          <Field label="Reference logic" value={asString(content.referenceLogic) || "—"} />
+        </div>
+        <div>
+          <Field
+            label="Distinctiveness"
+            value={asString(content.distinctivenessNotes) || "—"}
+          />
+        </div>
+        <div className="rounded-lg border border-red-200/70 bg-red-50/35 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-red-900/80">
+            Avoid
+          </p>
+          <div className="mt-2">
+            <StringList items={content.avoidList} empty="Nothing listed." />
+          </div>
+        </div>
+        {typeof content.optionalPromptSeed === "string" && content.optionalPromptSeed.trim() ? (
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-3">
+            <p className="text-[11px] font-medium text-zinc-500">Optional prompt seed</p>
+            <p className="mt-1 font-mono text-xs leading-relaxed text-zinc-800">
+              {content.optionalPromptSeed}
+            </p>
+          </div>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
 export function CopyArtifactCard({
   content,
   preferredFrameworkIds,
@@ -518,6 +618,13 @@ export function ArtifactByType({
       case "CONCEPT":
         return (
           <ConceptArtifactCard
+            content={content}
+            preferredFrameworkIds={preferredFrameworkIds}
+          />
+        );
+      case "VISUAL_SPEC":
+        return (
+          <VisualSpecArtifactCard
             content={content}
             preferredFrameworkIds={preferredFrameworkIds}
           />

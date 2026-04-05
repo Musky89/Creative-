@@ -48,7 +48,11 @@ export type DeterministicQualityResult = {
 
 /** Deterministic anti-generic + Brand OS banned phrase pass (feeds quality loop). */
 export function mergeAntiGenericIssues(
-  stage: "STRATEGY" | "CONCEPTING" | "COPY_DEVELOPMENT",
+  stage:
+    | "STRATEGY"
+    | "CONCEPTING"
+    | "VISUAL_DIRECTION"
+    | "COPY_DEVELOPMENT",
   content: Record<string, unknown>,
   bannedPhrases: string[],
 ): DeterministicQualityResult {
@@ -67,7 +71,12 @@ export function mergeAntiGenericIssues(
     issues.push(
       `Anti-generic: multiple cliché phrases (${gen.slice(0, 5).join(", ")}) — use specific, brand-grounded language.`,
     );
-  } else if (gen.length === 1 && (stage === "COPY_DEVELOPMENT" || stage === "CONCEPTING")) {
+  } else if (
+    gen.length === 1 &&
+    (stage === "COPY_DEVELOPMENT" ||
+      stage === "CONCEPTING" ||
+      stage === "VISUAL_DIRECTION")
+  ) {
     issues.push(`Anti-generic: "${gen[0]}" reads as generic filler — replace.`);
   }
   if (vague.length >= 4) {
@@ -80,9 +89,77 @@ export function mergeAntiGenericIssues(
     bannedHits.length > 0 ||
     gen.length >= 2 ||
     (stage === "COPY_DEVELOPMENT" && gen.length >= 1) ||
+    (stage === "VISUAL_DIRECTION" && gen.length >= 1) ||
     vague.length >= 4;
 
   return { issues, recommendRegeneration };
+}
+
+const VISUAL_VIBE_ONLY = [
+  "luxury",
+  "high-end",
+  "high end",
+  "premium feel",
+  "cinematic",
+  "epic",
+  "stunning",
+  "beautiful",
+  "elegant",
+  "sophisticated",
+  "minimal",
+  "clean",
+  "modern",
+] as const;
+
+function countVisualVibePhrases(text: string): number {
+  const t = text.toLowerCase();
+  let n = 0;
+  for (const p of VISUAL_VIBE_ONLY) {
+    if (t.includes(p)) n++;
+  }
+  return n;
+}
+
+export function deterministicVisualSpecChecks(
+  content: Record<string, unknown>,
+): DeterministicQualityResult {
+  const issues: string[] = [];
+  const blob = [
+    String(content.visualObjective ?? ""),
+    String(content.mood ?? ""),
+    String(content.emotionalTone ?? ""),
+    String(content.composition ?? ""),
+    String(content.colorDirection ?? ""),
+    String(content.imageStyle ?? ""),
+    String(content.distinctivenessNotes ?? ""),
+    String(content.whyItWorksForBrand ?? ""),
+  ].join("\n");
+
+  if (countVisualVibePhrases(blob) >= 4) {
+    issues.push(
+      "Visual spec leans on generic aesthetic words (luxury/cinematic/minimal/etc.) without enough concrete art-direction detail — add specifics.",
+    );
+  }
+
+  const avoid = content.avoidList;
+  if (!Array.isArray(avoid) || avoid.length < 2) {
+    issues.push("avoidList must meaningfully constrain what not to do.");
+  } else {
+    const joined = avoid.map((x) => String(x).toLowerCase()).join(" ");
+    if (joined.length < 24) {
+      issues.push("avoidList entries are too thin — spell out clichés and AI-slop patterns to exclude.");
+    }
+  }
+
+  const ref = String(content.referenceLogic ?? "");
+  if (ref.length < 35) {
+    issues.push("referenceLogic is too vague — define how references are used (era, medium, what to avoid).");
+  }
+
+  return {
+    issues,
+    recommendRegeneration: issues.length >= 1,
+  };
 }
 
 export function deterministicConceptChecks(content: Record<string, unknown>): DeterministicQualityResult {

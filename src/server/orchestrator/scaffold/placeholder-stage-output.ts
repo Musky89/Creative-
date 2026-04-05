@@ -95,6 +95,39 @@ export function buildPlaceholderArtifactContent(
           },
         ],
       };
+    case "VISUAL_SPEC":
+      return {
+        ...base,
+        frameworkUsed: "transformation",
+        conceptName: "[Placeholder] Route A",
+        visualObjective:
+          "[Placeholder] Establish a distinctive visual system for this brief grounded in the chosen concept route — not generic category imagery.",
+        whyItWorksForBrand:
+          "[Placeholder] Ties to Brand OS visual language and emotional profile (scaffold only).",
+        mood: "[Placeholder] Specific mood with concrete sensory cues, not a single adjective.",
+        emotionalTone:
+          "[Placeholder] How the frame should feel relative to primaryEmotion in Brand OS.",
+        composition:
+          "[Placeholder] Framing, hierarchy, negative space, subject scale — actionable.",
+        colorDirection:
+          "[Placeholder] Palette logic, contrast, restraint vs saturation — specific.",
+        textureDirection: "[Placeholder] Materials and surface behavior.",
+        lightingDirection: "[Placeholder] Key quality, direction, hardness, color temperature.",
+        typographyDirection:
+          "[Placeholder] Role of type: scale, voice, pairing, motion if any.",
+        imageStyle:
+          "[Placeholder] Medium and capture approach (e.g. large-format still life, not “premium stock”).",
+        referenceLogic:
+          "[Placeholder] What references are for; what to avoid (e.g. no generic tech stock).",
+        distinctivenessNotes:
+          "[Placeholder] What makes this direction non-interchangeable with competitors.",
+        avoidList: [
+          "[Placeholder] AI-slop trope to exclude",
+          "[Placeholder] Off-brand visual cliché to exclude",
+        ],
+        optionalPromptSeed:
+          "[Optional] Concrete noun-heavy seed for a future image pipeline — scaffold placeholder.",
+      };
     case "COPY":
       return {
         ...base,

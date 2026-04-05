@@ -90,24 +90,56 @@ export function getHeuristicFrameworkIds(
     return [...new Set(ids)].slice(0, 4);
   }
 
-  if (stage === "COPY_DEVELOPMENT") {
+  if (stage === "VISUAL_DIRECTION") {
     const fromConcept = extractConceptFrameworkIds(context);
     if (fromConcept.length >= 2) {
       return fromConcept.slice(0, 4);
+    }
+    return [
+      "material-as-emotion",
+      "minimalist-premium",
+      "sensory-immersion",
+      "unexpected-contrast",
+    ];
+  }
+
+  if (stage === "COPY_DEVELOPMENT") {
+    const fromVisual = extractVisualSpecFrameworkId(context);
+    const fromConcept = extractConceptFrameworkIds(context);
+    const merged = [...new Set([fromVisual, ...fromConcept].filter(Boolean))] as string[];
+    if (merged.length >= 2) {
+      return merged.slice(0, 4);
+    }
+    if (merged.length === 1) {
+      return [...merged, "hyper-functional", "problem-agitation", "authority-proof"].slice(0, 4);
     }
     return ["hyper-functional", "problem-agitation", "authority-proof"];
   }
 
   if (stage === "REVIEW") {
+    const fromVisual = extractVisualSpecFrameworkId(context);
     const fromConcept = extractConceptFrameworkIds(context);
     const base =
-      fromConcept.length > 0
-        ? [...fromConcept, "authority-proof"]
-        : ["authority-proof", "minimalist-premium", "hyper-functional"];
+      fromVisual
+        ? [fromVisual, ...fromConcept, "authority-proof"]
+        : fromConcept.length > 0
+          ? [...fromConcept, "authority-proof"]
+          : ["authority-proof", "minimalist-premium", "hyper-functional"];
     return [...new Set(base)].slice(0, 4);
   }
 
   return [];
+}
+
+function extractVisualSpecFrameworkId(context: TaskAgentContext): string {
+  const spec = context.upstreamArtifacts.find(
+    (u) => u.stage === "VISUAL_DIRECTION" || u.type === "VISUAL_SPEC",
+  );
+  if (!spec || spec.content == null || typeof spec.content !== "object") {
+    return "";
+  }
+  const fw = (spec.content as Record<string, unknown>).frameworkUsed;
+  return typeof fw === "string" && fw.trim() ? fw.trim() : "";
 }
 
 function extractConceptFrameworkIds(context: TaskAgentContext): string[] {

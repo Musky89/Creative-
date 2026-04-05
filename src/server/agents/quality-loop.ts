@@ -3,6 +3,7 @@ import {
   deterministicConceptChecks,
   deterministicCopyChecks,
   deterministicStrategyChecks,
+  deterministicVisualSpecChecks,
   mergeAntiGenericIssues,
   prePersistQualitySchema,
   type PrePersistQuality,
@@ -17,6 +18,7 @@ Output a single JSON object only. No markdown.
 You must judge whether the draft is specific and framework-grounded vs generic filler.
 The user message includes Brand Operating System rules: treat **banned phrases** as hard failures (flag regeneration).
 Also flag generic marketing clichés ("best in class", "innovative solution", "premium feel", vague superlatives without proof).
+For VISUAL_DIRECTION / VISUAL_SPEC drafts: reject vague "luxury / cinematic / high-end" without concrete composition, color, light, texture, and typography specifics; demand brand-grounded art direction a human team could shoot or design.
 
 Fields:
 - qualityVerdict: "STRONG" | "ACCEPTABLE" | "WEAK"
@@ -28,10 +30,19 @@ Fields:
 
 Be strict: generic marketing language, interchangeable hooks, or vague rationale = regenerationRecommended true.`;
 
-export type QualityLoopStage = "STRATEGY" | "CONCEPTING" | "COPY_DEVELOPMENT";
+export type QualityLoopStage =
+  | "STRATEGY"
+  | "CONCEPTING"
+  | "VISUAL_DIRECTION"
+  | "COPY_DEVELOPMENT";
 
 export function stageUsesQualityLoop(stage: WorkflowStage): stage is QualityLoopStage {
-  return stage === "STRATEGY" || stage === "CONCEPTING" || stage === "COPY_DEVELOPMENT";
+  return (
+    stage === "STRATEGY" ||
+    stage === "CONCEPTING" ||
+    stage === "VISUAL_DIRECTION" ||
+    stage === "COPY_DEVELOPMENT"
+  );
 }
 
 export async function assessPrePersistQuality(
@@ -96,6 +107,14 @@ export function mergeDeterministicIssues(
   }
   if (stage === "COPY_DEVELOPMENT") {
     const r = deterministicCopyChecks(content);
+    const issues = [...anti.issues, ...r.issues];
+    return {
+      issues,
+      recommend: anti.recommendRegeneration || r.recommendRegeneration,
+    };
+  }
+  if (stage === "VISUAL_DIRECTION") {
+    const r = deterministicVisualSpecChecks(content);
     const issues = [...anti.issues, ...r.issues];
     return {
       issues,

@@ -1,5 +1,6 @@
 import type { WorkflowStage } from "@/generated/prisma/client";
 import { ARTIFACT_SHAPE_HINTS } from "@/lib/artifacts/contracts";
+import { artDirectorAgent } from "./art-director";
 import { brandGuardianAgent } from "./brand-guardian";
 import { copywriterAgent } from "./copywriter";
 import { creativeDirectorAgent } from "./creative-director";
@@ -14,6 +15,7 @@ const byStage: Record<
   BRIEF_INTAKE: undefined,
   STRATEGY: strategistAgent,
   CONCEPTING: creativeDirectorAgent,
+  VISUAL_DIRECTION: artDirectorAgent,
   COPY_DEVELOPMENT: copywriterAgent,
   REVIEW: brandGuardianAgent,
   EXPORT: undefined,
@@ -31,6 +33,8 @@ export function getArtifactShapeHint(stage: WorkflowStage): string {
       return ARTIFACT_SHAPE_HINTS.STRATEGY;
     case "CONCEPTING":
       return ARTIFACT_SHAPE_HINTS.CONCEPT;
+    case "VISUAL_DIRECTION":
+      return ARTIFACT_SHAPE_HINTS.VISUAL_SPEC;
     case "COPY_DEVELOPMENT":
       return ARTIFACT_SHAPE_HINTS.COPY;
     case "REVIEW":

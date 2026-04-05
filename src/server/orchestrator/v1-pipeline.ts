@@ -32,6 +32,12 @@ export const V1_PIPELINE: readonly V1PipelineRow[] = [
     artifactType: "CONCEPT",
   },
   {
+    stage: "VISUAL_DIRECTION",
+    agentType: "ART_DIRECTOR",
+    requiresReview: true,
+    artifactType: "VISUAL_SPEC",
+  },
+  {
     stage: "COPY_DEVELOPMENT",
     agentType: "COPYWRITER",
     requiresReview: true,

@@ -211,7 +211,7 @@ export async function executeAgentForTask(
 
     const critique = [...det.issues, ...llmQ.regenerationReasons].join("\n");
     const mustPreserve =
-      "Output MUST match the same JSON schema as this stage. Honor Brand Bible, Brand Operating System (banned phrases, vocabulary/sentence style, emotional boundaries), brief, and upstream artifacts. Apply Creative Canon visibly — no generic marketing filler. For CONCEPTING: concepts must use different frameworkIds, include whyItWorksForBrand per route, and be clearly distinct.";
+      "Output MUST match the same JSON schema as this stage. Honor Brand Bible, Brand Operating System (banned phrases, vocabulary/sentence style, emotional boundaries), brief, and upstream artifacts. Apply Creative Canon visibly — no generic marketing filler. For CONCEPTING: concepts must use different frameworkIds, include whyItWorksForBrand per route, and be clearly distinct. For VISUAL_DIRECTION: one chosen concept route, concrete art-direction specifics, strong avoidList, no vague luxury filler.";
 
     const regenUser = buildRegenerationUserPrompt({
       stage: qStage,

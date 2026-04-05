@@ -4,10 +4,12 @@
 export {
   strategyArtifactSchema,
   conceptArtifactSchema,
+  visualSpecArtifactSchema,
   copyArtifactSchema,
   reviewReportArtifactSchema,
   type StrategyArtifact,
   type ConceptArtifact,
+  type VisualSpecArtifact,
   type CopyArtifact,
   type ReviewReportArtifact,
   ARTIFACT_SHAPE_HINTS,

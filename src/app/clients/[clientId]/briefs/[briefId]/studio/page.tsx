@@ -256,6 +256,7 @@ export default async function BriefStudioPage({
                   "INTAKE_SUMMARY",
                   "STRATEGY",
                   "CONCEPT",
+                  "VISUAL_SPEC",
                   "COPY",
                   "REVIEW_REPORT",
                   "EXPORT",
