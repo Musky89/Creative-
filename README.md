@@ -121,7 +121,7 @@ When no provider is configured, **STRATEGY / CONCEPTING / COPY / REVIEW** tasks 
 
 **Brand Operating System (Brand OS):** extended fields on `BrandBible` (language rules, emotional profile, creative patterns, visual language) are formatted as a readable **BRAND OPERATING SYSTEM** section in `formatContextForPrompt`. Deterministic anti-generic checks and client **banned phrases** can trigger the pre-persist regeneration loop.
 
-**Exports:** `GET /api/export/briefs/[briefId]?clientId=...&format=json|markdown` returns an attachment (pipeline snapshot; `_agenticforce*` keys stripped from artifact bodies in JSON).
+**Exports:** `GET /api/export/briefs/[briefId]?clientId=...&format=json|markdown` returns an attachment (pipeline snapshot; `_agenticforce*` keys stripped from artifact bodies in JSON). **Identity workflow:** `GET /api/export/briefs/[briefId]/identity?clientId=...&format=zip|json|pdf|markdown` returns an agency-style identity delivery package (manifest, documents, asset folder contracts) when identity is enabled.
 
 **JSON repair:** if primary model output fails Zod validation, one **repair** LLM pass runs; artifacts record `_agenticforceGenerationPath` (`primary` \| `repair`) and `_agenticforceRepaired`.
 
@@ -181,16 +181,15 @@ The root layout sets **`dynamic = "force-dynamic"`** so `next build` does not re
 
 ---
 
-## Current scope (this foundation)
+## Current scope (this branch)
 
-This repository **intentionally** has:
+This repository includes:
 
-- Next.js + TypeScript + Tailwind, `src/` layout, minimal homepage.
-- **Core domain Prisma schema** (eight models + `TaskDependency` for explicit task graphs) and PostgreSQL migrations.
+- Next.js + TypeScript + Tailwind, `src/` layout, founder-facing dashboard and studio UI.
+- **Core domain Prisma schema** and PostgreSQL migrations.
 - **v1 workflow orchestrator** (Prisma-backed), **Route Handlers** under `/api/orchestrator/*`, and **internal UI** for clients, brand, blueprint, briefs, and the brief **studio**.
-- Documentation and reserved server folders for agents, brand, review, artifacts, storage.
 
-It **does not** yet include auth or real AI agent integrations — only deterministic placeholder scaffolding for artifacts and agent-run inputs.
+It **does not** yet include production auth or full parity with every doc scenario — extend using the architecture rules and data model notes below.
 
 ---
 
@@ -206,4 +205,4 @@ Lock these before choosing tables, migrations, and storage APIs:
 6. **AgentRun correlation** — Idempotency keys for retried runs; PII redaction in stored prompts; retention for logs and token usage.
 7. **Task templates** — How `ServiceBlueprint` maps to instantiated tasks (1:1 vs. graph); parallel tasks within a stage allowed or not.
 
-These are outlined conceptually in [docs/data_model_overview.md](docs/data_model_overview.md) and are **not** fixed in the foundation repo.
+These are outlined conceptually in [docs/data_model_overview.md](docs/data_model_overview.md). The running codebase uses Prisma migrations as the source of truth for the implemented schema.
