@@ -8,6 +8,7 @@ import type {
   VocabularyStyle,
 } from "@/generated/prisma/client";
 import { upsertBrandBible } from "@/server/domain/brand-bible";
+import { brandOsTasteEngineSchema } from "@/lib/brand/brand-os-taste";
 
 export type FormState = { error?: string } | { ok: true } | null;
 
@@ -71,6 +72,44 @@ export async function saveBrandBibleAction(clientId: string, formData: FormData)
   const textureFocus = String(formData.get("textureFocus") ?? "").trim();
   const lightingStyle = String(formData.get("lightingStyle") ?? "").trim();
 
+  const languageDnaPhrasesUseRaw = String(formData.get("languageDnaPhrasesUse") ?? "");
+  const languageDnaPhrasesNeverRaw = String(formData.get("languageDnaPhrasesNever") ?? "");
+  const languageDnaSentenceRhythmRaw = String(
+    formData.get("languageDnaSentenceRhythm") ?? "",
+  );
+  const languageDnaHeadlinePatternsRaw = String(
+    formData.get("languageDnaHeadlinePatterns") ?? "",
+  );
+  const languageDnaCtaPatternsRaw = String(formData.get("languageDnaCtaPatterns") ?? "");
+  const categoryTypicalBehavior = String(
+    formData.get("categoryTypicalBehavior") ?? "",
+  ).trim();
+  const categoryClichesToAvoidRaw = String(
+    formData.get("categoryClichesToAvoid") ?? "",
+  );
+  const categoryDifferentiation = String(
+    formData.get("categoryDifferentiation") ?? "",
+  ).trim();
+  const tensionCoreContradiction = String(
+    formData.get("tensionCoreContradiction") ?? "",
+  ).trim();
+  const tensionEmotionalBalance = String(
+    formData.get("tensionEmotionalBalance") ?? "",
+  ).trim();
+  const tasteCloserThanRaw = String(formData.get("tasteCloserThan") ?? "");
+  const tasteShouldFeelLike = String(formData.get("tasteShouldFeelLike") ?? "").trim();
+  const tasteMustNotFeelLike = String(formData.get("tasteMustNotFeelLike") ?? "").trim();
+  const visualNeverLooksLikeRaw = String(formData.get("visualNeverLooksLike") ?? "");
+  const visualCompositionTendencies = String(
+    formData.get("visualCompositionTendencies") ?? "",
+  ).trim();
+  const visualMaterialTextureDirection = String(
+    formData.get("visualMaterialTextureDirection") ?? "",
+  ).trim();
+  const visualLightingTendencies = String(
+    formData.get("visualLightingTendencies") ?? "",
+  ).trim();
+
   if (!positioning || !targetAudience || !toneOfVoice) {
     return { error: "Positioning, target audience, and tone of voice are required." };
   }
@@ -80,6 +119,32 @@ export async function saveBrandBibleAction(clientId: string, formData: FormData)
       .split("\n")
       .map((x) => x.trim())
       .filter(Boolean);
+
+  const tasteParsed = brandOsTasteEngineSchema.safeParse({
+    languageDnaPhrasesUse: lines(languageDnaPhrasesUseRaw),
+    languageDnaPhrasesNever: lines(languageDnaPhrasesNeverRaw),
+    languageDnaSentenceRhythm: lines(languageDnaSentenceRhythmRaw),
+    languageDnaHeadlinePatterns: lines(languageDnaHeadlinePatternsRaw),
+    languageDnaCtaPatterns: lines(languageDnaCtaPatternsRaw),
+    categoryTypicalBehavior,
+    categoryClichesToAvoid: lines(categoryClichesToAvoidRaw),
+    categoryDifferentiation,
+    tensionCoreContradiction,
+    tensionEmotionalBalance,
+    tasteCloserThan: lines(tasteCloserThanRaw),
+    tasteShouldFeelLike,
+    tasteMustNotFeelLike,
+    visualNeverLooksLike: lines(visualNeverLooksLikeRaw),
+    visualCompositionTendencies,
+    visualMaterialTextureDirection,
+    visualLightingTendencies,
+  });
+  if (!tasteParsed.success) {
+    return {
+      error: `Taste engine validation: ${tasteParsed.error.issues.map((i) => i.message).join("; ")}`,
+    };
+  }
+  const t = tasteParsed.data;
 
   await upsertBrandBible(clientId, {
     positioning,
@@ -106,6 +171,23 @@ export async function saveBrandBibleAction(clientId: string, formData: FormData)
     compositionStyle,
     textureFocus,
     lightingStyle,
+    languageDnaPhrasesUse: t.languageDnaPhrasesUse,
+    languageDnaPhrasesNever: t.languageDnaPhrasesNever,
+    languageDnaSentenceRhythm: t.languageDnaSentenceRhythm,
+    languageDnaHeadlinePatterns: t.languageDnaHeadlinePatterns,
+    languageDnaCtaPatterns: t.languageDnaCtaPatterns,
+    categoryTypicalBehavior: t.categoryTypicalBehavior,
+    categoryClichesToAvoid: t.categoryClichesToAvoid,
+    categoryDifferentiation: t.categoryDifferentiation,
+    tensionCoreContradiction: t.tensionCoreContradiction,
+    tensionEmotionalBalance: t.tensionEmotionalBalance,
+    tasteCloserThan: t.tasteCloserThan,
+    tasteShouldFeelLike: t.tasteShouldFeelLike,
+    tasteMustNotFeelLike: t.tasteMustNotFeelLike,
+    visualNeverLooksLike: t.visualNeverLooksLike,
+    visualCompositionTendencies: t.visualCompositionTendencies,
+    visualMaterialTextureDirection: t.visualMaterialTextureDirection,
+    visualLightingTendencies: t.visualLightingTendencies,
   });
 
   revalidatePath(`/clients/${clientId}`);

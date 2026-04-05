@@ -214,6 +214,33 @@ model BrandBible {
   textureFocus       String @default("") @db.Text
   lightingStyle      String @default("") @db.Text
 
+  /// Taste engine — language DNA (precision copy)
+  languageDnaPhrasesUse       Json @default("[]")
+  languageDnaPhrasesNever     Json @default("[]")
+  languageDnaSentenceRhythm   Json @default("[]")
+  languageDnaHeadlinePatterns Json @default("[]")
+  languageDnaCtaPatterns      Json @default("[]")
+
+  /// Taste engine — category & differentiation
+  categoryTypicalBehavior  String @default("") @db.Text
+  categoryClichesToAvoid   Json @default("[]")
+  categoryDifferentiation  String @default("") @db.Text
+
+  /// Taste engine — productive tension
+  tensionCoreContradiction  String @default("") @db.Text
+  tensionEmotionalBalance   String @default("") @db.Text
+
+  /// Taste engine — references & feel
+  tasteCloserThan       Json    @default("[]")
+  tasteShouldFeelLike   String  @default("") @db.Text
+  tasteMustNotFeelLike  String  @default("") @db.Text
+
+  /// Taste engine — visual guardrails (stricter than generic visual language)
+  visualNeverLooksLike            Json   @default("[]")
+  visualCompositionTendencies     String @default("") @db.Text
+  visualMaterialTextureDirection  String @default("") @db.Text
+  visualLightingTendencies        String @default("") @db.Text
+
   updatedAt DateTime @updatedAt
 }
 

@@ -67,6 +67,29 @@ export function buildVisualPromptPackage(
   if (brandOs.lightingStyle.trim()) {
     brandVisualLines.push(`Lighting bias: ${brandOs.lightingStyle.trim()}`);
   }
+  if (brandOs.visualCompositionTendencies.trim()) {
+    brandVisualLines.push(
+      `Composition tendencies (taste): ${brandOs.visualCompositionTendencies.trim()}`,
+    );
+  }
+  if (brandOs.visualMaterialTextureDirection.trim()) {
+    brandVisualLines.push(
+      `Material / texture direction (taste): ${brandOs.visualMaterialTextureDirection.trim()}`,
+    );
+  }
+  if (brandOs.visualLightingTendencies.trim()) {
+    brandVisualLines.push(
+      `Lighting tendencies (taste): ${brandOs.visualLightingTendencies.trim()}`,
+    );
+  }
+  if (brandOs.tasteCloserThan.length) {
+    brandVisualLines.push(
+      `Taste calibration: ${brandOs.tasteCloserThan.join(" | ")}`,
+    );
+  }
+  if (brandOs.tasteShouldFeelLike.trim()) {
+    brandVisualLines.push(`Should feel like: ${brandOs.tasteShouldFeelLike.trim()}`);
+  }
 
   const emotionalContext = [
     brandOs.emotionalToneDescription.trim()
@@ -86,12 +109,28 @@ export function buildVisualPromptPackage(
     spec.optionalPromptSeed?.trim() &&
     `Supporting seed (do not override spec specifics): ${spec.optionalPromptSeed.trim()}`;
 
+  const categoryTaste =
+    brandOs.categoryDifferentiation.trim() ||
+    brandOs.categoryTypicalBehavior.trim()
+      ? [
+          brandOs.categoryTypicalBehavior.trim()
+            ? `Category context: ${brandOs.categoryTypicalBehavior.trim()}`
+            : null,
+          brandOs.categoryDifferentiation.trim()
+            ? `Brand differentiation (honor visually): ${brandOs.categoryDifferentiation.trim()}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      : "";
+
   const primaryPrompt = [
     `Objective: ${spec.visualObjective}`,
     `Concept route: ${spec.conceptName}.`,
     frameworkLine,
     `Mood: ${spec.mood}. Emotional tone in frame: ${spec.emotionalTone}.`,
     emotionalContext,
+    categoryTaste,
     founderBlock,
     `Distinctiveness: ${spec.distinctivenessNotes}`,
     seed,
@@ -108,17 +147,27 @@ export function buildVisualPromptPackage(
   const compositionInstructions = joinLines(
     "Composition:",
     spec.composition,
-    brandOs.compositionStyle.trim()
-      ? [`Align with brand composition bias: ${brandOs.compositionStyle.trim()}`]
-      : undefined,
+    [
+      brandOs.compositionStyle.trim()
+        ? `Align with brand composition bias: ${brandOs.compositionStyle.trim()}`
+        : "",
+      brandOs.visualCompositionTendencies.trim()
+        ? `Taste engine composition tendencies: ${brandOs.visualCompositionTendencies.trim()}`
+        : "",
+    ].filter(Boolean),
   );
 
   const lightingInstructions = joinLines(
     "Lighting:",
     spec.lightingDirection,
-    brandOs.lightingStyle.trim()
-      ? [`Brand lighting bias: ${brandOs.lightingStyle.trim()}`]
-      : undefined,
+    [
+      brandOs.lightingStyle.trim()
+        ? `Brand lighting bias: ${brandOs.lightingStyle.trim()}`
+        : "",
+      brandOs.visualLightingTendencies.trim()
+        ? `Taste engine lighting tendencies: ${brandOs.visualLightingTendencies.trim()}`
+        : "",
+    ].filter(Boolean),
   );
 
   const colorInstructions = joinLines(
@@ -132,9 +181,14 @@ export function buildVisualPromptPackage(
   const textureInstructions = joinLines(
     "Texture and materials:",
     spec.textureDirection,
-    brandOs.textureFocus.trim()
-      ? [`Brand texture focus: ${brandOs.textureFocus.trim()}`]
-      : undefined,
+    [
+      brandOs.textureFocus.trim()
+        ? `Brand texture focus: ${brandOs.textureFocus.trim()}`
+        : "",
+      brandOs.visualMaterialTextureDirection.trim()
+        ? `Taste engine material direction: ${brandOs.visualMaterialTextureDirection.trim()}`
+        : "",
+    ].filter(Boolean),
   );
 
   const typographyInstructions = joinLines(
@@ -156,6 +210,12 @@ export function buildVisualPromptPackage(
   const boundaryLines = [
     ...brandOs.emotionalBoundaries,
     ...brandOs.bannedPhrases.map((p) => `Avoid phrase/trope: ${p}`),
+    ...brandOs.languageDnaPhrasesNever.map((p) => `Language DNA NEVER: ${p}`),
+    ...brandOs.categoryClichesToAvoid.map((p) => `Category cliché avoid: ${p}`),
+    ...brandOs.visualNeverLooksLike.map((p) => `NEVER looks like: ${p}`),
+    ...(brandOs.tasteMustNotFeelLike.trim()
+      ? [`Must NOT feel like: ${brandOs.tasteMustNotFeelLike.trim()}`]
+      : []),
   ];
 
   const negativePrompt = mergeAvoid(spec, boundaryLines);

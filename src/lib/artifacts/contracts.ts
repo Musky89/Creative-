@@ -267,7 +267,7 @@ export const ARTIFACT_SHAPE_HINTS = {
   "brandAlignmentAssessment": string,
   "toneAlignment": string (Brand OS: vocabulary, sentence style, emotion),
   "languageCompliance": "PASS" | "WARN" | "FAIL",
-  "bannedPhraseViolations": string[] (Brand OS banned phrases found in copy/concepts, or empty),
+  "bannedPhraseViolations": string[] (banned + Language DNA NEVER + category clichés found in copy/concepts, or empty),
   "regenerationRecommended": boolean,
   "regenerationReasons": string[]
 }`,

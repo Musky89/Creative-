@@ -32,6 +32,23 @@ export type BrandBibleFormInput = {
   compositionStyle: string;
   textureFocus: string;
   lightingStyle: string;
+  languageDnaPhrasesUse: Prisma.InputJsonValue;
+  languageDnaPhrasesNever: Prisma.InputJsonValue;
+  languageDnaSentenceRhythm: Prisma.InputJsonValue;
+  languageDnaHeadlinePatterns: Prisma.InputJsonValue;
+  languageDnaCtaPatterns: Prisma.InputJsonValue;
+  categoryTypicalBehavior: string;
+  categoryClichesToAvoid: Prisma.InputJsonValue;
+  categoryDifferentiation: string;
+  tensionCoreContradiction: string;
+  tensionEmotionalBalance: string;
+  tasteCloserThan: Prisma.InputJsonValue;
+  tasteShouldFeelLike: string;
+  tasteMustNotFeelLike: string;
+  visualNeverLooksLike: Prisma.InputJsonValue;
+  visualCompositionTendencies: string;
+  visualMaterialTextureDirection: string;
+  visualLightingTendencies: string;
 };
 
 export async function upsertBrandBible(

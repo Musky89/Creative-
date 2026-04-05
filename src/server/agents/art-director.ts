@@ -1,4 +1,7 @@
-import { BRAND_OS_CREATIVE_DIRECTOR_EXTRA, BRAND_OS_MANDATORY_RULES } from "./brand-os-instructions";
+import {
+  BRAND_OS_ART_DIRECTOR_EXTRA,
+  BRAND_OS_MANDATORY_RULES,
+} from "./brand-os-instructions";
 import type { AgentDefinition } from "./types";
 import { visualSpecArtifactSchema } from "./schemas";
 
@@ -18,7 +21,7 @@ export const artDirectorAgent: AgentDefinition<typeof visualSpecArtifactSchema> 
       "You receive Brand Operating System visual language, Creative Canon frameworks, and an approved CONCEPT pack.",
       "Pick **one** concept route from upstream (the strongest fit for the brief). Your output is a single VISUAL_SPEC JSON for that route.",
       BRAND_OS_MANDATORY_RULES,
-      BRAND_OS_CREATIVE_DIRECTOR_EXTRA,
+      BRAND_OS_ART_DIRECTOR_EXTRA,
       "Do **not** produce generic “luxury”, “high-end”, “premium”, or “cinematic” language **without** concrete visual reasoning (composition, lens/light, palette, materials, typography role, set/prop logic).",
       "Be specific: camera distance, light quality, negative space, prop vocabulary, era/material references — things a serious creative team would brief.",
       "Avoid AI-slop defaults (neon gradients, stock-smile humans, vague bokeh worlds) unless the brand explicitly demands them; put real exclusions in avoidList.",

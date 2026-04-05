@@ -18,6 +18,7 @@ import {
   repairJsonWithProvider,
   summarizeZodError,
 } from "./repair-json";
+import { mergeTasteEnforcementPhrases } from "@/lib/brand/brand-os-taste";
 import type { AgentExecutionResult, AgentPromptOptions } from "./types";
 
 function stripInternalKeys(data: Record<string, unknown>): Record<string, unknown> {
@@ -178,8 +179,14 @@ export async function executeAgentForTask(
 
     const qStage = stage as QualityLoopStage;
     const stripped = stripInternalKeys(gen.content);
-    const brandBanned =
-      context.brand?.operatingSystem.bannedPhrases ?? [];
+    const os = context.brand?.operatingSystem;
+    const brandBanned = os
+      ? mergeTasteEnforcementPhrases({
+          bannedPhrases: os.bannedPhrases,
+          languageDnaPhrasesNever: os.languageDnaPhrasesNever,
+          categoryClichesToAvoid: os.categoryClichesToAvoid,
+        })
+      : [];
     const det = mergeDeterministicIssues(qStage, stripped, brandBanned);
     const llmQ = await assessPrePersistQuality(
       provider,

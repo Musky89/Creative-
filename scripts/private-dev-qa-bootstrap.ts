@@ -106,6 +106,65 @@ function retailBrandBible(): BrandBibleFormInput {
       "Weave grain, selvedge, hem detail — photography should answer “how will this feel?”",
     lightingStyle:
       "Window-led daylight; occasional single-source evening mood for bedroom stories.",
+    languageDnaPhrasesUse: [
+      "hand and drape",
+      "fiber-forward",
+      "how the room holds light",
+      "specify with confidence",
+    ],
+    languageDnaPhrasesNever: [
+      "shop the look",
+      "BOGO",
+      "you deserve luxury",
+      "transform your space overnight",
+    ],
+    languageDnaSentenceRhythm: [
+      "Open with a concrete room or fiber fact; follow with a calm recommendation.",
+      "Alternate medium sentences with one short punch line — never breathless listicles.",
+    ],
+    languageDnaHeadlinePatterns: [
+      "Problem → textile solution (no hype adjectives)",
+      "Single sensory proof in the first five words",
+    ],
+    languageDnaCtaPatterns: [
+      "Request a memo / order a memo swatch",
+      "See fiber origin and weave",
+      "Book a designer consult",
+    ],
+    categoryTypicalBehavior:
+      "Home textile retail defaults to aggressive sale banners, vague 'luxury linen' claims, and stock photos of white sofas with no weave visible.",
+    categoryClichesToAvoid: [
+      "spa day at home",
+      "elevate every moment",
+      "5-star hotel at home",
+      "Instagram-worthy",
+    ],
+    categoryDifferentiation:
+      "We sell truth in fiber and light behavior — yardage and drapery as spatial tools, with editorial education instead of discount theater.",
+    tensionCoreContradiction:
+      "Quiet luxury that still has to move inventory — premium without snobbery, tactile without preciousness.",
+    tensionEmotionalBalance:
+      "Warm expert who respects the client's eye; never condescending, never desperate.",
+    tasteCloserThan: [
+      "Closer to The Row's restraint than a flash-sale bedding site",
+      "Closer to a design trade memo than a lifestyle influencer caption",
+    ],
+    tasteShouldFeelLike:
+      "A calm atelier visit — linen on a trestle, north light, someone who knows selvedge by touch.",
+    tasteMustNotFeelLike:
+      "A TikTok haul, a mattress store Presidents Day ad, or generic 'modern farmhouse' staging.",
+    visualNeverLooksLike: [
+      "Neon sale stickers or countdown timers",
+      "Over-saturated teal-orange grading",
+      "Stock photo models hugging pillows",
+      "Moody candlelit cliché 'spa' bathrooms for fabric stories",
+    ],
+    visualCompositionTendencies:
+      "Generous negative space, subject biased to lower third, horizon of fold lines leading the eye.",
+    visualMaterialTextureDirection:
+      "Real fiber surfaces — slub, nap, hem — never plastic sheen or AI-smooth 'linen'.",
+    visualLightingTendencies:
+      "Large-source daylight, soft falloff; evening scenes use one practical with warm edge.",
   };
 }
 
@@ -178,6 +237,66 @@ function identityBrandBible(): BrandBibleFormInput {
       "Etched glass, fiber paper, dew on leaf — real materials, not 3D gloss.",
     lightingStyle:
       "Soft diffused key with crisp speculars on glass; no harsh beauty dish trope.",
+    languageDnaPhrasesUse: [
+      "barrier coherence",
+      "actives at purposeful %",
+      "texture architecture",
+      "label clarity",
+    ],
+    languageDnaPhrasesNever: [
+      "toxin-free",
+      "chemical-free",
+      "miracle cream",
+      "baby skin",
+    ],
+    languageDnaSentenceRhythm: [
+      "Claim → mechanism in two beats; third beat optional proof class.",
+      "Short lines on pack; slightly longer on site for education.",
+    ],
+    languageDnaHeadlinePatterns: [
+      "Myth vs mechanism",
+      "Skin job-to-be-done as headline",
+      "Ingredient as system, not hero worship",
+    ],
+    languageDnaCtaPatterns: [
+      "See full INCI",
+      "Build your barrier routine",
+      "Patch test reminder",
+    ],
+    categoryTypicalBehavior:
+      "Skincare marketing leans on fear, fruit fairies, unverifiable 'clean', and miracle anti-aging promises.",
+    categoryClichesToAvoid: [
+      "glass skin",
+      "non-toxic living",
+      "ageless",
+      "dermatologist secrets",
+    ],
+    categoryDifferentiation:
+      "We lead with barrier logic and honest texture — poetry in restraint, not fairy-dust percentages.",
+    tensionCoreContradiction:
+      "Clinical credibility without cold sterility; botanical poetry without woo.",
+    tensionEmotionalBalance:
+      "Smart friend in a lab coat who still cares how the serum feels on the fifth day.",
+    tasteCloserThan: [
+      "Closer to a lab notebook with taste than a pastel clean-beauty meme page",
+      "Closer to Paula’s Choice clarity than fear-based 'non-toxic' marketing",
+    ],
+    tasteShouldFeelLike:
+      "A well-run formulation meeting that became a brand — glass, paper, stem lines, quiet confidence.",
+    tasteMustNotFeelLike:
+      "Infantilizing fruit characters, neon slime, or 'miracle overnight' vibes.",
+    visualNeverLooksLike: [
+      "Neon gradient orbs",
+      "Stock water splashes with fake citrus",
+      "Infantile fruit mascots",
+      "Clinical horror lighting on skin",
+    ],
+    visualCompositionTendencies:
+      "Grid-first layouts with one organic break; specimen-scale botanicals; typographic hierarchy over decoration.",
+    visualMaterialTextureDirection:
+      "Etched glass, cotton paper, stem cross-sections — matte and real, never candy gloss.",
+    visualLightingTendencies:
+      "Soft diffused key, controlled specular on glass; background falls away to paper white or deep forest.",
   };
 }
 
