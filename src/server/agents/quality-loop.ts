@@ -14,11 +14,13 @@ import {
   mergeSpecificityEngineIssues,
   type SpecificityAnchorContext,
 } from "@/lib/brand/specificity-engine";
+import { formatBadOutputBlacklistForPrompt } from "@/lib/brand/bad-output-blacklist";
 import { extractJsonObject } from "@/server/llm/extract-json";
 import type { LlmProvider } from "@/server/llm/types";
 import { summarizeZodError } from "./repair-json";
 
-const QUALITY_SYSTEM = `You are a senior creative director doing a FAST pre-review before work is shown to a founder.
+const QUALITY_SYSTEM = [
+  `You are a senior creative director doing a FAST pre-review before work is shown to a founder.
 Output a single JSON object only. No markdown.
 
 You must judge whether the draft is specific and framework-grounded vs generic filler.
@@ -29,9 +31,9 @@ For VISUAL_DIRECTION / VISUAL_SPEC drafts: reject vague "luxury / cinematic / hi
 For IDENTITY_STRATEGY: reject interchangeable symbolic fluff, trend-chasing aesthetics, and empty "modern/minimal" without strategic meaning.
 For IDENTITY_ROUTING / IDENTITY_ROUTES_PACK: reject routes that are the same idea reworded; demand divergent mark types and executable typography/geometry logic (not final logo pixels).
 Honor **taste engine** rules: category differentiation, brand tension, Language DNA NEVER lines, and visual NEVER-looks-like where applicable.
-For CONCEPTING / IDENTITY_ROUTING: penalize **variation masquerading as differentiation** — routes must differ in tension, visual world, and category edge; use **pairwiseDifferentiation** in the draft when present.
-
-Fields:
+For CONCEPTING / IDENTITY_ROUTING: penalize **variation masquerading as differentiation** — routes must differ in tension, visual world, and category edge; use **pairwiseDifferentiation** in the draft when present.`,
+  formatBadOutputBlacklistForPrompt(),
+  `Fields:
 - qualityVerdict: "STRONG" | "ACCEPTABLE" | "WEAK"
 - frameworkExecution: "STRONG" | "MIXED" | "WEAK" — did the output visibly apply the Creative Canon frameworks (hooks/rationale/visuals or copy structure)?
 - distinctivenessAssessment: one short paragraph (concepts: are routes different? copy: are headlines/body angles different?)
@@ -39,7 +41,8 @@ Fields:
 - regenerationRecommended: boolean — true if WEAK overall OR framework visibly not applied OR concepts too similar OR copy bland
 - regenerationReasons: string array, max 6 items, concrete actionable bullets for the model to fix on retry
 
-Be strict: generic marketing language, interchangeable hooks, or vague rationale = regenerationRecommended true.`;
+Be strict: generic marketing language, interchangeable hooks, or vague rationale = regenerationRecommended true.`,
+].join("\n\n");
 
 export type QualityLoopStage =
   | "STRATEGY"
@@ -204,6 +207,7 @@ export function buildRegenerationUserPrompt(args: {
     "Your previous output was structurally valid but failed creative quality bar.",
     "Produce a NEW full artifact JSON of the SAME schema as the original agent for this stage.",
     "Apply the critique aggressively. Do not repeat generic phrasing from the draft.",
+    formatBadOutputBlacklistForPrompt(),
     "",
     "### What must improve",
     args.critique,

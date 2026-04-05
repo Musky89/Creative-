@@ -8,6 +8,7 @@ import {
   findGenericMarketingHits,
   findVagueMarketingAdjectives,
 } from "@/lib/brand/anti-generic";
+import { mergeBadOutputBlacklistIssues } from "@/lib/brand/bad-output-blacklist";
 import { z } from "zod";
 
 export const prePersistQualitySchema = z.object({
@@ -138,7 +139,7 @@ export function mergeAntiGenericIssues(
     );
   }
 
-  const recommendRegeneration =
+  let recommendRegeneration =
     bannedHits.length > 0 ||
     gen.length >= 2 ||
     (stage === "COPY_DEVELOPMENT" && gen.length >= 1) ||
@@ -146,6 +147,10 @@ export function mergeAntiGenericIssues(
     (stage === "IDENTITY_STRATEGY" && gen.length >= 1) ||
     (stage === "IDENTITY_ROUTING" && gen.length >= 1) ||
     vague.length >= 4;
+
+  const bl = mergeBadOutputBlacklistIssues(stage, content);
+  issues.push(...bl.issues);
+  recommendRegeneration = recommendRegeneration || bl.recommendRegeneration;
 
   return { issues, recommendRegeneration };
 }

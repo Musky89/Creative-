@@ -19,6 +19,7 @@ import {
   summarizeZodError,
 } from "./repair-json";
 import { mergeTasteEnforcementPhrases } from "@/lib/brand/brand-os-taste";
+import { formatBadOutputBlacklistForPrompt } from "@/lib/brand/bad-output-blacklist";
 import { buildSpecificityAnchorsFromBriefContext } from "@/lib/brand/specificity-engine";
 import type { AgentExecutionResult, AgentPromptOptions } from "./types";
 
@@ -235,8 +236,13 @@ export async function executeAgentForTask(
     }
 
     const critique = [...det.issues, ...llmQ.regenerationReasons].join("\n");
-    const mustPreserve =
-      "Output MUST match the same JSON schema as this stage. Honor Brand Bible, Brand Operating System (banned phrases, vocabulary/sentence style, emotional boundaries, taste engine), brief, and upstream artifacts. Apply Creative Canon visibly — no generic marketing filler. **Specificity:** replace abstraction with concrete execution detail; anchor claims in this client, audience, and brief (use vocabulary from context). For CONCEPTING: concepts must use different frameworkIds, include whyItWorksForBrand per route, and be clearly distinct. For VISUAL_DIRECTION: one chosen concept route, concrete art-direction specifics (materials, light, composition, texture), strong avoidList, no vibes-only luxury filler.";
+    const mustPreserve = [
+      "Output MUST match the same JSON schema as this stage. Honor Brand Bible, Brand Operating System (banned phrases, vocabulary/sentence style, emotional boundaries, taste engine), brief, and upstream artifacts. Apply Creative Canon visibly — no generic marketing filler.",
+      "**Specificity:** replace abstraction with concrete execution detail; anchor claims in this client, audience, and brief (use vocabulary from context).",
+      "For CONCEPTING: concepts must use different frameworkIds, include whyItWorksForBrand per route, and be clearly distinct.",
+      "For VISUAL_DIRECTION: one chosen concept route, concrete art-direction specifics (materials, light, composition, texture), strong avoidList, no vibes-only luxury filler.",
+      formatBadOutputBlacklistForPrompt(),
+    ].join("\n\n");
 
     const regenUser = buildRegenerationUserPrompt({
       stage: qStage,

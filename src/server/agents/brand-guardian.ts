@@ -2,6 +2,7 @@ import {
   BRAND_OS_GUARDIAN_EXTRA,
   BRAND_OS_MANDATORY_RULES,
 } from "./brand-os-instructions";
+import { formatBadOutputBlacklistForPrompt } from "@/lib/brand/bad-output-blacklist";
 import type { AgentDefinition } from "./types";
 import { reviewReportArtifactSchema } from "./schemas";
 
@@ -28,6 +29,9 @@ const HARSH_GUARDIAN = [
   "- weakestOutput — what fails hardest",
   "- mostGeneric — what could be any brand in the category",
   "- mostOnBrand — what most embodies Brand OS + differentiation",
+  "",
+  "**Bad-output blacklist (deterministic + your judgment):** Scan evaluated text for verbal clichés, vague visual tropes, and empty identity phrases. List hits in **issues** or **bannedPhraseViolations** / **regenerationReasons** as appropriate.",
+  formatBadOutputBlacklistForPrompt(),
 ].join("\n");
 
 export const brandGuardianAgent: AgentDefinition<

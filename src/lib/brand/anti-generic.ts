@@ -1,37 +1,14 @@
 /**
  * Deterministic anti-generic checks (no ML). Used by pre-persist quality + optional LLM context.
+ * Verbal clichés are centralized in `bad-output-blacklist.ts`.
  */
+import {
+  BAD_OUTPUT_VERBAL_PHRASES,
+  findBadOutputVerbalHits,
+} from "./bad-output-blacklist";
 
-export const DEFAULT_GENERIC_MARKETING_PHRASES = [
-  "high quality",
-  "highest quality",
-  "premium feel",
-  "best in class",
-  "best-in-class",
-  "world class",
-  "world-class",
-  "innovative solution",
-  "cutting edge",
-  "cutting-edge",
-  "unlock the power",
-  "game-changer",
-  "game changer",
-  "seamless experience",
-  "next level",
-  "take your business to the next level",
-  "leverage synerg",
-  "in today's world",
-  "leading provider",
-  "customer-centric",
-  "state of the art",
-  "state-of-the-art",
-  "think outside the box",
-  "synergy",
-  "holistic approach",
-  "robust solution",
-  "empower your",
-  "revolutionize",
-] as const;
+/** @deprecated Use BAD_OUTPUT_VERBAL_PHRASES — kept for external imports. */
+export const DEFAULT_GENERIC_MARKETING_PHRASES = BAD_OUTPUT_VERBAL_PHRASES;
 
 function norm(s: string): string {
   return s
@@ -40,14 +17,9 @@ function norm(s: string): string {
     .trim();
 }
 
-/** Substring hits for known generic marketing clichés. */
+/** Substring hits for known generic marketing clichés (bad-output verbal blacklist). */
 export function findGenericMarketingHits(text: string): string[] {
-  const t = norm(text);
-  const hits: string[] = [];
-  for (const p of DEFAULT_GENERIC_MARKETING_PHRASES) {
-    if (t.includes(p)) hits.push(p);
-  }
-  return [...new Set(hits)];
+  return findBadOutputVerbalHits(text);
 }
 
 /** Client-configured banned phrases (substring match, case-insensitive). */
