@@ -1,14 +1,9 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { ArtifactType, ReviewStatus } from "@/generated/prisma/client";
-import { ArtifactByType } from "@/components/artifacts/artifact-viewer";
+import type { ReviewStatus } from "@/generated/prisma/client";
 import { Card } from "@/components/ui/section";
 import { PageHeader } from "@/components/ui/section";
-import {
-  STAGE_LABELS,
-  workflowStageOrderForBrief,
-} from "@/lib/workflow-display";
-import { getArtifactTypeForStudioStage } from "@/server/orchestrator/v1-pipeline";
+import { DisclosureSection } from "@/components/ui/collapse";
+import { STAGE_LABELS, workflowStageOrderForBrief } from "@/lib/workflow-display";
 import { getBriefForStudio } from "@/server/domain/briefs";
 import { assessBrandBibleReadiness } from "@/server/brand/readiness";
 import {
@@ -16,23 +11,19 @@ import {
   getTopPreferredFrameworkIds,
 } from "@/server/canon/client-canon-ui";
 import { orchestrator } from "@/server/orchestrator/orchestrator-service";
-import { VisualAssetsPanel } from "@/components/studio/visual-assets-panel";
-import {
-  MAX_CRITIQUE_REGENERATIONS_PER_PACKAGE,
-  MAX_VISUAL_ASSETS_PER_PACKAGE,
-} from "@/server/visual-generation/generate-visual-asset-from-prompt-package";
 import { WorkflowControls } from "@/components/workflow/workflow-controls";
 import { WorkflowTimeline } from "@/components/workflow/workflow-timeline";
-import { IdentityRouteSelectionWrapper } from "./identity-route-selection-wrapper";
+import { StudioNextCallout } from "./studio-next-callout";
+import { StudioArtifactsSection } from "./studio-artifacts-section";
 
-function reviewBadge(status: ReviewStatus) {
-  const styles: Record<ReviewStatus, string> = {
-    PENDING: "bg-zinc-100 text-zinc-600",
-    APPROVED: "bg-emerald-50 text-emerald-800",
-    REJECTED: "bg-red-50 text-red-800",
-    REVISION_REQUESTED: "bg-orange-50 text-orange-900",
+function reviewStatusText(status: ReviewStatus) {
+  const map: Record<ReviewStatus, string> = {
+    PENDING: "Pending",
+    APPROVED: "Approved",
+    REJECTED: "Rejected",
+    REVISION_REQUESTED: "Revision requested",
   };
-  return styles[status];
+  return map[status];
 }
 
 export default async function BriefStudioPage({
@@ -74,16 +65,15 @@ export default async function BriefStudioPage({
     }));
   }
 
-  const taskByStage = new Map(
-    brief.tasks.map((t) => [t.stage, t] as const),
-  );
+  const taskByStage = new Map(brief.tasks.map((t) => [t.stage, t] as const));
 
   let reviewTaskId: string | null = null;
   let reviseTaskId: string | null = null;
   const stageOrder = workflowStageOrderForBrief(brief.identityWorkflowEnabled);
   const nextExecutableStage =
     nextExecutableTaskIds.length > 0
-      ? timelineTasks.find((x) => x.id === nextExecutableTaskIds[0])?.stage ?? null
+      ? timelineTasks.find((x) => x.id === nextExecutableTaskIds[0])?.stage ??
+        null
       : null;
 
   for (const stage of stageOrder) {
@@ -100,58 +90,55 @@ export default async function BriefStudioPage({
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
-  function latestArtifact(taskId: string, type: ArtifactType) {
-    const task = brief.tasks.find((x) => x.id === taskId);
-    if (!task) return null;
-    const same = task.artifacts.filter((a) => a.type === type);
-    if (same.length === 0) return null;
-    return same.reduce((a, b) => (a.version >= b.version ? a : b));
-  }
+  const taskLite = brief.tasks.map((t) => ({
+    status: t.status,
+    stage: t.stage,
+    requiresReview: t.requiresReview,
+  }));
+
+  const visualAssetsForStudio = brief.visualAssets.map((va) => ({
+    id: va.id,
+    status: va.status,
+    providerTarget: va.providerTarget,
+    providerName: va.providerName,
+    modelName: va.modelName,
+    resultUrl: va.resultUrl,
+    sourceArtifactId: va.sourceArtifactId,
+    generationNotes: va.generationNotes,
+    createdAt: va.createdAt,
+    isPreferred: va.isPreferred,
+    founderRejected: va.founderRejected,
+    regenerationAttempt: va.regenerationAttempt,
+    review: va.review
+      ? {
+          qualityVerdict: va.review.qualityVerdict,
+          regenerationRecommended: va.review.regenerationRecommended,
+          evaluator: va.review.evaluator,
+          evaluation: va.review.evaluation as Record<string, unknown> | null,
+        }
+      : null,
+  }));
 
   return (
     <>
       <PageHeader
-        title="Project studio"
-        description="Workflow is driven only by the orchestrator. Use controls to advance state."
-        action={
-          <Link
-            href={`/clients/${clientId}/briefs/${briefId}/edit`}
-            className="rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
-          >
-            Edit brief
-          </Link>
-        }
+        title={brief.title}
+        description={`${brief.client.name} · Studio`}
+        tone="muted"
       />
 
-      <div className="grid gap-8 lg:grid-cols-5">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-              Brief
-            </p>
-            <h2 className="mt-2 text-lg font-semibold text-zinc-900">
-              {brief.title}
-            </h2>
-            <dl className="mt-4 space-y-2 text-sm text-zinc-600">
-              <div>
-                <dt className="text-xs font-medium text-zinc-500">Client</dt>
-                <dd>{brief.client.name}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium text-zinc-500">Deadline</dt>
-                <dd>{new Date(brief.deadline).toLocaleString()}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium text-zinc-500">Key message</dt>
-                <dd className="text-zinc-800">{brief.keyMessage}</dd>
-              </div>
-            </dl>
-            {canonHighlight ? (
-              <p className="mt-4 rounded-lg border border-violet-100 bg-violet-50/50 px-3 py-2 text-xs text-violet-950">
-                {canonHighlight}
-              </p>
-            ) : null}
-          </Card>
+      <div className="grid gap-10 lg:grid-cols-12">
+        <div className="space-y-6 lg:col-span-5">
+          <StudioNextCallout
+            clientId={clientId}
+            briefId={briefId}
+            identityWorkflowEnabled={brief.identityWorkflowEnabled}
+            hasWorkflow={hasWorkflow}
+            reviewTaskId={reviewTaskId}
+            reviseTaskId={reviseTaskId}
+            nextExecutableStage={nextExecutableStage}
+            tasks={taskLite}
+          />
 
           <WorkflowControls
             clientId={clientId}
@@ -165,39 +152,66 @@ export default async function BriefStudioPage({
             timelineTasks={timelineTasks}
           />
 
-          <Card>
+          <Card className="border-zinc-800/90 bg-zinc-900/40">
             <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-              Export
+              Context
             </p>
-            <p className="mt-1 text-sm text-zinc-600">
-              Download structured outputs for handoff or archive.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <dl className="mt-3 space-y-3 text-sm text-zinc-300">
+              <div>
+                <dt className="text-xs text-zinc-500">Deadline</dt>
+                <dd className="mt-0.5 text-zinc-200">
+                  {new Date(brief.deadline).toLocaleDateString(undefined, {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-zinc-500">Key message</dt>
+                <dd className="mt-0.5 leading-relaxed text-zinc-200">
+                  {brief.keyMessage}
+                </dd>
+              </div>
+            </dl>
+            {canonHighlight ? (
+              <p className="mt-4 rounded-lg border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-xs leading-relaxed text-violet-100/90">
+                {canonHighlight}
+              </p>
+            ) : null}
+          </Card>
+
+          <DisclosureSection
+            title="Export"
+            subtitle="JSON or Markdown for archive or handoff"
+            defaultOpen={false}
+          >
+            <div className="flex flex-wrap gap-2">
               <a
                 href={`/api/export/briefs/${briefId}?clientId=${encodeURIComponent(clientId)}&format=json`}
-                className="inline-flex rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+                className="inline-flex rounded-lg border border-zinc-600 bg-zinc-900/80 px-3.5 py-2 text-sm font-medium text-zinc-100 hover:border-zinc-500"
               >
-                Download JSON
+                JSON
               </a>
               <a
                 href={`/api/export/briefs/${briefId}?clientId=${encodeURIComponent(clientId)}&format=markdown`}
-                className="inline-flex rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+                className="inline-flex rounded-lg border border-zinc-600 bg-zinc-900/80 px-3.5 py-2 text-sm font-medium text-zinc-100 hover:border-zinc-500"
               >
-                Download Markdown
+                Markdown
               </a>
             </div>
-          </Card>
+          </DisclosureSection>
         </div>
 
-        <div className="lg:col-span-3 space-y-8">
-          <Card>
+        <div className="space-y-8 lg:col-span-7">
+          <Card className="border-zinc-800/90 bg-zinc-900/50">
             <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
               Pipeline
             </p>
             {!hasWorkflow ? (
-              <p className="mt-3 text-sm text-zinc-600">
-                Initialize the workflow to create tasks and dependencies for this
-                brief.
+              <p className="mt-3 text-sm text-zinc-400">
+                Initialize the workflow once from Actions — stages appear here.
               </p>
             ) : (
               <div className="mt-4">
@@ -210,160 +224,57 @@ export default async function BriefStudioPage({
             )}
           </Card>
 
-          {hasWorkflow && nextExecutableTaskIds.length > 0 ? (
-            <p className="text-sm text-emerald-800">
-              Next executable:{" "}
-              <span className="font-mono">{nextExecutableTaskIds.join(", ")}</span>
-            </p>
-          ) : hasWorkflow ? (
-            <p className="text-sm text-zinc-600">
-              No READY task right now — complete reviews or reset revisions to
-              continue.
-            </p>
-          ) : null}
-
-          <section>
-            <h3 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-              Review log
-            </h3>
+          <DisclosureSection
+            title="Review history"
+            subtitle={
+              allReviews.length === 0
+                ? "No decisions logged yet"
+                : `${Math.min(allReviews.length, 8)} recent`
+            }
+            defaultOpen={allReviews.length > 0 && allReviews.length <= 3}
+          >
             {allReviews.length === 0 ? (
-              <p className="mt-2 text-sm text-zinc-500">No review items yet.</p>
+              <p className="text-sm text-zinc-500">Nothing yet.</p>
             ) : (
-              <ul className="mt-3 space-y-2">
-                {allReviews.slice(0, 12).map((r) => (
+              <ul className="space-y-2">
+                {allReviews.slice(0, 8).map((r) => (
                   <li
                     key={r.id}
-                    className="rounded-lg border border-zinc-200/80 bg-white px-3 py-2 text-sm"
+                    className="rounded-lg border border-zinc-800/90 bg-zinc-950/40 px-3 py-2.5 text-sm"
                   >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`rounded-md px-2 py-0.5 text-xs font-medium ${reviewBadge(r.status)}`}
-                      >
-                        {r.status.replace(/_/g, " ")}
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-zinc-400">
+                      <span className="font-medium text-zinc-200">
+                        {reviewStatusText(r.status)}
                       </span>
+                      <span className="text-xs">· {STAGE_LABELS[r.taskStage]}</span>
                       <span className="text-xs text-zinc-500">
-                        {STAGE_LABELS[r.taskStage]}
+                        {new Date(r.createdAt).toLocaleDateString()}
                       </span>
                       {r.reviewerLabel ? (
-                        <span className="text-xs text-zinc-600">
-                          {r.reviewerLabel}
+                        <span className="text-xs text-zinc-500">
+                          · {r.reviewerLabel}
                         </span>
                       ) : null}
-                      <span className="text-xs text-zinc-400">
-                        {new Date(r.createdAt).toLocaleString()}
-                      </span>
                     </div>
                     {r.feedback ? (
-                      <p className="mt-1 text-zinc-700">{r.feedback}</p>
+                      <p className="mt-1.5 text-sm leading-relaxed text-zinc-300">
+                        {r.feedback}
+                      </p>
                     ) : null}
                   </li>
                 ))}
               </ul>
             )}
-          </section>
+          </DisclosureSection>
 
-          <section>
-            <h3 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-              Artifacts by stage
-            </h3>
-            <div className="mt-4 space-y-6">
-              {stageOrder.map((stage) => {
-                const task = taskByStage.get(stage);
-                if (!task) return null;
-                const at = getArtifactTypeForStudioStage(stage);
-                if (!at) return null;
-                const art = latestArtifact(task.id, at);
-                const promptPkg =
-                  stage === "VISUAL_DIRECTION"
-                    ? latestArtifact(task.id, "VISUAL_PROMPT_PACKAGE")
-                    : null;
-                const hasAny = art || promptPkg;
-                return (
-                  <div key={stage}>
-                    <p className="mb-2 text-sm font-medium text-zinc-800">
-                      {STAGE_LABELS[stage]}
-                    </p>
-                    {!hasAny ? (
-                      <Card>
-                        <p className="text-sm text-zinc-500">
-                          No artifact yet for this stage.
-                        </p>
-                      </Card>
-                    ) : (
-                      <div className="space-y-6">
-                        {art ? (
-                          <>
-                            <ArtifactByType
-                              type={art.type}
-                              content={art.content}
-                              preferredFrameworkIds={preferredFrameworkIds}
-                            />
-                            {stage === "IDENTITY_ROUTING" ? (
-                              <IdentityRouteSelectionWrapper
-                                clientId={clientId}
-                                briefId={briefId}
-                                taskId={task.id}
-                                content={art.content}
-                              />
-                            ) : null}
-                          </>
-                        ) : null}
-                        {promptPkg ? (
-                          <>
-                            <ArtifactByType
-                              type={promptPkg.type}
-                              content={promptPkg.content}
-                              preferredFrameworkIds={preferredFrameworkIds}
-                            />
-                            <VisualAssetsPanel
-                              clientId={clientId}
-                              briefId={briefId}
-                              promptPackageArtifactId={promptPkg.id}
-                              critiqueRegenLimit={MAX_CRITIQUE_REGENERATIONS_PER_PACKAGE}
-                              packageAssetLimit={MAX_VISUAL_ASSETS_PER_PACKAGE}
-                              assets={brief.visualAssets.map((va) => ({
-                                id: va.id,
-                                status: va.status,
-                                providerTarget: va.providerTarget,
-                                providerName: va.providerName,
-                                modelName: va.modelName,
-                                resultUrl: va.resultUrl,
-                                sourceArtifactId: va.sourceArtifactId,
-                                generationNotes: va.generationNotes,
-                                createdAt: va.createdAt.toISOString(),
-                                isPreferred: va.isPreferred,
-                                founderRejected: va.founderRejected,
-                                regenerationAttempt: va.regenerationAttempt,
-                                review: va.review
-                                  ? {
-                                      qualityVerdict: va.review.qualityVerdict,
-                                      regenerationRecommended:
-                                        va.review.regenerationRecommended,
-                                      evaluator: va.review.evaluator,
-                                      evaluation: va.review.evaluation as Record<
-                                        string,
-                                        unknown
-                                      > | null,
-                                    }
-                                  : null,
-                              }))}
-                            />
-                          </>
-                        ) : stage === "VISUAL_DIRECTION" && art ? (
-                          <Card>
-                            <p className="text-sm text-zinc-500">
-                              Visual prompt package is created when you approve visual
-                              direction (deterministic assembly from spec + Brand OS).
-                            </p>
-                          </Card>
-                        ) : null}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          <StudioArtifactsSection
+            clientId={clientId}
+            briefId={briefId}
+            stageOrder={stageOrder}
+            taskByStage={taskByStage}
+            preferredFrameworkIds={preferredFrameworkIds}
+            visualAssets={visualAssetsForStudio}
+          />
         </div>
       </div>
     </>

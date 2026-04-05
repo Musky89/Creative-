@@ -1,5 +1,6 @@
 import type { ArtifactType } from "@/generated/prisma/client";
 import { Card, SectionTitle } from "@/components/ui/section";
+import { DisclosureSection } from "@/components/ui/collapse";
 import { getFrameworkById } from "@/lib/canon/frameworks";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -61,8 +62,8 @@ function ArtifactProvenance({ content }: { content: unknown }) {
   const err = content._agenticforceLlmError;
 
   return (
-    <div className="mb-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-      <span className="font-medium text-zinc-800">
+    <div className="mb-3 rounded-lg border border-zinc-700/80 bg-zinc-950/50 px-3 py-2 text-xs text-zinc-400">
+      <span className="font-medium text-zinc-200">
         {src === "llm" ? "Model output" : "Placeholder fallback"}
       </span>
       {src === "llm" && path ? (
@@ -98,7 +99,7 @@ function StringList({ items, empty }: { items: unknown; empty: string }) {
     return <p className="text-sm text-zinc-500">{empty}</p>;
   }
   return (
-    <ul className="list-inside list-disc space-y-1 text-sm text-zinc-800">
+    <ul className="list-inside list-disc space-y-1 text-sm text-zinc-200">
       {list.map((s, i) => (
         <li key={i}>{s}</li>
       ))}
@@ -117,27 +118,27 @@ function FrameworkStrip({
 }) {
   const fw = getFrameworkById(frameworkId.trim());
   return (
-    <div className="rounded-lg border border-violet-200/80 bg-violet-50/60 px-3 py-2">
+    <div className="rounded-lg border border-violet-500/25 bg-violet-950/35 px-3 py-2">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="text-[11px] font-medium tracking-wide text-violet-800 uppercase">
+        <p className="text-[11px] font-medium tracking-wide text-violet-300/90 uppercase">
           {title}
         </p>
         {isPreferredForClient ? (
-          <span className="rounded bg-violet-900/90 px-1.5 py-0.5 text-[10px] font-medium text-white">
-            Strong for this client
+          <span className="rounded border border-violet-400/30 bg-violet-500/15 px-1.5 py-0.5 text-[10px] font-medium text-violet-100">
+            Strong for client
           </span>
         ) : null}
       </div>
-      <p className="mt-1 text-sm font-semibold text-violet-950">
+      <p className="mt-1 text-sm font-semibold text-violet-100">
         {fw ? fw.name : frameworkId}
         {fw ? (
-          <span className="ml-2 font-normal text-violet-700">
+          <span className="ml-2 font-normal text-violet-300/80">
             ({fw.category.replace(/_/g, " ")})
           </span>
         ) : null}
       </p>
       {fw ? (
-        <p className="mt-1 text-xs leading-relaxed text-violet-900/90">
+        <p className="mt-1 text-xs leading-relaxed text-violet-200/85">
           {fw.description}
         </p>
       ) : null}
@@ -155,7 +156,7 @@ function Field({
   return (
     <div>
       <p className="text-xs font-medium text-zinc-500">{label}</p>
-      <div className="mt-0.5 text-sm text-zinc-900">{value}</div>
+      <div className="mt-0.5 text-sm text-zinc-100">{value}</div>
     </div>
   );
 }
@@ -208,7 +209,7 @@ export function IdentityStrategyArtifactCard({ content }: { content: unknown }) 
     <Card>
       <SectionTitle>Identity strategy</SectionTitle>
       <p className="mt-2 text-xs text-zinc-500">
-        Symbolic and semantic system — reasoning before any mark or campaign visuals.
+        Symbolic territory before mark exploration.
       </p>
       <div className="mt-4 space-y-4">
         <Field
@@ -265,64 +266,74 @@ export function IdentityRoutesPackArtifactCard({ content }: { content: unknown }
         </div>
       ) : null}
       {isRecord(content.pairwiseDifferentiation) ? (
-        <div className="mt-4 rounded-lg border border-teal-200/80 bg-teal-50/40 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-teal-900">
-            Pairwise route comparison
-          </p>
-          <p className="mt-1 text-xs text-teal-950/90">
-            Strongest index:{" "}
-            <span className="font-mono">
-              {String(
-                (content.pairwiseDifferentiation as Record<string, unknown>)
-                  .strongestRouteIndex ?? "—",
-              )}
-            </span>
-            {" · "}
-            Weakest:{" "}
-            <span className="font-mono">
-              {String(
-                (content.pairwiseDifferentiation as Record<string, unknown>)
-                  .weakestRouteIndex ?? "—",
-              )}
-            </span>
-          </p>
-          <p className="mt-2 text-sm text-teal-950">
-            {asString(
-              (content.pairwiseDifferentiation as Record<string, unknown>)
-                .differentiationSummary,
-            ) || "—"}
-          </p>
-          <p className="mt-2 text-xs text-teal-900/85">
-            {asString(
-              (content.pairwiseDifferentiation as Record<string, unknown>)
-                .aggregateOverlap,
-            ) || "—"}
-          </p>
-          <ul className="mt-2 space-y-2 text-xs text-teal-950">
-            {Array.isArray(
-              (content.pairwiseDifferentiation as Record<string, unknown>)
-                .pairComparisons,
-            )
-              ? (
+        <div className="mt-4">
+          <DisclosureSection
+            title="Route comparison matrix"
+            subtitle="Pairwise differentiation — expand to compare"
+            defaultOpen
+          >
+            <p className="text-xs text-teal-200/90">
+              Strongest index:{" "}
+              <span className="font-mono">
+                {String(
                   (content.pairwiseDifferentiation as Record<string, unknown>)
-                    .pairComparisons as unknown[]
-                ).map((row, j) =>
-                  isRecord(row) ? (
-                    <li key={j} className="rounded border border-teal-100 bg-white/60 p-2">
-                      <span className="font-mono">
-                        {String(row.leftIndex)} vs {String(row.rightIndex)}
-                      </span>{" "}
-                      · stronger:{" "}
-                      <span className="font-medium">
-                        {asString(row.strongerRouteThisPair)}
-                      </span>
-                      <p className="mt-1">Overlap: {asString(row.overlapNotes)}</p>
-                      <p className="mt-0.5">Diff: {asString(row.howTheyDiffer)}</p>
-                    </li>
-                  ) : null,
-                )
-              : null}
-          </ul>
+                    .strongestRouteIndex ?? "—",
+                )}
+              </span>
+              {" · "}
+              Weakest:{" "}
+              <span className="font-mono">
+                {String(
+                  (content.pairwiseDifferentiation as Record<string, unknown>)
+                    .weakestRouteIndex ?? "—",
+                )}
+              </span>
+            </p>
+            <p className="mt-2 text-sm text-zinc-200">
+              {asString(
+                (content.pairwiseDifferentiation as Record<string, unknown>)
+                  .differentiationSummary,
+              ) || "—"}
+            </p>
+            <p className="mt-2 text-xs text-zinc-400">
+              {asString(
+                (content.pairwiseDifferentiation as Record<string, unknown>)
+                  .aggregateOverlap,
+              ) || "—"}
+            </p>
+            <ul className="mt-3 space-y-2 text-xs text-zinc-300">
+              {Array.isArray(
+                (content.pairwiseDifferentiation as Record<string, unknown>)
+                  .pairComparisons,
+              )
+                ? (
+                    (content.pairwiseDifferentiation as Record<string, unknown>)
+                      .pairComparisons as unknown[]
+                  ).map((row, j) =>
+                    isRecord(row) ? (
+                      <li
+                        key={j}
+                        className="rounded border border-teal-800/40 bg-teal-950/30 p-2"
+                      >
+                        <span className="font-mono text-teal-200/90">
+                          {String(row.leftIndex)} vs {String(row.rightIndex)}
+                        </span>{" "}
+                        · stronger:{" "}
+                        <span className="font-medium text-zinc-100">
+                          {asString(row.strongerRouteThisPair)}
+                        </span>
+                        <p className="mt-1 text-zinc-400">
+                          Overlap: {asString(row.overlapNotes)}
+                        </p>
+                        <p className="mt-0.5 text-zinc-300">
+                          Diff: {asString(row.howTheyDiffer)}
+                        </p>
+                      </li>
+                    ) : null,
+                  )
+                : null}
+            </ul>
+          </DisclosureSection>
         </div>
       ) : null}
       {typeof content.founderPreferredRouteIndex === "number" ? (
@@ -348,18 +359,20 @@ export function IdentityRoutesPackArtifactCard({ content }: { content: unknown }
         </div>
       ) : null}
       {Array.isArray(routes) && routes.length > 0 ? (
-        <div className="mt-6 space-y-8">
+        <div className="mt-6 space-y-3">
           {routes.map((raw, i) => {
             if (!isRecord(raw)) return null;
+            const routeTitle =
+              asString(raw.routeName) || `Route ${i + 1}`;
+            const routeSub = asString(raw.routeType) || undefined;
             return (
-              <div
+              <DisclosureSection
                 key={i}
-                className="border-t border-zinc-100 pt-6 first:border-t-0 first:pt-0"
+                title={routeTitle}
+                subtitle={routeSub ? routeSub.replace(/_/g, " ") : `Option ${i + 1}`}
+                defaultOpen={i === 0}
               >
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                  Route {i + 1}
-                </p>
-                <div className="mt-3 space-y-3">
+                <div className="space-y-3">
                   <Field
                     label="Name"
                     value={asString(raw.routeName) || "—"}
@@ -392,7 +405,7 @@ export function IdentityRoutesPackArtifactCard({ content }: { content: unknown }
                     label="Why it works for brand"
                     value={asString(raw.whyItWorksForBrand) || "—"}
                   />
-                  <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-3">
+                  <div className="rounded-lg border border-zinc-700/70 bg-zinc-950/40 p-3">
                     <p className="text-[11px] font-semibold uppercase text-zinc-600">
                       Route differentiation
                     </p>
@@ -432,7 +445,7 @@ export function IdentityRoutesPackArtifactCard({ content }: { content: unknown }
                     value={asString(raw.markExplorationSeed) || "—"}
                   />
                 </div>
-              </div>
+              </DisclosureSection>
             );
           })}
         </div>
@@ -489,7 +502,7 @@ export function StrategyArtifactCard({
                   title="Framework"
                   isPreferredForClient={preferredFrameworkIds?.includes(fid)}
                 />
-                <p className="text-sm text-zinc-800">{ang || "—"}</p>
+                <p className="text-sm text-zinc-200">{ang || "—"}</p>
               </div>
             );
           })}
@@ -515,79 +528,93 @@ export function ConceptArtifactCard({
       <Card>
         <SectionTitle>Concept pack</SectionTitle>
         {summary ? (
-          <p className="mt-2 text-sm text-zinc-700">{summary}</p>
+          <p className="mt-2 text-sm text-zinc-400">{summary}</p>
         ) : null}
         {isRecord(content.pairwiseDifferentiation) ? (
-          <div className="mt-4 rounded-lg border border-teal-200/80 bg-teal-50/40 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-teal-900">
-              Pairwise differentiation
-            </p>
-            <p className="mt-1 text-xs text-teal-950/90">
-              Strongest concept index:{" "}
-              <span className="font-mono">
-                {String(
-                  (content.pairwiseDifferentiation as Record<string, unknown>)
-                    .strongestConceptIndex ?? "—",
-                )}
-              </span>
-            </p>
-            <p className="mt-1 text-sm text-teal-950">
-              {asString(
-                (content.pairwiseDifferentiation as Record<string, unknown>)
-                  .differentiationSummary,
-              ) || "—"}
-            </p>
-            <p className="mt-2 text-xs text-teal-900/85">
-              {asString(
-                (content.pairwiseDifferentiation as Record<string, unknown>)
-                  .aggregateOverlap,
-              ) || "—"}
-            </p>
-            <ul className="mt-2 space-y-2 text-xs text-teal-950">
-              {Array.isArray(
-                (content.pairwiseDifferentiation as Record<string, unknown>)
-                  .pairComparisons,
-              )
-                ? (
+          <div className="mt-4">
+            <DisclosureSection
+              title="Concept comparison"
+              subtitle="Pairwise differentiation"
+              defaultOpen
+            >
+              <p className="text-xs text-teal-200/90">
+                Strongest concept index:{" "}
+                <span className="font-mono">
+                  {String(
                     (content.pairwiseDifferentiation as Record<string, unknown>)
-                      .pairComparisons as unknown[]
-                  ).map((row, j) =>
-                    isRecord(row) ? (
-                      <li key={j} className="rounded border border-teal-100 bg-white/60 p-2">
-                        <span className="font-mono">
-                          {String(row.leftIndex)} vs {String(row.rightIndex)}
-                        </span>{" "}
-                        · stronger:{" "}
-                        <span className="font-medium">
-                          {asString(row.strongerConceptThisPair)}
-                        </span>
-                        <p className="mt-1 text-teal-900/90">
-                          Overlap: {asString(row.overlapNotes)}
-                        </p>
-                        <p className="mt-0.5">Diff: {asString(row.howTheyDiffer)}</p>
-                      </li>
-                    ) : null,
-                  )
-                : null}
-            </ul>
+                      .strongestConceptIndex ?? "—",
+                  )}
+                </span>
+              </p>
+              <p className="mt-2 text-sm text-zinc-200">
+                {asString(
+                  (content.pairwiseDifferentiation as Record<string, unknown>)
+                    .differentiationSummary,
+                ) || "—"}
+              </p>
+              <p className="mt-2 text-xs text-zinc-400">
+                {asString(
+                  (content.pairwiseDifferentiation as Record<string, unknown>)
+                    .aggregateOverlap,
+                ) || "—"}
+              </p>
+              <ul className="mt-3 space-y-2 text-xs text-zinc-300">
+                {Array.isArray(
+                  (content.pairwiseDifferentiation as Record<string, unknown>)
+                    .pairComparisons,
+                )
+                  ? (
+                      (content.pairwiseDifferentiation as Record<string, unknown>)
+                        .pairComparisons as unknown[]
+                    ).map((row, j) =>
+                      isRecord(row) ? (
+                        <li
+                          key={j}
+                          className="rounded border border-teal-800/40 bg-teal-950/30 p-2"
+                        >
+                          <span className="font-mono text-teal-200/90">
+                            {String(row.leftIndex)} vs {String(row.rightIndex)}
+                          </span>{" "}
+                          · stronger:{" "}
+                          <span className="font-medium text-zinc-100">
+                            {asString(row.strongerConceptThisPair)}
+                          </span>
+                          <p className="mt-1 text-zinc-400">
+                            Overlap: {asString(row.overlapNotes)}
+                          </p>
+                          <p className="mt-0.5 text-zinc-300">
+                            Diff: {asString(row.howTheyDiffer)}
+                          </p>
+                        </li>
+                      ) : null,
+                    )
+                  : null}
+              </ul>
+            </DisclosureSection>
           </div>
         ) : null}
-        <div className="mt-6 space-y-8">
+        <div className="mt-6 space-y-3">
           {concepts.map((raw, i) => {
             if (!isRecord(raw)) return null;
             const fid = asString(raw.frameworkId);
+            const conceptTitle =
+              asString(raw.conceptName) || `Concept ${i + 1}`;
             return (
-              <div
+              <DisclosureSection
                 key={i}
-                className="border-t border-zinc-100 pt-6 first:border-t-0 first:pt-0"
+                title={conceptTitle}
+                subtitle={fid ? "Creative Canon route" : undefined}
+                defaultOpen={i === 0}
               >
                 {fid ? (
-                  <FrameworkStrip
-                    frameworkId={fid}
-                    isPreferredForClient={preferredFrameworkIds?.includes(fid)}
-                  />
+                  <div className="mb-4">
+                    <FrameworkStrip
+                      frameworkId={fid}
+                      isPreferredForClient={preferredFrameworkIds?.includes(fid)}
+                    />
+                  </div>
                 ) : null}
-                <div className="mt-4 space-y-3">
+                <div className="space-y-3">
                   <Field
                     label="Route name"
                     value={asString(raw.conceptName) || "—"}
@@ -605,7 +632,7 @@ export function ConceptArtifactCard({
                     label="Why it works for brand"
                     value={asString(raw.whyItWorksForBrand) || "—"}
                   />
-                  <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-3">
+                  <div className="rounded-lg border border-zinc-700/70 bg-zinc-950/40 p-3">
                     <p className="text-[11px] font-semibold uppercase text-zinc-600">
                       Differentiation contract
                     </p>
@@ -633,7 +660,7 @@ export function ConceptArtifactCard({
                     </div>
                   </div>
                 </div>
-              </div>
+              </DisclosureSection>
             );
           })}
         </div>
@@ -801,7 +828,7 @@ export function VisualPromptPackageArtifactCard({ content }: { content: unknown 
       ) : null}
 
       {isRecord(meta) && Object.keys(meta).length > 0 ? (
-        <div className="mt-6 rounded-lg border border-zinc-200 bg-zinc-50/50 p-3">
+        <div className="mt-6 rounded-lg border border-zinc-700/70 bg-zinc-950/40 p-3">
           <p className="text-[11px] font-medium text-zinc-500">Assembly metadata</p>
           <ul className="mt-2 space-y-1 text-xs text-zinc-700">
             {Object.entries(meta).map(([k, val]) => (
@@ -842,7 +869,7 @@ export function VisualSpecArtifactCard({
         </div>
       ) : null}
       <div className="mt-6 space-y-6">
-        <div className="rounded-xl border border-zinc-200/90 bg-gradient-to-b from-zinc-50/80 to-white p-4">
+        <div className="rounded-xl border border-zinc-700/80 bg-gradient-to-b from-zinc-900/60 to-zinc-950/40 p-4">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
             Concept & objective
           </p>
@@ -901,7 +928,7 @@ export function VisualSpecArtifactCard({
           </div>
         </div>
         {typeof content.optionalPromptSeed === "string" && content.optionalPromptSeed.trim() ? (
-          <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-3">
+          <div className="rounded-lg border border-zinc-700/70 bg-zinc-950/40 p-3">
             <p className="text-[11px] font-medium text-zinc-500">Optional prompt seed</p>
             <p className="mt-1 font-mono text-xs leading-relaxed text-zinc-800">
               {content.optionalPromptSeed}
@@ -975,7 +1002,7 @@ export function ReviewReportArtifactCard({ content }: { content: unknown }) {
             <p className="text-xs font-medium text-zinc-500">
               Framework execution
             </p>
-            <p className="mt-1 text-sm font-medium text-zinc-900">{fe}</p>
+            <p className="mt-1 text-sm font-medium text-zinc-100">{fe}</p>
             <Field
               label="Framework assessment"
               value={asString(content.frameworkAssessment) || "—"}
@@ -1027,7 +1054,7 @@ export function ReviewReportArtifactCard({ content }: { content: unknown }) {
             </ul>
           </div>
         ) : null}
-        <div className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50/60 p-3">
+        <div className="space-y-3 rounded-lg border border-zinc-700/80 bg-zinc-950/50 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
             Harsh creative audit
           </p>
