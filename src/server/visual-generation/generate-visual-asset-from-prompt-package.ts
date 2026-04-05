@@ -4,6 +4,10 @@ import { getPrisma } from "@/server/db/prisma";
 import { generateGeminiImagenImage } from "@/server/image-generation/gemini-imagen";
 import { generateOpenAiImage } from "@/server/image-generation/openai-images";
 import { saveVisualAssetFile } from "@/server/storage/visual-asset-storage";
+import { evaluateAndPersistVisualAsset } from "@/server/visual-review/evaluate-visual-asset";
+
+export const MAX_VISUAL_ASSETS_PER_PACKAGE = 16;
+export const MAX_CRITIQUE_REGENERATIONS_PER_PACKAGE = 3;
 
 function stripInternalKeys(data: Record<string, unknown>): Record<string, unknown> {
   const out = { ...data };
@@ -18,6 +22,7 @@ type Bundle = { prompt: string; negativeOrAvoid: string };
 function pickBundle(
   content: Record<string, unknown>,
   target: VisualPromptProviderTarget,
+  critiqueSuffix?: string,
 ): Bundle {
   const parsed = visualPromptPackageArtifactSchema.safeParse(content);
   if (!parsed.success) {
@@ -31,13 +36,13 @@ function pickBundle(
         ? "GEMINI_IMAGE"
         : "GENERIC";
   const v = pv[key];
-  if (v?.prompt) {
-    return { prompt: v.prompt, negativeOrAvoid: v.negativeOrAvoid ?? "" };
-  }
-  return {
-    prompt: parsed.data.primaryPrompt,
-    negativeOrAvoid: parsed.data.negativePrompt,
-  };
+  const basePrompt = v?.prompt ?? parsed.data.primaryPrompt;
+  const neg = v?.negativeOrAvoid ?? parsed.data.negativePrompt;
+  const suffix = critiqueSuffix?.trim();
+  const prompt = suffix
+    ? `${basePrompt}\n\nFOUNDER / QA DIRECTION (must honor):\n${suffix.slice(0, 1200)}`
+    : basePrompt;
+  return { prompt, negativeOrAvoid: neg };
 }
 
 async function runProvider(
@@ -117,6 +122,8 @@ export async function generateVisualAssetFromPromptPackage(
     briefId: string;
     providerTarget: VisualPromptProviderTarget;
     variantLabel?: string;
+    /** Short founder note appended to prompt; counts as regeneration attempt when non-empty. */
+    critique?: string | null;
   },
 ): Promise<{ id: string; status: "COMPLETED" | "FAILED"; error?: string }> {
   const art = await db.artifact.findUnique({
@@ -131,8 +138,33 @@ export async function generateVisualAssetFromPromptPackage(
     throw new Error("Artifact does not belong to this brief/client.");
   }
 
+  const totalForPackage = await db.visualAsset.count({
+    where: { sourceArtifactId: art.id },
+  });
+  if (totalForPackage >= MAX_VISUAL_ASSETS_PER_PACKAGE) {
+    throw new Error(
+      `Maximum ${MAX_VISUAL_ASSETS_PER_PACKAGE} visual assets per prompt package reached.`,
+    );
+  }
+
+  const critiqueTrim = args.critique?.trim() ?? "";
+  if (critiqueTrim) {
+    const critiqueCount = await db.visualAsset.count({
+      where: {
+        sourceArtifactId: art.id,
+        regenerationAttempt: { gt: 0 },
+      },
+    });
+    if (critiqueCount >= MAX_CRITIQUE_REGENERATIONS_PER_PACKAGE) {
+      throw new Error(
+        `Maximum ${MAX_CRITIQUE_REGENERATIONS_PER_PACKAGE} critique-based regenerations for this package reached.`,
+      );
+    }
+  }
+
   const content = stripInternalKeys(art.content as Record<string, unknown>);
-  const bundle = pickBundle(content, args.providerTarget);
+  const bundle = pickBundle(content, args.providerTarget, critiqueTrim || undefined);
+  const regenAttempt = critiqueTrim ? 1 : 0;
 
   const asset = await db.visualAsset.create({
     data: {
@@ -147,6 +179,7 @@ export async function generateVisualAssetFromPromptPackage(
       negativePromptUsed: bundle.negativeOrAvoid,
       status: "GENERATING",
       variantLabel: args.variantLabel?.trim() || null,
+      regenerationAttempt: regenAttempt,
     },
   });
 
@@ -170,10 +203,16 @@ export async function generateVisualAssetFromPromptPackage(
         localPath: relativePath,
         metadata: {
           mimeType: mime,
+          critiqueAppended: critiqueTrim || undefined,
           ...genMeta,
         } as object,
         generationNotes: null,
       },
+    });
+
+    await evaluateAndPersistVisualAsset(db, {
+      visualAssetId: asset.id,
+      clientId: args.clientId,
     });
 
     return { id: asset.id, status: "COMPLETED" };

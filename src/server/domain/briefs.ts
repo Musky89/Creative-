@@ -43,7 +43,10 @@ export async function getBriefForStudio(briefId: string, clientId: string) {
           reviewItems: { orderBy: { createdAt: "desc" } },
         },
       },
-      visualAssets: { orderBy: { createdAt: "desc" } },
+      visualAssets: {
+        orderBy: { createdAt: "desc" },
+        include: { review: true },
+      },
     },
   });
 }

@@ -13,6 +13,10 @@ import {
 } from "@/server/canon/client-canon-ui";
 import { orchestrator } from "@/server/orchestrator/orchestrator-service";
 import { VisualAssetsPanel } from "@/components/studio/visual-assets-panel";
+import {
+  MAX_CRITIQUE_REGENERATIONS_PER_PACKAGE,
+  MAX_VISUAL_ASSETS_PER_PACKAGE,
+} from "@/server/visual-generation/generate-visual-asset-from-prompt-package";
 import { WorkflowControls } from "@/components/workflow/workflow-controls";
 import { WorkflowTimeline } from "@/components/workflow/workflow-timeline";
 
@@ -300,6 +304,8 @@ export default async function BriefStudioPage({
                               clientId={clientId}
                               briefId={briefId}
                               promptPackageArtifactId={promptPkg.id}
+                              critiqueRegenLimit={MAX_CRITIQUE_REGENERATIONS_PER_PACKAGE}
+                              packageAssetLimit={MAX_VISUAL_ASSETS_PER_PACKAGE}
                               assets={brief.visualAssets.map((va) => ({
                                 id: va.id,
                                 status: va.status,
@@ -310,6 +316,21 @@ export default async function BriefStudioPage({
                                 sourceArtifactId: va.sourceArtifactId,
                                 generationNotes: va.generationNotes,
                                 createdAt: va.createdAt.toISOString(),
+                                isPreferred: va.isPreferred,
+                                founderRejected: va.founderRejected,
+                                regenerationAttempt: va.regenerationAttempt,
+                                review: va.review
+                                  ? {
+                                      qualityVerdict: va.review.qualityVerdict,
+                                      regenerationRecommended:
+                                        va.review.regenerationRecommended,
+                                      evaluator: va.review.evaluator,
+                                      evaluation: va.review.evaluation as Record<
+                                        string,
+                                        unknown
+                                      > | null,
+                                    }
+                                  : null,
                               }))}
                             />
                           </>

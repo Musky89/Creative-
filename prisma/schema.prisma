@@ -143,6 +143,7 @@ model Client {
   frameworkPerformances  FrameworkPerformance[]
   artifactOutcomes       ArtifactOutcome[]
   visualAssets           VisualAsset[]
+  visualAssetReviews     VisualAssetReview[]
 }
 
 /// One canonical Brand Bible per client (1:1).
@@ -289,7 +290,8 @@ model Artifact {
 
   reviewItems      ReviewItem[]
   artifactOutcomes ArtifactOutcome[]
-  sourcedVisualAssets VisualAsset[] @relation("VisualAssetSourceArtifact")
+  sourcedVisualAssets     VisualAsset[]         @relation("VisualAssetSourceArtifact")
+  sourcedVisualReviews    VisualAssetReview[]   @relation("VisualReviewSourceSpec")
 
   @@unique([taskId, type, version])
   @@index([taskId])
@@ -401,6 +403,14 @@ model VisualAsset {
   metadata            Json?
   variantLabel        String?
   generationNotes     String?                  @db.Text
+  /// Founder marked this variant as the preferred pick for this prompt package.
+  isPreferred         Boolean                  @default(false)
+  /// Founder explicitly rejected this variant (weak / off-brief).
+  founderRejected     Boolean                  @default(false)
+  /// Bounded regeneration: incremented when generation used a critique suffix.
+  regenerationAttempt Int                      @default(0)
+
+  review VisualAssetReview?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -410,4 +420,29 @@ model VisualAsset {
   @@index([taskId])
   @@index([sourceArtifactId])
   @@index([status])
+}
+
+/// Structured visual QA for a generated asset (deterministic + optional vision LLM).
+model VisualAssetReview {
+  id              String      @id @default(cuid())
+  clientId        String
+  client          Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  visualAssetId   String      @unique
+  visualAsset     VisualAsset @relation(fields: [visualAssetId], references: [id], onDelete: Cascade)
+  /// VISUAL_SPEC artifact id (for provenance and framework memory).
+  sourceSpecArtifactId String?
+  sourceSpecArtifact   Artifact? @relation("VisualReviewSourceSpec", fields: [sourceSpecArtifactId], references: [id], onDelete: SetNull)
+
+  /// Full structured payload (matches VisualAssetEvaluation schema + extras).
+  evaluation               Json
+  qualityVerdict           String
+  regenerationRecommended  Boolean              @default(false)
+  /// deterministic | openai_vision | skipped_no_provider
+  evaluator                String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([sourceSpecArtifactId])
 }
