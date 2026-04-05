@@ -1,8 +1,7 @@
 import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { NextResponse } from "next/server";
 import { getPrisma } from "@/server/db/prisma";
-import { getVisualAssetStorageRoot } from "@/server/storage/visual-asset-storage";
+import { resolveVisualAssetAbsolutePath } from "@/server/storage/visual-asset-storage";
 
 export async function GET(
   req: Request,
@@ -24,8 +23,12 @@ export async function GET(
     return NextResponse.json({ error: "Asset not available" }, { status: 404 });
   }
 
-  const root = getVisualAssetStorageRoot();
-  const abs = path.join(root, asset.localPath);
+  let abs: string;
+  try {
+    abs = resolveVisualAssetAbsolutePath(asset.localPath);
+  } catch {
+    return NextResponse.json({ error: "Invalid path" }, { status: 500 });
+  }
   try {
     const buf = await readFile(abs);
     const meta = asset.metadata as Record<string, unknown> | null;

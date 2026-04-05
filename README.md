@@ -2,6 +2,10 @@
 
 **AgenticForce** is an **AI-native creative agency operating system**. It is not a generic multi-tenant SaaS template. It is built for a **single founder** who runs **multiple clients** through a **task-based pipeline** with **explicit review gates**, **injectable brand context**, and a **server-side orchestrator** as the only workflow engine.
 
+## Deploying privately
+
+See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for env validation, migrations, storage, health checks, and common failures. Use **[docs/PRIVATE_TESTING_CHECKLIST.md](docs/PRIVATE_TESTING_CHECKLIST.md)** for end-to-end smoke testing.
+
 ## What problem it solves
 
 Creative work routed through ad-hoc chats and one-off prompts produces:

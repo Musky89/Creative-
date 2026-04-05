@@ -218,6 +218,7 @@ export async function generateVisualAssetFromPromptPackage(
     return { id: asset.id, status: "COMPLETED" };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    console.error("[agenticforce:visual-gen] failed:", msg);
     await db.visualAsset.update({
       where: { id: asset.id },
       data: {

@@ -1,3 +1,4 @@
+import { logProviderCall } from "@/server/observability/provider-observability";
 import type { ChatMessage, LlmProvider } from "./types";
 
 type AnthropicResponse = {
@@ -45,6 +46,7 @@ export function createAnthropicProvider(
         body.system = system;
       }
 
+      const t0 = Date.now();
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -57,17 +59,40 @@ export function createAnthropicProvider(
 
       const data = (await res.json()) as AnthropicResponse;
       if (!res.ok) {
-        throw new Error(
-          data.error?.message ?? `Anthropic HTTP ${res.status}`,
-        );
+        const err = data.error?.message ?? `Anthropic HTTP ${res.status}`;
+        logProviderCall({
+          kind: "anthropic_messages",
+          providerId: "anthropic",
+          model,
+          durationMs: Date.now() - t0,
+          ok: false,
+          error: err,
+        });
+        throw new Error(err);
       }
       const text =
         data.content?.map((c) => (c.type === "text" ? c.text ?? "" : "")).join(
           "",
         ) ?? "";
       if (!text.trim()) {
-        throw new Error("Anthropic returned empty content.");
+        const err = "Anthropic returned empty content.";
+        logProviderCall({
+          kind: "anthropic_messages",
+          providerId: "anthropic",
+          model,
+          durationMs: Date.now() - t0,
+          ok: false,
+          error: err,
+        });
+        throw new Error(err);
       }
+      logProviderCall({
+        kind: "anthropic_messages",
+        providerId: "anthropic",
+        model,
+        durationMs: Date.now() - t0,
+        ok: true,
+      });
       return { text, providerId: "anthropic", model };
     },
   };

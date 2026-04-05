@@ -1,3 +1,4 @@
+import { logProviderCall } from "@/server/observability/provider-observability";
 import type { LlmProvider } from "./types";
 
 type OpenAiResponse = {
@@ -22,6 +23,7 @@ export function createOpenAiProvider(apiKey: string, model: string): LlmProvider
         body.response_format = { type: "json_object" };
       }
 
+      const t0 = Date.now();
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -33,14 +35,38 @@ export function createOpenAiProvider(apiKey: string, model: string): LlmProvider
 
       const data = (await res.json()) as OpenAiResponse;
       if (!res.ok) {
-        throw new Error(
-          data.error?.message ?? `OpenAI HTTP ${res.status}`,
-        );
+        const err = data.error?.message ?? `OpenAI HTTP ${res.status}`;
+        logProviderCall({
+          kind: "openai_chat",
+          providerId: "openai",
+          model,
+          durationMs: Date.now() - t0,
+          ok: false,
+          error: err,
+        });
+        throw new Error(err);
       }
       const text = data.choices?.[0]?.message?.content ?? "";
       if (!text) {
-        throw new Error("OpenAI returned empty content.");
+        const err = "OpenAI returned empty content.";
+        logProviderCall({
+          kind: "openai_chat",
+          providerId: "openai",
+          model,
+          durationMs: Date.now() - t0,
+          ok: false,
+          error: err,
+        });
+        throw new Error(err);
       }
+      logProviderCall({
+        kind: "openai_chat",
+        providerId: "openai",
+        model,
+        durationMs: Date.now() - t0,
+        ok: true,
+        extra: { jsonMode: options?.jsonMode === true },
+      });
       return { text, providerId: "openai", model };
     },
   };

@@ -1,5 +1,4 @@
 import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { z } from "zod";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { visualSpecArtifactSchema } from "@/lib/artifacts/contracts";
@@ -9,7 +8,7 @@ import {
   type VisualAssetEvaluation,
 } from "@/lib/visual/visual-asset-evaluation";
 import { extractJsonObject } from "@/server/llm/extract-json";
-import { getVisualAssetStorageRoot } from "@/server/storage/visual-asset-storage";
+import { resolveVisualAssetAbsolutePath } from "@/server/storage/visual-asset-storage";
 
 const VISION_SYSTEM = `You are a strict creative director reviewing a generated image for brand work.
 You cannot know the full brand bible — use the VISUAL_SPEC excerpt and your visual judgment.
@@ -133,8 +132,7 @@ export async function evaluateAndPersistVisualAsset(
 
   if (openaiKey && asset.localPath) {
     try {
-      const root = getVisualAssetStorageRoot();
-      const abs = path.join(root, asset.localPath);
+      const abs = resolveVisualAssetAbsolutePath(asset.localPath);
       const buf = await readFile(abs);
       const b64 = buf.toString("base64");
       const meta = asset.metadata as { mimeType?: string } | null;
@@ -205,7 +203,11 @@ export async function evaluateAndPersistVisualAsset(
         visionPart = parsed.data;
         evaluator = "openai_vision";
       }
-    } catch {
+    } catch (e) {
+      console.error(
+        "[agenticforce:visual-review] vision pass failed:",
+        e instanceof Error ? e.message : e,
+      );
       evaluator = "deterministic";
     }
   } else if (!openaiKey) {

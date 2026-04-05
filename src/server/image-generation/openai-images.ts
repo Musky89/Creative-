@@ -1,3 +1,4 @@
+import { logProviderCall } from "@/server/observability/provider-observability";
 import type { ImageGenerationInput, ImageGenerationResult } from "./types";
 
 type OpenAiImageResponse = {
@@ -35,6 +36,7 @@ export async function generateOpenAiImage(
     body.prompt = `${input.prompt}\n\nAvoid: ${input.negativePrompt.trim()}`;
   }
 
+  const t0 = Date.now();
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: {
@@ -46,7 +48,16 @@ export async function generateOpenAiImage(
 
   const data = (await res.json()) as OpenAiImageResponse;
   if (!res.ok) {
-    throw new Error(data.error?.message ?? `OpenAI images HTTP ${res.status}`);
+    const err = data.error?.message ?? `OpenAI images HTTP ${res.status}`;
+    logProviderCall({
+      kind: "openai_images",
+      providerId: "openai",
+      model,
+      durationMs: Date.now() - t0,
+      ok: false,
+      error: err,
+    });
+    throw new Error(err);
   }
 
   const b64 = data.data?.[0]?.b64_json;
@@ -55,9 +66,27 @@ export async function generateOpenAiImage(
     if (url) {
       const imgRes = await fetch(url);
       if (!imgRes.ok) {
-        throw new Error(`Failed to download OpenAI image URL: ${imgRes.status}`);
+        const err = `Failed to download OpenAI image URL: ${imgRes.status}`;
+        logProviderCall({
+          kind: "openai_images",
+          providerId: "openai",
+          model,
+          durationMs: Date.now() - t0,
+          ok: false,
+          error: err,
+          fallback: "url_download",
+        });
+        throw new Error(err);
       }
       const buf = Buffer.from(await imgRes.arrayBuffer());
+      logProviderCall({
+        kind: "openai_images",
+        providerId: "openai",
+        model,
+        durationMs: Date.now() - t0,
+        ok: true,
+        fallback: "b64_missing_used_url",
+      });
       return {
         imageBuffer: buf,
         mimeType: imgRes.headers.get("content-type") || "image/png",
@@ -67,9 +96,25 @@ export async function generateOpenAiImage(
         },
       };
     }
-    throw new Error("OpenAI returned no image data.");
+    const err = "OpenAI returned no image data.";
+    logProviderCall({
+      kind: "openai_images",
+      providerId: "openai",
+      model,
+      durationMs: Date.now() - t0,
+      ok: false,
+      error: err,
+    });
+    throw new Error(err);
   }
 
+  logProviderCall({
+    kind: "openai_images",
+    providerId: "openai",
+    model,
+    durationMs: Date.now() - t0,
+    ok: true,
+  });
   return {
     imageBuffer: Buffer.from(b64, "base64"),
     mimeType: "image/png",

@@ -1,3 +1,4 @@
+import { logProviderCall } from "@/server/observability/provider-observability";
 import type { ImageGenerationInput, ImageGenerationResult } from "./types";
 
 type PredictResponse = {
@@ -32,6 +33,7 @@ export async function generateGeminiImagenImage(
     ? `${input.prompt}\n\nDo not include: ${input.negativePrompt.trim()}`
     : input.prompt;
 
+  const t0 = Date.now();
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -43,17 +45,42 @@ export async function generateGeminiImagenImage(
 
   const data = (await res.json()) as PredictResponse & { message?: string };
   if (!res.ok) {
-    throw new Error(
-      data.error?.message ?? data.message ?? `Gemini/Imagen HTTP ${res.status}`,
-    );
+    const err =
+      data.error?.message ?? data.message ?? `Gemini/Imagen HTTP ${res.status}`;
+    logProviderCall({
+      kind: "gemini_imagen",
+      providerId: "google_imagen",
+      model,
+      durationMs: Date.now() - t0,
+      ok: false,
+      error: err,
+    });
+    throw new Error(err);
   }
 
   const pred = data.predictions?.[0];
   const b64 = pred?.bytesBase64Encoded;
   if (!b64) {
-    throw new Error("Imagen returned no image bytes.");
+    const err = "Imagen returned no image bytes.";
+    logProviderCall({
+      kind: "gemini_imagen",
+      providerId: "google_imagen",
+      model,
+      durationMs: Date.now() - t0,
+      ok: false,
+      error: err,
+    });
+    throw new Error(err);
   }
 
+  logProviderCall({
+    kind: "gemini_imagen",
+    providerId: "google_imagen",
+    model,
+    durationMs: Date.now() - t0,
+    ok: true,
+    extra: { sampleCount },
+  });
   return {
     imageBuffer: Buffer.from(b64, "base64"),
     mimeType: pred.mimeType?.trim() || "image/png",
