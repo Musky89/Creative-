@@ -97,15 +97,35 @@ The initial migration is [`prisma/migrations/20260405120000_init_core_domain/mig
 
 ---
 
+## Orchestrator HTTP API (v1)
+
+All responses are JSON: success `{ ok: true, data }`, errors `{ ok: false, error: { code, message } }`.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/api/orchestrator/briefs/[briefId]/initialize` | Create the six-stage task graph for the brief; first task becomes `READY`. |
+| `GET` | `/api/orchestrator/briefs/[briefId]/workflow` | Full workflow state: tasks (pipeline order), edges, `nextExecutableTaskIds`. |
+| `POST` | `/api/orchestrator/briefs/[briefId]/execute-next` | `startTask` + `completeTask` on the next READY task (optional JSON body `{ "artifactPayload": { ... } }`). |
+| `POST` | `/api/orchestrator/tasks/[taskId]/start` | `READY` → `RUNNING`; creates `AgentRun` when `agentType` is set. |
+| `POST` | `/api/orchestrator/tasks/[taskId]/complete` | Persist artifact, version bump, `RUNNING` → `AWAITING_REVIEW` or `COMPLETED`; optional `{ "artifactPayload": { ... } }`. |
+| `POST` | `/api/orchestrator/tasks/[taskId]/approve` | Record approval `ReviewItem`, complete task, unlock dependents. Optional `{ "feedback": "..." }`. |
+| `POST` | `/api/orchestrator/tasks/[taskId]/request-revision` | Body `{ "feedback": "..." }` (required); `AWAITING_REVIEW` → `REVISE_REQUIRED`. |
+| `POST` | `/api/orchestrator/tasks/[taskId]/reset-ready` | `REVISE_REQUIRED` → `READY` (clears run timestamps). |
+
+Implementation lives under [`src/server/orchestrator/`](src/server/orchestrator/). Placeholder artifact content is in [`src/server/orchestrator/scaffold/`](src/server/orchestrator/scaffold/) — not AI output.
+
+---
+
 ## Current scope (this foundation)
 
 This repository **intentionally** has:
 
 - Next.js + TypeScript + Tailwind, `src/` layout, minimal homepage.
 - **Core domain Prisma schema** (eight models + `TaskDependency` for explicit task graphs) and PostgreSQL migrations.
-- Documentation and reserved server subtree folders for orchestrator, agents, brand, review, artifacts, storage.
+- **v1 workflow orchestrator** (Prisma-backed) and **Route Handlers** under `/api/orchestrator/*`.
+- Documentation and reserved server folders for agents, brand, review, artifacts, storage.
 
-It **does not** yet include auth, orchestrator logic, or real agents — those come in later slices aligned with the docs above.
+It **does not** yet include auth or real AI agent integrations — only deterministic placeholder scaffolding for artifacts and agent-run inputs.
 
 ---
 
