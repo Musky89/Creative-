@@ -816,6 +816,76 @@ export function ReviewReportArtifactCard({ content }: { content: unknown }) {
           label="Quality verdict"
           value={asString(content.qualityVerdict) || "—"}
         />
+        {typeof content.creativeBarVerdict === "string" ? (
+          <div
+            className={`rounded-lg border px-3 py-2 text-sm ${
+              content.creativeBarVerdict === "FAILS_BAR"
+                ? "border-red-300 bg-red-50 text-red-950"
+                : content.creativeBarVerdict === "MARGINAL"
+                  ? "border-amber-300 bg-amber-50 text-amber-950"
+                  : "border-emerald-200 bg-emerald-50/80 text-emerald-950"
+            }`}
+          >
+            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+              Creative bar
+            </span>
+            <p className="mt-1 font-medium">{content.creativeBarVerdict}</p>
+          </div>
+        ) : null}
+        {isRecord(content.comparisonRankings) ? (
+          <div className="rounded-lg border border-violet-200/80 bg-violet-50/50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-violet-900">
+              Forced comparison
+            </p>
+            <ul className="mt-2 space-y-1.5 text-sm text-violet-950">
+              <li>
+                <span className="font-medium">Strongest:</span>{" "}
+                {asString(content.comparisonRankings.strongestOutput) || "—"}
+              </li>
+              <li>
+                <span className="font-medium">Weakest:</span>{" "}
+                {asString(content.comparisonRankings.weakestOutput) || "—"}
+              </li>
+              <li>
+                <span className="font-medium">Most generic:</span>{" "}
+                {asString(content.comparisonRankings.mostGeneric) || "—"}
+              </li>
+              <li>
+                <span className="font-medium">Most on-brand:</span>{" "}
+                {asString(content.comparisonRankings.mostOnBrand) || "—"}
+              </li>
+            </ul>
+          </div>
+        ) : null}
+        <div className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50/60 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+            Harsh creative audit
+          </p>
+          <Field
+            label="Technically correct but creatively safe"
+            value={asString(content.technicallyCorrectButCreativelySafe) || "—"}
+          />
+          <Field
+            label="Framework named but not expressed"
+            value={asString(content.frameworkNamedButNotExpressed) || "—"}
+          />
+          <Field
+            label="Category cliché risk"
+            value={asString(content.categoryClicheRisk) || "—"}
+          />
+          <Field
+            label="Polished but not memorable"
+            value={asString(content.polishedButNotMemorable) || "—"}
+          />
+          <Field
+            label="Visual distinctiveness"
+            value={asString(content.visualDistinctivenessAudit) || "—"}
+          />
+          <Field
+            label="Identity ownability"
+            value={asString(content.identityOwnabilityAudit) || "—"}
+          />
+        </div>
         <Field
           label="Distinctiveness"
           value={asString(content.distinctivenessAssessment) || "—"}

@@ -29,4 +29,5 @@ export const BRAND_OS_GUARDIAN_EXTRA = [
   "- **toneAlignment**: vocabularyStyle, sentenceStyle, rhythm, tension, taste references, differentiation — not just \"on brand\" fluff.",
   "- **languageCompliance**: PASS | WARN | FAIL — FAIL if banned / NEVER / cliché hits appear or differentiation is ignored.",
   "Flag **category-generic** work and **visual guardrail** violations in issues when relevant.",
+  "You must also fill the **harsh creative audit** fields and **comparisonRankings** — safe/acceptable mediocrity should land as **creativeBarVerdict MARGINAL** or **FAILS_BAR** with **regenerationRecommended: true**.",
 ].join("\n");

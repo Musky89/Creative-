@@ -190,6 +190,24 @@ export const reviewReportArtifactSchema = z.object({
   bannedPhraseViolations: z.array(z.string()).max(20),
   regenerationRecommended: z.boolean(),
   regenerationReasons: z.array(z.string()).max(10),
+  /** Harsh creative bar — each must be substantive (pass/fail reasoning). */
+  technicallyCorrectButCreativelySafe: z.string().min(40),
+  frameworkNamedButNotExpressed: z.string().min(40),
+  categoryClicheRisk: z.string().min(40),
+  polishedButNotMemorable: z.string().min(40),
+  visualDistinctivenessAudit: z.string().min(40),
+  identityOwnabilityAudit: z.string().min(40),
+  /** Overall: FAILS_BAR and MARGINAL imply founder should treat work as not ship-ready. */
+  creativeBarVerdict: z.enum(["CLEARS_BAR", "MARGINAL", "FAILS_BAR"]),
+  /** Required comparisons — name concept route, headline #, identity route index, or section. */
+  comparisonRankings: z
+    .object({
+      strongestOutput: z.string().min(12),
+      weakestOutput: z.string().min(12),
+      mostGeneric: z.string().min(12),
+      mostOnBrand: z.string().min(12),
+    })
+    .strict(),
 });
 
 export type StrategyArtifact = z.infer<typeof strategyArtifactSchema>;
@@ -269,7 +287,15 @@ export const ARTIFACT_SHAPE_HINTS = {
   "languageCompliance": "PASS" | "WARN" | "FAIL",
   "bannedPhraseViolations": string[] (banned + Language DNA NEVER + category clichés found in copy/concepts, or empty),
   "regenerationRecommended": boolean,
-  "regenerationReasons": string[]
+  "regenerationReasons": string[],
+  "technicallyCorrectButCreativelySafe": string (min ~40 — is it competent but cowardly?),
+  "frameworkNamedButNotExpressed": string (min ~40 — label vs real structural execution),
+  "categoryClicheRisk": string (min ~40 — too close to category default?),
+  "polishedButNotMemorable": string (min ~40 — would anyone recall this tomorrow?),
+  "visualDistinctivenessAudit": string (min ~40 — VISUAL_SPEC or N/A if absent),
+  "identityOwnabilityAudit": string (min ~40 — identity routes / strategy or N/A),
+  "creativeBarVerdict": "CLEARS_BAR" | "MARGINAL" | "FAILS_BAR",
+  "comparisonRankings": { "strongestOutput", "weakestOutput", "mostGeneric", "mostOnBrand" } — each names a specific route/headline/section
 }`,
 } as const;
 

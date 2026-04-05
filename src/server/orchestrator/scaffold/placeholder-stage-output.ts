@@ -268,6 +268,25 @@ export function buildPlaceholderArtifactContent(
         bannedPhraseViolations: [],
         regenerationRecommended: false,
         regenerationReasons: [],
+        technicallyCorrectButCreativelySafe:
+          "[Placeholder] Scaffold — no LLM review; assume not evaluated for creative risk vs safety.",
+        frameworkNamedButNotExpressed:
+          "[Placeholder] Scaffold — framework expression not evaluated without real upstream artifacts.",
+        categoryClicheRisk:
+          "[Placeholder] Scaffold — category cliché risk not evaluated in placeholder mode.",
+        polishedButNotMemorable:
+          "[Placeholder] Scaffold — memorability not evaluated in placeholder mode.",
+        visualDistinctivenessAudit:
+          "[Placeholder] N/A or not evaluated — replace when VISUAL_SPEC exists from a real run.",
+        identityOwnabilityAudit:
+          "[Placeholder] N/A or not evaluated — replace when identity artifacts exist from a real run.",
+        creativeBarVerdict: "MARGINAL" as const,
+        comparisonRankings: {
+          strongestOutput: "[Placeholder] Not ranked — scaffold",
+          weakestOutput: "[Placeholder] Not ranked — scaffold",
+          mostGeneric: "[Placeholder] Not ranked — scaffold",
+          mostOnBrand: "[Placeholder] Not ranked — scaffold",
+        },
       };
     case "EXPORT":
       return {
