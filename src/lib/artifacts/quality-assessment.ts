@@ -41,6 +41,57 @@ function jaccard(a: Set<string>, b: Set<string>): number {
   return union === 0 ? 0 : inter / union;
 }
 
+/** Validate pairwiseDifferentiation covers all unordered pairs with valid indices. */
+function pairwiseStructureIssues(
+  itemCount: number,
+  pairwise: unknown,
+  label: string,
+): string[] {
+  const issues: string[] = [];
+  if (!pairwise || typeof pairwise !== "object") {
+    issues.push(`${label}: pairwiseDifferentiation is required — compare every route pair (overlap, difference, strongest per pair).`);
+    return issues;
+  }
+  const p = pairwise as Record<string, unknown>;
+  const pairs = p.pairComparisons;
+  if (!Array.isArray(pairs)) {
+    issues.push(`${label}: pairwiseDifferentiation.pairComparisons must be an array.`);
+    return issues;
+  }
+  const need = (itemCount * (itemCount - 1)) / 2;
+  if (pairs.length !== need) {
+    issues.push(
+      `${label}: expected ${need} pairwise comparisons for ${itemCount} items, got ${pairs.length}.`,
+    );
+  }
+  const seen = new Set<string>();
+  for (const row of pairs) {
+    if (!row || typeof row !== "object") continue;
+    const o = row as Record<string, unknown>;
+    const li = Number(o.leftIndex);
+    const ri = Number(o.rightIndex);
+    if (!Number.isInteger(li) || !Number.isInteger(ri) || li === ri) {
+      issues.push(`${label}: invalid pair indices in pairwiseDifferentiation.`);
+      continue;
+    }
+    const a = Math.min(li, ri);
+    const b = Math.max(li, ri);
+    if (a < 0 || b >= itemCount) {
+      issues.push(`${label}: pair indices out of range for ${itemCount} items.`);
+      continue;
+    }
+    const key = `${a}-${b}`;
+    if (seen.has(key)) {
+      issues.push(`${label}: duplicate pair (${a}, ${b}) in pairwiseDifferentiation.`);
+    }
+    seen.add(key);
+  }
+  if (pairs.length === need && seen.size !== need) {
+    issues.push(`${label}: pairwise set incomplete or duplicate — must cover each unordered pair exactly once.`);
+  }
+  return issues;
+}
+
 export type DeterministicQualityResult = {
   issues: string[];
   recommendRegeneration: boolean;
@@ -168,6 +219,31 @@ export function deterministicIdentityRoutesChecks(
     };
   }
 
+  issues.push(...pairwiseStructureIssues(routes.length, content.pairwiseDifferentiation, "Identity routes"));
+
+  const pd = content.pairwiseDifferentiation;
+  if (pd && typeof pd === "object") {
+    const po = pd as Record<string, unknown>;
+    const agg = String(po.aggregateOverlap ?? "");
+    const ds = String(po.differentiationSummary ?? "");
+    if (agg.length < 50) {
+      issues.push("Identity pairwise: aggregateOverlap too thin — name where routes blur vs split.");
+    }
+    if (ds.length < 90) {
+      issues.push("Identity pairwise: differentiationSummary too thin — synthesize A vs B vs C.");
+    }
+    const si = po.strongestRouteIndex;
+    const wi = po.weakestRouteIndex;
+    if (
+      typeof si === "number" &&
+      typeof wi === "number" &&
+      si === wi &&
+      routes.length > 1
+    ) {
+      issues.push("Identity pairwise: strongest and weakest route index must not be identical when multiple routes exist.");
+    }
+  }
+
   const types: string[] = [];
   const blobs: string[] = [];
   for (let i = 0; i < routes.length; i++) {
@@ -180,8 +256,19 @@ export function deterministicIdentityRoutesChecks(
       String(o.symbolicLogic ?? ""),
       String(o.geometryLogic ?? ""),
       String(o.typographyLogic ?? ""),
+      String(o.coreTension ?? ""),
+      String(o.distinctVisualWorld ?? ""),
+      String(o.whyBeatsCategoryNorm ?? ""),
     ].join(" ");
     blobs.push(piece);
+    if (String(o.distinctVisualWorld ?? "").length < 50) {
+      issues.push(
+        `Route ${i + 1}: distinctVisualWorld is too thin — describe a non-interchangeable visual/mark world.`,
+      );
+    }
+    if (String(o.whyCouldFail ?? "").length < 35) {
+      issues.push(`Route ${i + 1}: whyCouldFail must name a real risk.`);
+    }
     if (String(o.symbolicLogic ?? "").length < 55) {
       issues.push(
         `Route ${i + 1}: symbolicLogic is too thin — needs executable symbolic reasoning.`,
@@ -229,7 +316,9 @@ export function deterministicIdentityRoutesChecks(
   return {
     issues,
     recommendRegeneration:
-      issues.length >= 2 || issues.some((x) => x.includes("overlap")),
+      issues.length >= 2 ||
+      issues.some((x) => x.includes("overlap")) ||
+      issues.some((x) => x.includes("pairwise")),
   };
 }
 
@@ -307,10 +396,25 @@ export function deterministicConceptChecks(content: Record<string, unknown>): De
     return { issues, recommendRegeneration: false };
   }
 
+  issues.push(...pairwiseStructureIssues(concepts.length, content.pairwiseDifferentiation, "Concept pack"));
+
+  const cpd = content.pairwiseDifferentiation;
+  if (cpd && typeof cpd === "object") {
+    const po = cpd as Record<string, unknown>;
+    const agg = String(po.aggregateOverlap ?? "");
+    const ds = String(po.differentiationSummary ?? "");
+    if (agg.length < 50) {
+      issues.push("Concept pairwise: aggregateOverlap too thin — where do concepts blur?");
+    }
+    if (ds.length < 90) {
+      issues.push("Concept pairwise: differentiationSummary too thin — explain A vs B (vs C) in one synthesis.");
+    }
+  }
+
   const texts = concepts.map((c) => {
     if (!c || typeof c !== "object") return "";
     const o = c as Record<string, unknown>;
-    return `${String(o.hook ?? "")} ${String(o.rationale ?? "")} ${String(o.whyItWorksForBrand ?? "")}`;
+    return `${String(o.hook ?? "")} ${String(o.rationale ?? "")} ${String(o.whyItWorksForBrand ?? "")} ${String(o.distinctVisualWorld ?? "")} ${String(o.coreTension ?? "")} ${String(o.whyBeatsCategoryNorm ?? "")}`;
   });
 
   for (let i = 0; i < texts.length; i++) {
@@ -332,6 +436,15 @@ export function deterministicConceptChecks(content: Record<string, unknown>): De
       issues.push(
         `Concept ${i + 1}: whyItWorksForBrand is too thin — tie the route to Brand OS and positioning with specifics.`,
       );
+    }
+    const o = concepts[i] as Record<string, unknown>;
+    if (String(o.distinctVisualWorld ?? "").length < 50) {
+      issues.push(
+        `Concept ${i + 1}: distinctVisualWorld too thin — must be a differentiated visual world, not a rephrase of visualDirection only.`,
+      );
+    }
+    if (String(o.whyBeatsCategoryNorm ?? "").length < 45) {
+      issues.push(`Concept ${i + 1}: whyBeatsCategoryNorm must explain edge vs category default.`);
     }
   }
 
@@ -362,7 +475,10 @@ export function deterministicConceptChecks(content: Record<string, unknown>): De
 
   return {
     issues,
-    recommendRegeneration: issues.length >= 2 || issues.some((x) => x.includes("overlap")),
+    recommendRegeneration:
+      issues.length >= 2 ||
+      issues.some((x) => x.includes("overlap")) ||
+      issues.some((x) => x.includes("pairwise")),
   };
 }
 

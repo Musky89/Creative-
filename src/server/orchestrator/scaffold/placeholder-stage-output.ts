@@ -103,6 +103,16 @@ export function buildPlaceholderArtifactContent(
               "[Placeholder] Generic tech sans cliché",
               "[Placeholder] Trendy monoline script",
             ],
+            coreTension:
+              "[Placeholder] Authority of the wordmark vs the softness of home textiles — discipline without coldness.",
+            emotionalCenter:
+              "[Placeholder] Calm confidence — the customer trusts the specification.",
+            whyBeatsCategoryNorm:
+              "[Placeholder] Competes on fiber truth and light behavior instead of discount banners and stock loft clichés.",
+            whyCouldFail:
+              "[Placeholder] Could read as too quiet if headlines are not paired with proof.",
+            distinctVisualWorld:
+              "[Placeholder] North-lit studio, folded yardage, chalk and oat palette, serif lead with humanist spec type — never neon sale graphics.",
           },
           {
             routeName: "[Placeholder] Route B — Monogram / letterform mark",
@@ -124,6 +134,16 @@ export function buildPlaceholderArtifactContent(
               "[Placeholder] Hexagon + letter mashups",
               "[Placeholder] Infinite-loop S curves",
             ],
+            coreTension:
+              "[Placeholder] Compression vs legibility — mark must read at stamp size yet feel crafted.",
+            emotionalCenter:
+              "[Placeholder] Craft secret — insiders recognize the join logic.",
+            whyBeatsCategoryNorm:
+              "[Placeholder] Owns initials as ritual (drape, fold, install) instead of generic monogram jewelry tropes.",
+            whyCouldFail:
+              "[Placeholder] Risk of looking like any tech monogram if geometry is too symmetric.",
+            distinctVisualWorld:
+              "[Placeholder] Embossed paper proofs, single ink, tight counters, stitch-adjacent rhythm in stroke — no gradient orbits.",
           },
           {
             routeName: "[Placeholder] Route C — Abstract symbol",
@@ -145,8 +165,55 @@ export function buildPlaceholderArtifactContent(
               "[Placeholder] Random gradient orbits",
               "[Placeholder] Meaningless nodes and lines",
             ],
+            coreTension:
+              "[Placeholder] Abstract form vs literal product — must index strategy proof without illustration.",
+            emotionalCenter:
+              "[Placeholder] Wonder within restraint — one clear metaphor.",
+            whyBeatsCategoryNorm:
+              "[Placeholder] Offers a single ownable shape language vs pattern banks of globes and swooshes.",
+            whyCouldFail:
+              "[Placeholder] Blob risk if geometry is not tied to a named strategic proof.",
+            distinctVisualWorld:
+              "[Placeholder] Flat ink on paper white, one forest anchor, botanical geometry without cute illustration — poster-scale symbol tests.",
           },
         ],
+        pairwiseDifferentiation: {
+          pairComparisons: [
+            {
+              leftIndex: 0,
+              rightIndex: 1,
+              overlapNotes:
+                "[Placeholder] Both privilege craft and restraint; both avoid loud retail tropes — overlap in calm premium register.",
+              howTheyDiffer:
+                "[Placeholder] A is typographic system-first; B is mark-first compression and emboss logic.",
+              strongerRouteThisPair: "tie" as const,
+            },
+            {
+              leftIndex: 0,
+              rightIndex: 2,
+              overlapNotes:
+                "[Placeholder] Shared discipline and negative space; both avoid stock lifestyle photography language.",
+              howTheyDiffer:
+                "[Placeholder] A stays name-readable at all scales; C is symbol-led and needs lockup rules with type.",
+              strongerRouteThisPair: "left" as const,
+            },
+            {
+              leftIndex: 1,
+              rightIndex: 2,
+              overlapNotes:
+                "[Placeholder] Both can feel 'designed' — risk of similar grid if geometry is not pushed apart.",
+              howTheyDiffer:
+                "[Placeholder] B is initials/ritual; C is abstract proof-shape — different recognition paths.",
+              strongerRouteThisPair: "right" as const,
+            },
+          ],
+          aggregateOverlap:
+            "[Placeholder] All three reject loud category retail; divergence is typographic authority vs monogram ritual vs abstract proof.",
+          strongestRouteIndex: 0,
+          weakestRouteIndex: 2,
+          differentiationSummary:
+            "[Placeholder] Route A wins clarity and scale; B wins craft signal for trade audiences; C wins poster memorability but needs tight proof tie — scaffold pairwise only.",
+        },
       };
     case "STRATEGY":
       return {
@@ -187,6 +254,16 @@ export function buildPlaceholderArtifactContent(
             visualDirection: "[Placeholder] Visual notes for Route A.",
             whyItWorksForBrand:
               "[Placeholder] How Route A reinforces positioning and Brand OS emotional register.",
+            coreTension:
+              "[Placeholder] Aspiration vs proof — show the after-state without fantasy staging.",
+            emotionalCenter:
+              "[Placeholder] Relief and pride when the room finally behaves.",
+            whyBeatsCategoryNorm:
+              "[Placeholder] Leads with outcome truth instead of feature laundry lists common in the category.",
+            whyCouldFail:
+              "[Placeholder] After-state could feel generic if not tied to this product truth.",
+            distinctVisualWorld:
+              "[Placeholder] Natural light on real materials, editorial crop, no stock-smile humans — transformation shown through space, not slogans.",
           },
           {
             frameworkId: "problem-agitation",
@@ -196,8 +273,36 @@ export function buildPlaceholderArtifactContent(
             visualDirection: "[Placeholder] Visual notes for Route B.",
             whyItWorksForBrand:
               "[Placeholder] How Route B reinforces positioning and Brand OS emotional register.",
+            coreTension:
+              "[Placeholder] Urgency vs trust — agitate without fear-mongering.",
+            emotionalCenter:
+              "[Placeholder] Competent ally calling out the hidden cost of waiting.",
+            whyBeatsCategoryNorm:
+              "[Placeholder] Names the stakes the category usually smooths over with 'solutions' language.",
+            whyCouldFail:
+              "[Placeholder] Could read as negative if pain is not balanced with a credible fix.",
+            distinctVisualWorld:
+              "[Placeholder] Tighter frames, higher contrast, proof objects in frame — clinical but warm, not alarm-red retail.",
           },
         ],
+        pairwiseDifferentiation: {
+          pairComparisons: [
+            {
+              leftIndex: 0,
+              rightIndex: 1,
+              overlapNotes:
+                "[Placeholder] Both serve the same proposition; both avoid category fluff phrases in scaffold.",
+              howTheyDiffer:
+                "[Placeholder] A is transformation arc; B is pain→stakes→relief — narrative engine and visual temperature differ.",
+              strongerConceptThisPair: "tie" as const,
+            },
+          ],
+          aggregateOverlap:
+            "[Placeholder] Shared strategic goal; split is narrative mechanism and default visual temperature.",
+          strongestConceptIndex: 0,
+          differentiationSummary:
+            "[Placeholder] Route A optimizes for desire and after-state; Route B optimizes for urgency and credibility — pick by brief bias (scaffold).",
+        },
       };
     case "VISUAL_SPEC":
       return {

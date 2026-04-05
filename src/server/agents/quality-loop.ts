@@ -29,6 +29,7 @@ For VISUAL_DIRECTION / VISUAL_SPEC drafts: reject vague "luxury / cinematic / hi
 For IDENTITY_STRATEGY: reject interchangeable symbolic fluff, trend-chasing aesthetics, and empty "modern/minimal" without strategic meaning.
 For IDENTITY_ROUTING / IDENTITY_ROUTES_PACK: reject routes that are the same idea reworded; demand divergent mark types and executable typography/geometry logic (not final logo pixels).
 Honor **taste engine** rules: category differentiation, brand tension, Language DNA NEVER lines, and visual NEVER-looks-like where applicable.
+For CONCEPTING / IDENTITY_ROUTING: penalize **variation masquerading as differentiation** — routes must differ in tension, visual world, and category edge; use **pairwiseDifferentiation** in the draft when present.
 
 Fields:
 - qualityVerdict: "STRONG" | "ACCEPTABLE" | "WEAK"

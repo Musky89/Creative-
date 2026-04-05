@@ -264,6 +264,67 @@ export function IdentityRoutesPackArtifactCard({ content }: { content: unknown }
           <p className="mt-1 text-sm text-zinc-800">{diff}</p>
         </div>
       ) : null}
+      {isRecord(content.pairwiseDifferentiation) ? (
+        <div className="mt-4 rounded-lg border border-teal-200/80 bg-teal-50/40 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-teal-900">
+            Pairwise route comparison
+          </p>
+          <p className="mt-1 text-xs text-teal-950/90">
+            Strongest index:{" "}
+            <span className="font-mono">
+              {String(
+                (content.pairwiseDifferentiation as Record<string, unknown>)
+                  .strongestRouteIndex ?? "—",
+              )}
+            </span>
+            {" · "}
+            Weakest:{" "}
+            <span className="font-mono">
+              {String(
+                (content.pairwiseDifferentiation as Record<string, unknown>)
+                  .weakestRouteIndex ?? "—",
+              )}
+            </span>
+          </p>
+          <p className="mt-2 text-sm text-teal-950">
+            {asString(
+              (content.pairwiseDifferentiation as Record<string, unknown>)
+                .differentiationSummary,
+            ) || "—"}
+          </p>
+          <p className="mt-2 text-xs text-teal-900/85">
+            {asString(
+              (content.pairwiseDifferentiation as Record<string, unknown>)
+                .aggregateOverlap,
+            ) || "—"}
+          </p>
+          <ul className="mt-2 space-y-2 text-xs text-teal-950">
+            {Array.isArray(
+              (content.pairwiseDifferentiation as Record<string, unknown>)
+                .pairComparisons,
+            )
+              ? (
+                  (content.pairwiseDifferentiation as Record<string, unknown>)
+                    .pairComparisons as unknown[]
+                ).map((row, j) =>
+                  isRecord(row) ? (
+                    <li key={j} className="rounded border border-teal-100 bg-white/60 p-2">
+                      <span className="font-mono">
+                        {String(row.leftIndex)} vs {String(row.rightIndex)}
+                      </span>{" "}
+                      · stronger:{" "}
+                      <span className="font-medium">
+                        {asString(row.strongerRouteThisPair)}
+                      </span>
+                      <p className="mt-1">Overlap: {asString(row.overlapNotes)}</p>
+                      <p className="mt-0.5">Diff: {asString(row.howTheyDiffer)}</p>
+                    </li>
+                  ) : null,
+                )
+              : null}
+          </ul>
+        </div>
+      ) : null}
       {typeof content.founderPreferredRouteIndex === "number" ? (
         <p className="mt-3 rounded-lg border border-violet-200 bg-violet-50/60 px-3 py-2 text-sm text-violet-950">
           Founder preferred route:{" "}
@@ -331,6 +392,33 @@ export function IdentityRoutesPackArtifactCard({ content }: { content: unknown }
                     label="Why it works for brand"
                     value={asString(raw.whyItWorksForBrand) || "—"}
                   />
+                  <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-3">
+                    <p className="text-[11px] font-semibold uppercase text-zinc-600">
+                      Route differentiation
+                    </p>
+                    <div className="mt-2 space-y-2">
+                      <Field
+                        label="Core tension"
+                        value={asString(raw.coreTension) || "—"}
+                      />
+                      <Field
+                        label="Emotional center"
+                        value={asString(raw.emotionalCenter) || "—"}
+                      />
+                      <Field
+                        label="Beats category norm"
+                        value={asString(raw.whyBeatsCategoryNorm) || "—"}
+                      />
+                      <Field
+                        label="Could fail if"
+                        value={asString(raw.whyCouldFail) || "—"}
+                      />
+                      <Field
+                        label="Distinct visual world"
+                        value={asString(raw.distinctVisualWorld) || "—"}
+                      />
+                    </div>
+                  </div>
                   <div>
                     <p className="text-xs font-medium text-zinc-500">Risks</p>
                     <StringList items={raw.risks} empty="—" />
@@ -429,6 +517,61 @@ export function ConceptArtifactCard({
         {summary ? (
           <p className="mt-2 text-sm text-zinc-700">{summary}</p>
         ) : null}
+        {isRecord(content.pairwiseDifferentiation) ? (
+          <div className="mt-4 rounded-lg border border-teal-200/80 bg-teal-50/40 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-teal-900">
+              Pairwise differentiation
+            </p>
+            <p className="mt-1 text-xs text-teal-950/90">
+              Strongest concept index:{" "}
+              <span className="font-mono">
+                {String(
+                  (content.pairwiseDifferentiation as Record<string, unknown>)
+                    .strongestConceptIndex ?? "—",
+                )}
+              </span>
+            </p>
+            <p className="mt-1 text-sm text-teal-950">
+              {asString(
+                (content.pairwiseDifferentiation as Record<string, unknown>)
+                  .differentiationSummary,
+              ) || "—"}
+            </p>
+            <p className="mt-2 text-xs text-teal-900/85">
+              {asString(
+                (content.pairwiseDifferentiation as Record<string, unknown>)
+                  .aggregateOverlap,
+              ) || "—"}
+            </p>
+            <ul className="mt-2 space-y-2 text-xs text-teal-950">
+              {Array.isArray(
+                (content.pairwiseDifferentiation as Record<string, unknown>)
+                  .pairComparisons,
+              )
+                ? (
+                    (content.pairwiseDifferentiation as Record<string, unknown>)
+                      .pairComparisons as unknown[]
+                  ).map((row, j) =>
+                    isRecord(row) ? (
+                      <li key={j} className="rounded border border-teal-100 bg-white/60 p-2">
+                        <span className="font-mono">
+                          {String(row.leftIndex)} vs {String(row.rightIndex)}
+                        </span>{" "}
+                        · stronger:{" "}
+                        <span className="font-medium">
+                          {asString(row.strongerConceptThisPair)}
+                        </span>
+                        <p className="mt-1 text-teal-900/90">
+                          Overlap: {asString(row.overlapNotes)}
+                        </p>
+                        <p className="mt-0.5">Diff: {asString(row.howTheyDiffer)}</p>
+                      </li>
+                    ) : null,
+                  )
+                : null}
+            </ul>
+          </div>
+        ) : null}
         <div className="mt-6 space-y-8">
           {concepts.map((raw, i) => {
             if (!isRecord(raw)) return null;
@@ -462,6 +605,33 @@ export function ConceptArtifactCard({
                     label="Why it works for brand"
                     value={asString(raw.whyItWorksForBrand) || "—"}
                   />
+                  <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-3">
+                    <p className="text-[11px] font-semibold uppercase text-zinc-600">
+                      Differentiation contract
+                    </p>
+                    <div className="mt-2 space-y-2">
+                      <Field
+                        label="Core tension"
+                        value={asString(raw.coreTension) || "—"}
+                      />
+                      <Field
+                        label="Emotional center"
+                        value={asString(raw.emotionalCenter) || "—"}
+                      />
+                      <Field
+                        label="Beats category norm"
+                        value={asString(raw.whyBeatsCategoryNorm) || "—"}
+                      />
+                      <Field
+                        label="Could fail if"
+                        value={asString(raw.whyCouldFail) || "—"}
+                      />
+                      <Field
+                        label="Distinct visual world"
+                        value={asString(raw.distinctVisualWorld) || "—"}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             );

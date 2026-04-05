@@ -83,25 +83,109 @@ export const identityRouteSubSchema = z.object({
   whyItWorksForBrand: z.string().min(40),
   risks: z.array(z.string().min(1)).min(1).max(8),
   avoidList: z.array(z.string().min(1)).min(2).max(16),
+  /** Productive opposition this route holds (not generic "balance"). */
+  coreTension: z.string().min(35),
+  emotionalCenter: z.string().min(28),
+  whyBeatsCategoryNorm: z.string().min(40),
+  whyCouldFail: z.string().min(30),
+  /** Distinct art-direction / mark world — not a duplicate of geometryLogic alone. */
+  distinctVisualWorld: z.string().min(45),
   /** Optional: one-line seed for a future mark generator — reasoning-level, not a final prompt. */
   markExplorationSeed: z.string().max(500).optional(),
 });
 
+const identityPairComparisonSchema = z
+  .object({
+    leftIndex: z.number().int().min(0).max(4),
+    rightIndex: z.number().int().min(0).max(4),
+    overlapNotes: z.string().min(30),
+    howTheyDiffer: z.string().min(30),
+    strongerRouteThisPair: z.enum(["left", "right", "tie"]),
+  })
+  .strict();
+
+/** Pairwise matrix for identity routes (A vs B vs C…). */
+export const identityPairwiseDifferentiationSchema = z
+  .object({
+    pairComparisons: z.array(identityPairComparisonSchema).min(1).max(10),
+    aggregateOverlap: z.string().min(40),
+    strongestRouteIndex: z.number().int().min(0).max(4),
+    weakestRouteIndex: z.number().int().min(0).max(4),
+    differentiationSummary: z.string().min(80),
+  })
+  .strict();
+
 /** Agent / LLM output for IDENTITY_ROUTES_PACK (founder selection is merged in Studio). */
-export const identityRoutesPackArtifactSchema = z.object({
-  /** Summary of Creative Canon ids informing the pack (must match provided ids). */
-  frameworkUsed: z.string().min(1),
-  routes: z.array(identityRouteSubSchema).min(3).max(5),
-  /** How routes diverge — required so reviewers see intentional contrast. */
-  routeDifferentiationSummary: z.string().min(60),
-  /** Extension: deterministic inputs for future logo prompt builders / boards. */
-  logoExplorationReadiness: z
-    .object({
-      primaryRoutesForExploration: z.array(z.number().int().min(0).max(4)).max(3).optional(),
-      systemConstraintsForMarks: z.array(z.string().min(1)).max(12).optional(),
-    })
-    .optional(),
-});
+export const identityRoutesPackArtifactSchema = z
+  .object({
+    /** Summary of Creative Canon ids informing the pack (must match provided ids). */
+    frameworkUsed: z.string().min(1),
+    routes: z.array(identityRouteSubSchema).min(3).max(5),
+    /** How routes diverge — required so reviewers see intentional contrast. */
+    routeDifferentiationSummary: z.string().min(60),
+    /** Explicit pairwise comparisons — every unordered pair of routes. */
+    pairwiseDifferentiation: identityPairwiseDifferentiationSchema,
+    /** Extension: deterministic inputs for future logo prompt builders / boards. */
+    logoExplorationReadiness: z
+      .object({
+        primaryRoutesForExploration: z.array(z.number().int().min(0).max(4)).max(3).optional(),
+        systemConstraintsForMarks: z.array(z.string().min(1)).max(12).optional(),
+      })
+      .optional(),
+  })
+  .superRefine((data, ctx) => {
+    const n = data.routes.length;
+    const need = (n * (n - 1)) / 2;
+    const pairs = data.pairwiseDifferentiation.pairComparisons;
+    if (pairs.length !== need) {
+      ctx.addIssue({
+        code: "custom",
+        message: `pairwiseDifferentiation.pairComparisons must have exactly ${need} entries for ${n} routes (all unordered pairs).`,
+        path: ["pairwiseDifferentiation", "pairComparisons"],
+      });
+    }
+    const seen = new Set<string>();
+    for (const p of pairs) {
+      if (p.leftIndex === p.rightIndex) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Pair cannot compare a route to itself.",
+          path: ["pairwiseDifferentiation", "pairComparisons"],
+        });
+        return;
+      }
+      const a = Math.min(p.leftIndex, p.rightIndex);
+      const b = Math.max(p.leftIndex, p.rightIndex);
+      if (a < 0 || b >= n) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Pair indices must be within 0..${n - 1}.`,
+          path: ["pairwiseDifferentiation", "pairComparisons"],
+        });
+        return;
+      }
+      const key = `${a}-${b}`;
+      if (seen.has(key)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Duplicate pair (${a}, ${b}).`,
+          path: ["pairwiseDifferentiation", "pairComparisons"],
+        });
+        return;
+      }
+      seen.add(key);
+    }
+    if (
+      data.pairwiseDifferentiation.strongestRouteIndex >= n ||
+      data.pairwiseDifferentiation.weakestRouteIndex >= n
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "strongestRouteIndex and weakestRouteIndex must reference existing routes.",
+        path: ["pairwiseDifferentiation"],
+      });
+    }
+  });
 
 export const strategyArtifactSchema = z.object({
   objective: z.string().min(1),
@@ -129,13 +213,90 @@ export const conceptSubSchema = z.object({
   visualDirection: z.string().min(1),
   /** Ties the route to Brand OS / positioning (not generic praise). */
   whyItWorksForBrand: z.string().min(1),
+  coreTension: z.string().min(35),
+  emotionalCenter: z.string().min(28),
+  whyBeatsCategoryNorm: z.string().min(40),
+  whyCouldFail: z.string().min(30),
+  distinctVisualWorld: z.string().min(45),
 });
 
-export const conceptArtifactSchema = z.object({
-  /** Human-readable summary of how frameworks were applied (e.g. "Three routes: Transformation, Contrast, Cultural"). */
-  frameworkUsed: z.string().min(1),
-  concepts: z.array(conceptSubSchema).min(2).max(3),
-});
+const conceptPairComparisonSchema = z
+  .object({
+    leftIndex: z.number().int().min(0).max(2),
+    rightIndex: z.number().int().min(0).max(2),
+    overlapNotes: z.string().min(30),
+    howTheyDiffer: z.string().min(30),
+    strongerConceptThisPair: z.enum(["left", "right", "tie"]),
+  })
+  .strict();
+
+export const conceptPairwiseDifferentiationSchema = z
+  .object({
+    pairComparisons: z.array(conceptPairComparisonSchema).min(1).max(3),
+    aggregateOverlap: z.string().min(40),
+    strongestConceptIndex: z.number().int().min(0).max(2),
+    differentiationSummary: z.string().min(80),
+  })
+  .strict();
+
+export const conceptArtifactSchema = z
+  .object({
+    /** Human-readable summary of how frameworks were applied (e.g. "Three routes: Transformation, Contrast, Cultural"). */
+    frameworkUsed: z.string().min(1),
+    concepts: z.array(conceptSubSchema).min(2).max(3),
+    /** Pairwise A vs B (vs C): overlap, difference, which is stronger per pair. */
+    pairwiseDifferentiation: conceptPairwiseDifferentiationSchema,
+  })
+  .superRefine((data, ctx) => {
+    const n = data.concepts.length;
+    const need = (n * (n - 1)) / 2;
+    const pairs = data.pairwiseDifferentiation.pairComparisons;
+    if (pairs.length !== need) {
+      ctx.addIssue({
+        code: "custom",
+        message: `pairwiseDifferentiation.pairComparisons must have exactly ${need} entries for ${n} concepts.`,
+        path: ["pairwiseDifferentiation", "pairComparisons"],
+      });
+    }
+    const seen = new Set<string>();
+    for (const p of pairs) {
+      if (p.leftIndex === p.rightIndex) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Pair cannot compare a concept to itself.",
+          path: ["pairwiseDifferentiation", "pairComparisons"],
+        });
+        return;
+      }
+      const a = Math.min(p.leftIndex, p.rightIndex);
+      const b = Math.max(p.leftIndex, p.rightIndex);
+      if (a < 0 || b >= n) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Pair indices must be within 0..${n - 1}.`,
+          path: ["pairwiseDifferentiation", "pairComparisons"],
+        });
+        return;
+      }
+      const key = `${a}-${b}`;
+      if (seen.has(key)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Duplicate pair (${a}, ${b}).`,
+          path: ["pairwiseDifferentiation", "pairComparisons"],
+        });
+        return;
+      }
+      seen.add(key);
+    }
+    if (data.pairwiseDifferentiation.strongestConceptIndex >= n) {
+      ctx.addIssue({
+        code: "custom",
+        message: "strongestConceptIndex must reference an existing concept.",
+        path: ["pairwiseDifferentiation", "strongestConceptIndex"],
+      });
+    }
+  });
 
 /**
  * Visual Intelligence — structured art direction before any image/video/logo generation.
@@ -236,15 +397,14 @@ export const ARTIFACT_SHAPE_HINTS = {
   "explorationHooks": optional string[] — concrete system notes for future mark/logo work (not final prompts)
 }`,
   IDENTITY_ROUTES_PACK: `{
-  "frameworkUsed": string (summary; each route should align to provided Creative Canon ids where relevant),
-  "routes": array (min 3, max 5) of {
-    "routeName", "routeType": "wordmark" | "monogram" | "symbol" | "abstract" | "combination_mark",
-    "coreConcept", "symbolicLogic", "typographyLogic", "geometryLogic", "distinctivenessRationale", "whyItWorksForBrand" (substantive strings),
-    "risks": string[] (min 1), "avoidList": string[] (min 2),
-    "markExplorationSeed": optional string
+  "frameworkUsed": string,
+  "routes": array (min 3, max 5) — each route includes coreTension, emotionalCenter, whyBeatsCategoryNorm, whyCouldFail, distinctVisualWorld plus existing fields,
+  "routeDifferentiationSummary": string (min ~60),
+  "pairwiseDifferentiation": {
+    "pairComparisons": array — EXACTLY one entry per unordered pair (i,j) i<j; each: leftIndex, rightIndex, overlapNotes, howTheyDiffer, strongerRouteThisPair "left"|"right"|"tie",
+    "aggregateOverlap", "strongestRouteIndex", "weakestRouteIndex", "differentiationSummary"
   },
-  "routeDifferentiationSummary": string (min ~60 — how routes diverge in mark type + logic),
-  "logoExplorationReadiness": optional object with primaryRoutesForExploration (0-based route indices) and systemConstraintsForMarks
+  "logoExplorationReadiness": optional
 }`,
   STRATEGY: `{
   "objective": string,
@@ -255,8 +415,9 @@ export const ARTIFACT_SHAPE_HINTS = {
   "strategicAngles": { "frameworkId": string, "angle": string }[] (min 2, max 5) — each frameworkId must match a provided Creative Canon id
 }`,
   CONCEPT: `{
-  "frameworkUsed": string (summary of which frameworks drive the pack),
-  "concepts": array (min 2, max 3) of { "frameworkId", "conceptName", "hook", "rationale", "visualDirection", "whyItWorksForBrand" } — each frameworkId must be one of the provided Creative Canon ids; concepts must be DISTINCT routes; whyItWorksForBrand must tie the route to Brand OS / positioning
+  "frameworkUsed": string,
+  "concepts": array (min 2, max 3) of { frameworkId, conceptName, hook, rationale, visualDirection, whyItWorksForBrand, coreTension, emotionalCenter, whyBeatsCategoryNorm, whyCouldFail, distinctVisualWorld },
+  "pairwiseDifferentiation": { pairComparisons (exactly n*(n-1)/2 pairs), aggregateOverlap, strongestConceptIndex, differentiationSummary }
 }`,
   VISUAL_SPEC: `{
   "frameworkUsed": string (must be one of the provided Creative Canon ids — primary framework for this direction),

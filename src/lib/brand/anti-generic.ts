@@ -118,6 +118,10 @@ export function collectArtifactTextForQuality(
       String(content.frameworkUsed ?? ""),
       String(content.routeDifferentiationSummary ?? ""),
     );
+    const pd = content.pairwiseDifferentiation;
+    if (pd && typeof pd === "object") {
+      parts.push(JSON.stringify(pd));
+    }
     const routes = content.routes;
     if (Array.isArray(routes)) {
       for (const r of routes) {
@@ -132,6 +136,11 @@ export function collectArtifactTextForQuality(
           String(o.geometryLogic ?? ""),
           String(o.distinctivenessRationale ?? ""),
           String(o.whyItWorksForBrand ?? ""),
+          String(o.coreTension ?? ""),
+          String(o.emotionalCenter ?? ""),
+          String(o.whyBeatsCategoryNorm ?? ""),
+          String(o.whyCouldFail ?? ""),
+          String(o.distinctVisualWorld ?? ""),
           String(o.markExplorationSeed ?? ""),
         );
         const al = o.avoidList;
@@ -164,6 +173,10 @@ export function collectArtifactTextForQuality(
       }
     }
   } else if (stage === "CONCEPTING") {
+    const cpd = content.pairwiseDifferentiation;
+    if (cpd && typeof cpd === "object") {
+      parts.push(JSON.stringify(cpd));
+    }
     const concepts = content.concepts;
     if (Array.isArray(concepts)) {
       for (const c of concepts) {
@@ -174,6 +187,11 @@ export function collectArtifactTextForQuality(
           String(o.rationale ?? ""),
           String(o.visualDirection ?? ""),
           String(o.whyItWorksForBrand ?? ""),
+          String(o.coreTension ?? ""),
+          String(o.emotionalCenter ?? ""),
+          String(o.whyBeatsCategoryNorm ?? ""),
+          String(o.whyCouldFail ?? ""),
+          String(o.distinctVisualWorld ?? ""),
         );
       }
     }
