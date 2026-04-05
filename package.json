@@ -13,7 +13,8 @@
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
     "env:check": "npx --yes tsx scripts/check-env.ts",
-    "qa:bootstrap": "npx --yes tsx scripts/private-dev-qa-bootstrap.ts"
+    "qa:bootstrap": "npx --yes tsx scripts/private-dev-qa-bootstrap.ts",
+    "preflight": "npx --yes tsx scripts/preflight-dev.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.6.0",

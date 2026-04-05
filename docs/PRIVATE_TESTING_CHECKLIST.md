@@ -2,6 +2,9 @@
 
 Use this when validating a fresh deploy or onboarding a tester.
 
+**Quick start on a laptop:** [LOCAL_DEV.md](./LOCAL_DEV.md) → `npm run preflight` → optional `npm run qa:bootstrap` → `npm run dev`.  
+**Recorded demo script:** [FOUNDER_WALKTHROUGH.md](./FOUNDER_WALKTHROUGH.md).
+
 ## Internal testing page
 
 - [ ] Open **`/clients/{clientId}/internal-testing`**
@@ -13,6 +16,7 @@ Use this when validating a fresh deploy or onboarding a tester.
 
 ## Environment
 
+- [ ] `npm run preflight` passes (or fix DB / `.env` until it does)
 - [ ] `DATABASE_URL` set and reachable from the app host
 - [ ] `npm run db:migrate:deploy` completed successfully
 - [ ] `GET /api/health?deep=1` returns `dbOk: true`

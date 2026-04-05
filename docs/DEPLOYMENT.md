@@ -2,6 +2,8 @@
 
 This app targets **private, single-tenant-style** use: you run PostgreSQL, configure API keys, migrate the schema, and start Next.js. It is **not** a hardened multi-tenant SaaS.
 
+**Local developer bring-up:** see **[LOCAL_DEV.md](./LOCAL_DEV.md)** (Docker Compose for Postgres, `preflight`, `qa:bootstrap`).
+
 ---
 
 ## Before first deploy
@@ -10,6 +12,7 @@ This app targets **private, single-tenant-style** use: you run PostgreSQL, confi
 
 - Create a database and user.
 - Connection string must use **`postgresql://`** or **`postgres://`** (Prisma + `pg`).
+- **Optional local dev:** from the repo root, `docker compose up -d` starts Postgres 16 on port **5432** with database **`agenticforce`** (see `docker-compose.yml`).
 
 ### 2. Environment variables
 
@@ -60,6 +63,12 @@ npm run env:check
 ```
 
 Uses the same rules as server startup validation (requires `dotenv` + `tsx` via `npx`).
+
+**Dev machine readiness (DB + storage + migrations hint + keys):**
+
+```bash
+npm run preflight
+```
 
 ### 5b. Optional: seed internal test lab + briefs
 

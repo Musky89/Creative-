@@ -4,7 +4,9 @@
 
 ## Deploying privately
 
-See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for env validation, migrations, storage, health checks, and common failures. Use **[docs/PRIVATE_TESTING_CHECKLIST.md](docs/PRIVATE_TESTING_CHECKLIST.md)** for end-to-end smoke testing.
+**First-time on your laptop:** **[docs/LOCAL_DEV.md](docs/LOCAL_DEV.md)** — Postgres (optional Docker), `.env`, migrate, `npm run preflight`, `npm run qa:bootstrap`, `npm run dev`.
+
+See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for env validation, migrations, storage, health checks, and common failures. **Demo script:** **[docs/FOUNDER_WALKTHROUGH.md](docs/FOUNDER_WALKTHROUGH.md)**. **Smoke checklist:** **[docs/PRIVATE_TESTING_CHECKLIST.md](docs/PRIVATE_TESTING_CHECKLIST.md)**.
 
 **Internal evaluation:** per-client page **`/clients/[clientId]/internal-testing`** — ensure canonical test briefs, log founder judgments per stage (strategy → visual asset), view weak/generic aggregates. Optional `npx prisma db seed` for a shared test lab client.
 
@@ -50,10 +52,16 @@ AgenticForce addresses this by treating the agency as a **structured workflow of
 
 ```bash
 npm install
+cp .env.example .env
+# Start Postgres (e.g. docker compose up -d) and set DATABASE_URL
+npm run db:migrate:deploy
+npm run preflight
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The current homepage is a **minimal placeholder** confirming the scaffold only.
+Open [http://localhost:3000](http://localhost:3000). If the database is not running, the dashboard shows a **Database unreachable** notice with fix steps instead of a generic error.
+
+Full steps: **[docs/LOCAL_DEV.md](docs/LOCAL_DEV.md)**.
 
 ```bash
 npm run build   # production build
@@ -66,6 +74,10 @@ npm run lint    # ESLint
 
 | Document | Purpose |
 |----------|---------|
+| [docs/LOCAL_DEV.md](docs/LOCAL_DEV.md) | First-time laptop bring-up: Postgres, migrate, preflight, bootstrap, dev server. |
+| [docs/FOUNDER_WALKTHROUGH.md](docs/FOUNDER_WALKTHROUGH.md) | Demo / QA click path + what to record on video. |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Private deploy, env strictness, health, storage, failures. |
+| [docs/PRIVATE_TESTING_CHECKLIST.md](docs/PRIVATE_TESTING_CHECKLIST.md) | Smoke checklist for testers. |
 | [docs/product_vision.md](docs/product_vision.md) | What the platform is and how it behaves (no fluff). |
 | [docs/workflow_pipeline.md](docs/workflow_pipeline.md) | The only approved end-to-end pipeline. |
 | [docs/agent_roster.md](docs/agent_roster.md) | v1 agent roles and boundaries. |

@@ -2,9 +2,27 @@ import Link from "next/link";
 import { listClients } from "@/server/domain/clients";
 import { PageHeader } from "@/components/ui/section";
 import { ButtonLink } from "@/components/ui/button-link";
+import { DatabaseUnavailableNotice } from "@/components/dev/deployment-blocked";
+import { isDatabaseLikelyUnavailableError } from "@/lib/dev/db-unavailable";
 
 export default async function ClientsPage() {
-  const clients = await listClients();
+  let clients: Awaited<ReturnType<typeof listClients>>;
+  try {
+    clients = await listClients();
+  } catch (e) {
+    if (!isDatabaseLikelyUnavailableError(e)) throw e;
+    return (
+      <>
+        <PageHeader
+          title="Clients"
+          description="Accounts you run through AgenticForce."
+        />
+        <div className="max-w-xl">
+          <DatabaseUnavailableNotice />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

@@ -4,12 +4,31 @@ import { listClients } from "@/server/domain/clients";
 import { PageHeader } from "@/components/ui/section";
 import { Card } from "@/components/ui/section";
 import { ButtonLink } from "@/components/ui/button-link";
+import { DatabaseUnavailableNotice } from "@/components/dev/deployment-blocked";
+import { isDatabaseLikelyUnavailableError } from "@/lib/dev/db-unavailable";
 
 export default async function DashboardPage() {
-  const [clients, briefs] = await Promise.all([
-    listClients(),
-    listRecentBriefs(8),
-  ]);
+  let clients: Awaited<ReturnType<typeof listClients>>;
+  let briefs: Awaited<ReturnType<typeof listRecentBriefs>>;
+  try {
+    [clients, briefs] = await Promise.all([
+      listClients(),
+      listRecentBriefs(8),
+    ]);
+  } catch (e) {
+    if (!isDatabaseLikelyUnavailableError(e)) throw e;
+    return (
+      <>
+        <PageHeader
+          title="Dashboard"
+          description="Internal operating view — clients, briefs, and workflow."
+        />
+        <div className="max-w-xl">
+          <DatabaseUnavailableNotice />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
