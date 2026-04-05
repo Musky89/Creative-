@@ -33,7 +33,8 @@ AgenticForce addresses this by treating the agency as a **structured workflow of
 - `src/app/` — Next.js App Router (pages, layouts).
 - `src/components/` — Shared UI (to be built against orchestrator-driven data).
 - `src/lib/` — Pure utilities shared across client and server where safe.
-- `src/server/` — Server-only code: orchestrator, agents, brand assembly, review, artifacts, storage, DB access (when added).
+- `src/server/` — Server-only code: orchestrator, agents, brand assembly, review, artifacts, storage, DB access (`src/server/db/`).
+- `prisma/` — PostgreSQL schema and migrations; Prisma Client is generated to `src/generated/prisma` (gitignored).
 - `src/types/` — Shared TypeScript types and domain shapes.
 - `docs/` — Product vision, workflow definitions, agent roster, data model overview, architecture rules.
 
@@ -67,14 +68,44 @@ npm run lint    # ESLint
 
 ---
 
+## Database (PostgreSQL + Prisma)
+
+1. Copy [`.env.example`](.env.example) to `.env` and set `DATABASE_URL` to your Postgres instance (include `?schema=public` if needed).
+2. Apply migrations:
+
+   ```bash
+   npm run db:migrate
+   ```
+
+   In CI or production against an existing database, use:
+
+   ```bash
+   npm run db:migrate:deploy
+   ```
+
+3. Regenerate the client after schema changes (also runs on `npm install` via `postinstall`):
+
+   ```bash
+   npm run db:generate
+   ```
+
+4. Optional: `npm run db:studio` opens Prisma Studio.
+
+**Prisma 7** reads the datasource URL from [`prisma.config.ts`](prisma.config.ts) (`DATABASE_URL`), not from `schema.prisma`.
+
+The initial migration is [`prisma/migrations/20260405120000_init_core_domain/migration.sql`](prisma/migrations/20260405120000_init_core_domain/migration.sql). If your database was empty, `prisma migrate dev` will apply it and record it in `_prisma_migrations`.
+
+---
+
 ## Current scope (this foundation)
 
 This repository **intentionally** has:
 
 - Next.js + TypeScript + Tailwind, `src/` layout, minimal homepage.
-- Documentation and **empty** server subtree folders reserved for orchestrator, agents, brand, review, artifacts, storage, and DB.
+- **Core domain Prisma schema** (eight models + `TaskDependency` for explicit task graphs) and PostgreSQL migrations.
+- Documentation and reserved server subtree folders for orchestrator, agents, brand, review, artifacts, storage.
 
-It **does not** yet include Prisma, auth, orchestrator logic, or real agents — those come in later slices aligned with the docs above.
+It **does not** yet include auth, orchestrator logic, or real agents — those come in later slices aligned with the docs above.
 
 ---
 

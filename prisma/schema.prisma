@@ -1,0 +1,238 @@
+// AgenticForce — core domain schema (PostgreSQL)
+// Workflow engine, review gating, and agent execution history.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum WorkflowStage {
+  BRIEF_INTAKE
+  STRATEGY
+  CONCEPTING
+  COPY_DEVELOPMENT
+  REVIEW
+  EXPORT
+}
+
+enum TaskStatus {
+  PENDING
+  READY
+  RUNNING
+  AWAITING_REVIEW
+  REVISE_REQUIRED
+  COMPLETED
+  FAILED
+}
+
+enum AgentType {
+  STRATEGIST
+  CREATIVE_DIRECTOR
+  COPYWRITER
+  BRAND_GUARDIAN
+}
+
+enum ArtifactType {
+  STRATEGY
+  CONCEPT
+  COPY
+  REVIEW_REPORT
+  EXPORT
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVISION_REQUESTED
+}
+
+/// Class of engagement / template used to instantiate work from a Brief.
+enum ServiceBlueprintTemplateType {
+  FULL_PIPELINE
+  CAMPAIGN_SPRINT
+  RETAINER_MONTHLY
+  CUSTOM
+}
+
+// ---------------------------------------------------------------------------
+// Client & brand
+// ---------------------------------------------------------------------------
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  industry  String
+  createdAt DateTime @default(now())
+
+  brandBible         BrandBible?
+  serviceBlueprint ServiceBlueprint?
+  briefs             Brief[]
+}
+
+/// One canonical Brand Bible per client (1:1).
+model BrandBible {
+  id        String @id @default(cuid())
+  clientId  String @unique
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  positioning    String @db.Text
+  targetAudience String @db.Text
+  toneOfVoice    String @db.Text
+
+  messagingPillars    Json
+  visualIdentity      Json
+  channelGuidelines   Json
+  mandatoryInclusions Json
+  thingsToAvoid       Json
+
+  updatedAt DateTime @updatedAt
+}
+
+/// Per-client service / quality contract (1:1).
+model ServiceBlueprint {
+  id       String @id @default(cuid())
+  clientId String @unique
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  templateType      ServiceBlueprintTemplateType
+  activeServices    Json
+  qualityThreshold  Float
+  approvalRequired  Boolean
+
+  @@index([templateType])
+}
+
+// ---------------------------------------------------------------------------
+// Brief & workflow tasks
+// ---------------------------------------------------------------------------
+
+model Brief {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  title                   String
+  businessObjective       String   @db.Text
+  communicationObjective  String   @db.Text
+  targetAudience          String   @db.Text
+  keyMessage              String   @db.Text
+  deliverablesRequested   Json
+  tone                    String
+  constraints             Json
+  deadline                DateTime
+  createdAt               DateTime @default(now())
+
+  tasks Task[]
+
+  @@index([clientId])
+  @@index([createdAt])
+}
+
+/// Unit of orchestrated work within a Brief. Dependencies form a DAG enforced by the orchestrator.
+model Task {
+  id     String @id @default(cuid())
+  briefId String
+  brief   Brief  @relation(fields: [briefId], references: [id], onDelete: Cascade)
+
+  stage          WorkflowStage
+  agentType      AgentType
+  status         TaskStatus    @default(PENDING)
+  requiresReview Boolean       @default(false)
+
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  /// Edges where THIS task is the successor: "this task depends on prerequisite(s)".
+  dependencies TaskDependency[] @relation("TaskDependencyDependent")
+  /// Edges where THIS task is the prerequisite: other tasks wait on this one.
+  dependents   TaskDependency[] @relation("TaskDependencyPrerequisite")
+
+  artifacts   Artifact[]
+  reviewItems ReviewItem[]
+  agentRuns   AgentRun[]
+
+  @@index([briefId])
+  @@index([briefId, stage])
+  @@index([briefId, status])
+  @@index([status])
+}
+
+/// Explicit prerequisite edge: `taskId` cannot proceed until `dependsOnTaskId` satisfies orchestrator rules.
+model TaskDependency {
+  id              String @id @default(cuid())
+  taskId          String
+  dependsOnTaskId String
+
+  task          Task @relation("TaskDependencyDependent", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOnTask Task @relation("TaskDependencyPrerequisite", fields: [dependsOnTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, dependsOnTaskId])
+  @@index([dependsOnTaskId])
+}
+
+// ---------------------------------------------------------------------------
+// Artifacts & review
+// ---------------------------------------------------------------------------
+
+model Artifact {
+  id     String @id @default(cuid())
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  type    ArtifactType
+  content Json
+  version Int
+  createdAt DateTime @default(now())
+
+  reviewItems ReviewItem[]
+
+  @@unique([taskId, type, version])
+  @@index([taskId])
+  @@index([taskId, type])
+}
+
+model ReviewItem {
+  id         String @id @default(cuid())
+  taskId     String
+  artifactId String?
+  task       Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  artifact   Artifact? @relation(fields: [artifactId], references: [id], onDelete: SetNull)
+
+  status   ReviewStatus @default(PENDING)
+  feedback String       @db.Text
+  createdAt DateTime    @default(now())
+
+  @@index([taskId])
+  @@index([taskId, status])
+  @@index([artifactId])
+}
+
+// ---------------------------------------------------------------------------
+// Agent execution audit trail
+// ---------------------------------------------------------------------------
+
+model AgentRun {
+  id     String @id @default(cuid())
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  agentType AgentType
+  input     Json
+  output    Json
+  /// Wall-clock duration of the run in milliseconds (nullable if run did not complete).
+  duration  Int?
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+  @@index([taskId, createdAt])
+  @@index([agentType])
+}
