@@ -1,5 +1,6 @@
 import type { ArtifactType } from "@/generated/prisma/client";
 import { Card, SectionTitle } from "@/components/ui/section";
+import { getFrameworkById } from "@/lib/canon/frameworks";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -59,6 +60,36 @@ function StringList({ items, empty }: { items: unknown; empty: string }) {
         <li key={i}>{s}</li>
       ))}
     </ul>
+  );
+}
+
+function FrameworkStrip({
+  frameworkId,
+  title = "Creative Canon",
+}: {
+  frameworkId: string;
+  title?: string;
+}) {
+  const fw = getFrameworkById(frameworkId.trim());
+  return (
+    <div className="rounded-lg border border-violet-200/80 bg-violet-50/60 px-3 py-2">
+      <p className="text-[11px] font-medium tracking-wide text-violet-800 uppercase">
+        {title}
+      </p>
+      <p className="mt-1 text-sm font-semibold text-violet-950">
+        {fw ? fw.name : frameworkId}
+        {fw ? (
+          <span className="ml-2 font-normal text-violet-700">
+            ({fw.category.replace(/_/g, " ")})
+          </span>
+        ) : null}
+      </p>
+      {fw ? (
+        <p className="mt-1 text-xs leading-relaxed text-violet-900/90">
+          {fw.description}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -123,6 +154,7 @@ export function StrategyArtifactCard({ content }: { content: unknown }) {
   if (!isRecord(content)) return <JsonFallback content={content} />;
   const pillars =
     content.messagePillars ?? content.pillars ?? content.messagingPillars;
+  const angles = content.strategicAngles;
   return (
     <Card>
       <SectionTitle>Strategy</SectionTitle>
@@ -141,12 +173,74 @@ export function StrategyArtifactCard({ content }: { content: unknown }) {
           <StringList items={pillars} empty="No pillars listed." />
         </div>
       </div>
+      {Array.isArray(angles) && angles.length > 0 ? (
+        <div className="mt-6 space-y-3">
+          <p className="text-xs font-medium text-zinc-500">
+            Strategic angles (Creative Canon)
+          </p>
+          {angles.map((a, i) => {
+            if (!isRecord(a)) return null;
+            const fid = asString(a.frameworkId);
+            const ang = asString(a.angle);
+            if (!fid) return null;
+            return (
+              <div key={i} className="space-y-2">
+                <FrameworkStrip frameworkId={fid} title="Framework" />
+                <p className="text-sm text-zinc-800">{ang || "—"}</p>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
     </Card>
   );
 }
 
 export function ConceptArtifactCard({ content }: { content: unknown }) {
   if (!isRecord(content)) return <JsonFallback content={content} />;
+  const concepts = content.concepts;
+  const summary = asString(content.frameworkUsed);
+
+  if (Array.isArray(concepts) && concepts.length > 0) {
+    return (
+      <Card>
+        <SectionTitle>Concept pack</SectionTitle>
+        {summary ? (
+          <p className="mt-2 text-sm text-zinc-700">{summary}</p>
+        ) : null}
+        <div className="mt-6 space-y-8">
+          {concepts.map((raw, i) => {
+            if (!isRecord(raw)) return null;
+            const fid = asString(raw.frameworkId);
+            return (
+              <div
+                key={i}
+                className="border-t border-zinc-100 pt-6 first:border-t-0 first:pt-0"
+              >
+                {fid ? <FrameworkStrip frameworkId={fid} /> : null}
+                <div className="mt-4 space-y-3">
+                  <Field
+                    label="Route name"
+                    value={asString(raw.conceptName) || "—"}
+                  />
+                  <Field label="Hook" value={asString(raw.hook) || "—"} />
+                  <Field
+                    label="Rationale"
+                    value={asString(raw.rationale) || "—"}
+                  />
+                  <Field
+                    label="Visual direction"
+                    value={asString(raw.visualDirection) || "—"}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <SectionTitle>Concept</SectionTitle>
@@ -168,9 +262,15 @@ export function ConceptArtifactCard({ content }: { content: unknown }) {
 
 export function CopyArtifactCard({ content }: { content: unknown }) {
   if (!isRecord(content)) return <JsonFallback content={content} />;
+  const fw = asString(content.frameworkUsed);
   return (
     <Card>
       <SectionTitle>Copy</SectionTitle>
+      {fw ? (
+        <div className="mt-3">
+          <FrameworkStrip frameworkId={fw} title="Executing framework" />
+        </div>
+      ) : null}
       <div className="mt-4 space-y-4">
         <div>
           <p className="text-xs font-medium text-zinc-500">Headline options</p>
@@ -197,6 +297,7 @@ export function CopyArtifactCard({ content }: { content: unknown }) {
 
 export function ReviewReportArtifactCard({ content }: { content: unknown }) {
   if (!isRecord(content)) return <JsonFallback content={content} />;
+  const fe = asString(content.frameworkExecution);
   return (
     <Card>
       <SectionTitle>Review report</SectionTitle>
@@ -206,6 +307,18 @@ export function ReviewReportArtifactCard({ content }: { content: unknown }) {
           value={asString(content.scoreSummary) || "—"}
         />
         <Field label="Verdict" value={asString(content.verdict) || "—"} />
+        {fe ? (
+          <div>
+            <p className="text-xs font-medium text-zinc-500">
+              Framework execution
+            </p>
+            <p className="mt-1 text-sm font-medium text-zinc-900">{fe}</p>
+            <Field
+              label="Framework assessment"
+              value={asString(content.frameworkAssessment) || "—"}
+            />
+          </div>
+        ) : null}
         <div>
           <p className="text-xs font-medium text-zinc-500">Issues</p>
           <StringList items={content.issues} empty="None listed." />

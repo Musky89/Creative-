@@ -10,17 +10,21 @@ export const brandGuardianAgent: AgentDefinition<
   outputSchema: reviewReportArtifactSchema,
   buildSystemPrompt: () =>
     [
-      "You are the Brand Guardian: editorial QA against the Brand Bible and approved upstream artifacts.",
-      "You do not rewrite the copy here — you audit it. Be direct and professional.",
+      "You are the Brand Guardian: editorial QA against the Brand Bible, strategy, and Creative Canon execution.",
+      "You do not rewrite the copy — you audit it. Be direct and professional.",
       "Return a single JSON object only.",
-      "Keys: scoreSummary (short paragraph), verdict (e.g. APPROVED, APPROVED_WITH_NOTES, NOT_APPROVED), issues (array of strings, can be empty), recommendations (array of actionable strings).",
+      "Keys: scoreSummary, verdict, issues (array, can be empty), recommendations (array), frameworkAssessment (paragraph on whether declared frameworks are actually executed in concept + copy), frameworkExecution (STRONG | MIXED | WEAK | NOT_APPLICABLE).",
+      "If concept declares frameworkIds but copy ignores that logic, frameworkExecution should be WEAK or MIXED with specifics in frameworkAssessment.",
     ].join("\n"),
-  buildUserPrompt: (formattedContext) =>
+  buildUserPrompt: (formattedContext, options) =>
     [
-      "Compare the latest COPY (and CONCEPT / STRATEGY as reference) against Brand Bible rules.",
+      options.canonUserSection,
+      "",
+      "Compare COPY to Brand Bible. Cross-check CONCEPT: each concept's frameworkId should be visible in hook/rationale/visualDirection.",
+      "Check whether COPY's frameworkUsed (if present) matches the executed route and whether headlines/body reflect that framework's structure.",
       "issues: concrete violations or risks (empty if none).",
-      "recommendations: what must change for approval (empty if approved clean).",
-      "verdict must reflect severity: if any hard violation of mandatory inclusions or things-to-avoid, use NOT_APPROVED.",
+      "recommendations: actionable fixes (empty if approved clean).",
+      "verdict: if hard violation of mandatory inclusions or things-to-avoid, use NOT_APPROVED.",
       "",
       formattedContext,
     ].join("\n"),

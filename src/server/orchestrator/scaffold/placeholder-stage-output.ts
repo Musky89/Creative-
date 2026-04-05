@@ -1,9 +1,7 @@
 /**
  * TEMPORARY SCAFFOLD — NOT AI OUTPUT
  *
- * Deterministic placeholder JSON for each workflow stage so the orchestrator and API
- * can be tested end-to-end without agent integrations. Replace with real agent
- * services that return the same artifact shapes (or evolve them via migration).
+ * Deterministic placeholder JSON aligned with Zod artifact contracts for offline / no-LLM runs.
  */
 
 import type { ArtifactType, WorkflowStage } from "@/generated/prisma/client";
@@ -53,23 +51,50 @@ export function buildPlaceholderArtifactContent(
         audience: ctx.brief.targetAudience,
         insight: "[Placeholder] Audience tension / opportunity statement.",
         proposition: "[Placeholder] Single-minded proposition.",
-        pillars: [
+        messagePillars: [
           "[Placeholder] Pillar 1",
           "[Placeholder] Pillar 2",
           "[Placeholder] Pillar 3",
+        ],
+        strategicAngles: [
+          {
+            frameworkId: "transformation",
+            angle:
+              "[Placeholder] Before/after arc for this brief (Canon: Transformation).",
+          },
+          {
+            frameworkId: "problem-agitation",
+            angle:
+              "[Placeholder] Pain → stakes → relief structure (Canon: Problem Agitation).",
+          },
         ],
       };
     case "CONCEPT":
       return {
         ...base,
-        conceptName: "[Placeholder] Campaign concept name",
-        hook: "[Placeholder] Primary hook / angle",
-        rationale: "[Placeholder] Why this concept fits the strategy.",
-        visualDirection: "[Placeholder] Visual mood and references.",
+        frameworkUsed:
+          "[Placeholder] Two routes: Transformation + Problem Agitation (scaffold only).",
+        concepts: [
+          {
+            frameworkId: "transformation",
+            conceptName: "[Placeholder] Route A",
+            hook: "[Placeholder] Before → after hook using transformation logic.",
+            rationale: "[Placeholder] Why this fits the strategy.",
+            visualDirection: "[Placeholder] Visual notes for Route A.",
+          },
+          {
+            frameworkId: "problem-agitation",
+            conceptName: "[Placeholder] Route B",
+            hook: "[Placeholder] Pain-forward hook using agitation logic.",
+            rationale: "[Placeholder] Why this fits the strategy.",
+            visualDirection: "[Placeholder] Visual notes for Route B.",
+          },
+        ],
       };
     case "COPY":
       return {
         ...base,
+        frameworkUsed: "transformation",
         headlineOptions: [
           "[Placeholder] Headline A",
           "[Placeholder] Headline B",
@@ -91,6 +116,9 @@ export function buildPlaceholderArtifactContent(
           "[Placeholder] Recommendation 1",
           "[Placeholder] Recommendation 2",
         ],
+        frameworkAssessment:
+          "[Placeholder] Scaffold — framework execution not evaluated.",
+        frameworkExecution: "NOT_APPLICABLE" as const,
       };
     case "EXPORT":
       return {

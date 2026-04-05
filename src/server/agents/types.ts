@@ -1,13 +1,21 @@
 import type { AgentType, WorkflowStage } from "@/generated/prisma/client";
 import type { z } from "zod";
 
+export type AgentPromptOptions = {
+  canonUserSection: string;
+  selectedFrameworkIds: readonly string[];
+};
+
 export type AgentDefinition<TSchema extends z.ZodTypeAny> = {
   name: string;
   agentType: AgentType;
   stage: WorkflowStage;
   outputSchema: TSchema;
-  buildSystemPrompt: () => string;
-  buildUserPrompt: (formattedContext: string) => string;
+  buildSystemPrompt: (options: AgentPromptOptions) => string;
+  buildUserPrompt: (
+    formattedContext: string,
+    options: AgentPromptOptions,
+  ) => string;
 };
 
 export type AgentRunSuccess = {

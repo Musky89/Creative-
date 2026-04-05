@@ -105,6 +105,8 @@ When no provider is configured, **STRATEGY / CONCEPTING / COPY / REVIEW** tasks 
 
 **JSON repair:** if primary model output fails Zod validation, one **repair** LLM pass runs; artifacts record `_agenticforceGenerationPath` (`primary` \| `repair`) and `_agenticforceRepaired`.
 
+**Creative Canon:** in-code frameworks (`src/lib/canon/frameworks.ts`) are selected per stage (`selectFrameworksForTask`); agents receive them in prompts and outputs include framework fields. Persisted artifacts also carry `_creativeCanonFrameworkIds` for audit.
+
 The initial migration is [`prisma/migrations/20260405120000_init_core_domain/migration.sql`](prisma/migrations/20260405120000_init_core_domain/migration.sql). If your database was empty, `prisma migrate dev` will apply it and record it in `_prisma_migrations`.
 
 ---

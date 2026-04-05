@@ -1,5 +1,7 @@
 import type { WorkflowStage } from "@/generated/prisma/client";
 import { z } from "zod";
+import { buildCreativeCanonUserSection } from "@/server/canon/prompt-section";
+import { selectFrameworksForTask } from "@/server/canon/select-frameworks";
 import { extractJsonObject } from "@/server/llm/extract-json";
 import { getLlmProvider } from "@/server/llm/get-provider";
 import { formatContextForPrompt, loadTaskAgentContext } from "./context";
@@ -8,7 +10,7 @@ import {
   repairJsonWithProvider,
   summarizeZodError,
 } from "./repair-json";
-import type { AgentExecutionResult } from "./types";
+import type { AgentExecutionResult, AgentPromptOptions } from "./types";
 
 function parseAndValidate(
   rawText: string,
@@ -61,9 +63,15 @@ export async function executeAgentForTask(
 
   const { context } = await loadTaskAgentContext(taskId);
   const contextBlock = formatContextForPrompt(context);
+  const frameworks = selectFrameworksForTask(stage, context);
+  const canonUserSection = buildCreativeCanonUserSection(frameworks);
+  const promptOptions: AgentPromptOptions = {
+    canonUserSection,
+    selectedFrameworkIds: frameworks.map((f) => f.id),
+  };
 
-  const system = agent.buildSystemPrompt();
-  const user = agent.buildUserPrompt(contextBlock);
+  const system = agent.buildSystemPrompt(promptOptions);
+  const user = agent.buildUserPrompt(contextBlock, promptOptions);
   const shapeHint = getArtifactShapeHint(stage);
 
   const useJsonMode = provider.id === "openai";
@@ -82,7 +90,10 @@ export async function executeAgentForTask(
     if (firstVal.ok) {
       return {
         ok: true,
-        content: firstVal.data,
+        content: {
+          ...firstVal.data,
+          _creativeCanonFrameworkIds: [...promptOptions.selectedFrameworkIds],
+        },
         providerId: first.providerId,
         model: first.model,
         rawText: primaryRaw,
@@ -102,7 +113,10 @@ export async function executeAgentForTask(
     if (secondVal.ok) {
       return {
         ok: true,
-        content: secondVal.data,
+        content: {
+          ...secondVal.data,
+          _creativeCanonFrameworkIds: [...promptOptions.selectedFrameworkIds],
+        },
         providerId: provider.id,
         model: provider.model,
         rawText: repairResult.text,
@@ -119,6 +133,7 @@ export async function executeAgentForTask(
         repairAttempted: true,
         providerId: provider.id,
         model: provider.model,
+        creativeCanonFrameworkIds: promptOptions.selectedFrameworkIds,
       },
     };
   } catch (e) {
@@ -129,6 +144,7 @@ export async function executeAgentForTask(
       partialMeta: {
         providerId: provider.id,
         model: provider.model,
+        creativeCanonFrameworkIds: promptOptions.selectedFrameworkIds,
       },
     };
   }
