@@ -7,6 +7,10 @@ import { PageHeader } from "@/components/ui/section";
 import { STAGE_LABELS, WORKFLOW_STAGE_ORDER } from "@/lib/workflow-display";
 import { getBriefForStudio } from "@/server/domain/briefs";
 import { assessBrandBibleReadiness } from "@/server/brand/readiness";
+import {
+  getClientCanonHighlights,
+  getTopPreferredFrameworkIds,
+} from "@/server/canon/client-canon-ui";
 import { orchestrator } from "@/server/orchestrator/orchestrator-service";
 import { WorkflowControls } from "@/components/workflow/workflow-controls";
 import { WorkflowTimeline } from "@/components/workflow/workflow-timeline";
@@ -34,6 +38,11 @@ export default async function BriefStudioPage({
   const brandReadiness = assessBrandBibleReadiness(
     brief.client.brandBible ?? null,
   );
+
+  const [canonHighlight, preferredFrameworkIds] = await Promise.all([
+    getClientCanonHighlights(clientId),
+    getTopPreferredFrameworkIds(clientId, 4),
+  ]);
 
   const hasWorkflow = brief.tasks.length > 0;
   let nextExecutableTaskIds: string[] = [];
@@ -121,6 +130,11 @@ export default async function BriefStudioPage({
                 <dd className="text-zinc-800">{brief.keyMessage}</dd>
               </div>
             </dl>
+            {canonHighlight ? (
+              <p className="mt-4 rounded-lg border border-violet-100 bg-violet-50/50 px-3 py-2 text-xs text-violet-950">
+                {canonHighlight}
+              </p>
+            ) : null}
           </Card>
 
           <WorkflowControls
@@ -254,7 +268,11 @@ export default async function BriefStudioPage({
                       {STAGE_LABELS[stage]}
                     </p>
                     {art ? (
-                      <ArtifactByType type={art.type} content={art.content} />
+                      <ArtifactByType
+                        type={art.type}
+                        content={art.content}
+                        preferredFrameworkIds={preferredFrameworkIds}
+                      />
                     ) : (
                       <Card>
                         <p className="text-sm text-zinc-500">

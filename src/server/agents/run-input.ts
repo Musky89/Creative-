@@ -20,7 +20,7 @@ export async function buildAgentRunInput(
   agentType: string,
 ): Promise<AgentRunInputPayload> {
   const { context } = await loadTaskAgentContext(taskId);
-  const frameworks = selectFrameworksForTask(stage, context);
+  const frameworks = await selectFrameworksForTask(stage, context);
   const canonUserSection = buildCreativeCanonUserSection(frameworks);
   const promptOptions = {
     canonUserSection,

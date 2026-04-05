@@ -14,6 +14,7 @@ export type UpstreamArtifactSummary = {
  * Purpose-built context for prompts — not a raw DB dump.
  */
 export type TaskAgentContext = {
+  clientId: string;
   clientName: string;
   clientIndustry: string;
   brief: {
@@ -120,6 +121,7 @@ export async function loadTaskAgentContext(taskId: string): Promise<{
   const bp: ServiceBlueprint | null = client.serviceBlueprint;
 
   const context: TaskAgentContext = {
+    clientId: client.id,
     clientName: client.name,
     clientIndustry: client.industry,
     brief: {

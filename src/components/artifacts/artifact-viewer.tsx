@@ -109,16 +109,25 @@ function StringList({ items, empty }: { items: unknown; empty: string }) {
 function FrameworkStrip({
   frameworkId,
   title = "Creative Canon",
+  isPreferredForClient,
 }: {
   frameworkId: string;
   title?: string;
+  isPreferredForClient?: boolean;
 }) {
   const fw = getFrameworkById(frameworkId.trim());
   return (
     <div className="rounded-lg border border-violet-200/80 bg-violet-50/60 px-3 py-2">
-      <p className="text-[11px] font-medium tracking-wide text-violet-800 uppercase">
-        {title}
-      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[11px] font-medium tracking-wide text-violet-800 uppercase">
+          {title}
+        </p>
+        {isPreferredForClient ? (
+          <span className="rounded bg-violet-900/90 px-1.5 py-0.5 text-[10px] font-medium text-white">
+            Strong for this client
+          </span>
+        ) : null}
+      </div>
       <p className="mt-1 text-sm font-semibold text-violet-950">
         {fw ? fw.name : frameworkId}
         {fw ? (
@@ -193,7 +202,13 @@ export function IntakeSummaryCard({ content }: { content: unknown }) {
   );
 }
 
-export function StrategyArtifactCard({ content }: { content: unknown }) {
+export function StrategyArtifactCard({
+  content,
+  preferredFrameworkIds,
+}: {
+  content: unknown;
+  preferredFrameworkIds?: string[];
+}) {
   if (!isRecord(content)) return <JsonFallback content={content} />;
   const pillars =
     content.messagePillars ?? content.pillars ?? content.messagingPillars;
@@ -228,7 +243,11 @@ export function StrategyArtifactCard({ content }: { content: unknown }) {
             if (!fid) return null;
             return (
               <div key={i} className="space-y-2">
-                <FrameworkStrip frameworkId={fid} title="Framework" />
+                <FrameworkStrip
+                  frameworkId={fid}
+                  title="Framework"
+                  isPreferredForClient={preferredFrameworkIds?.includes(fid)}
+                />
                 <p className="text-sm text-zinc-800">{ang || "—"}</p>
               </div>
             );
@@ -239,7 +258,13 @@ export function StrategyArtifactCard({ content }: { content: unknown }) {
   );
 }
 
-export function ConceptArtifactCard({ content }: { content: unknown }) {
+export function ConceptArtifactCard({
+  content,
+  preferredFrameworkIds,
+}: {
+  content: unknown;
+  preferredFrameworkIds?: string[];
+}) {
   if (!isRecord(content)) return <JsonFallback content={content} />;
   const concepts = content.concepts;
   const summary = asString(content.frameworkUsed);
@@ -260,7 +285,12 @@ export function ConceptArtifactCard({ content }: { content: unknown }) {
                 key={i}
                 className="border-t border-zinc-100 pt-6 first:border-t-0 first:pt-0"
               >
-                {fid ? <FrameworkStrip frameworkId={fid} /> : null}
+                {fid ? (
+                  <FrameworkStrip
+                    frameworkId={fid}
+                    isPreferredForClient={preferredFrameworkIds?.includes(fid)}
+                  />
+                ) : null}
                 <div className="mt-4 space-y-3">
                   <Field
                     label="Route name"
@@ -303,7 +333,13 @@ export function ConceptArtifactCard({ content }: { content: unknown }) {
   );
 }
 
-export function CopyArtifactCard({ content }: { content: unknown }) {
+export function CopyArtifactCard({
+  content,
+  preferredFrameworkIds,
+}: {
+  content: unknown;
+  preferredFrameworkIds?: string[];
+}) {
   if (!isRecord(content)) return <JsonFallback content={content} />;
   const fw = asString(content.frameworkUsed);
   return (
@@ -311,7 +347,11 @@ export function CopyArtifactCard({ content }: { content: unknown }) {
       <SectionTitle>Copy</SectionTitle>
       {fw ? (
         <div className="mt-3">
-          <FrameworkStrip frameworkId={fw} title="Executing framework" />
+          <FrameworkStrip
+            frameworkId={fw}
+            title="Executing framework"
+            isPreferredForClient={preferredFrameworkIds?.includes(fw.trim())}
+          />
         </div>
       ) : null}
       <div className="mt-4 space-y-4">
@@ -437,20 +477,37 @@ export function ExportArtifactCard({ content }: { content: unknown }) {
 export function ArtifactByType({
   type,
   content,
+  preferredFrameworkIds,
 }: {
   type: ArtifactType;
   content: unknown;
+  preferredFrameworkIds?: string[];
 }) {
   const inner = (() => {
     switch (type) {
       case "INTAKE_SUMMARY":
         return <IntakeSummaryCard content={content} />;
       case "STRATEGY":
-        return <StrategyArtifactCard content={content} />;
+        return (
+          <StrategyArtifactCard
+            content={content}
+            preferredFrameworkIds={preferredFrameworkIds}
+          />
+        );
       case "CONCEPT":
-        return <ConceptArtifactCard content={content} />;
+        return (
+          <ConceptArtifactCard
+            content={content}
+            preferredFrameworkIds={preferredFrameworkIds}
+          />
+        );
       case "COPY":
-        return <CopyArtifactCard content={content} />;
+        return (
+          <CopyArtifactCard
+            content={content}
+            preferredFrameworkIds={preferredFrameworkIds}
+          />
+        );
       case "REVIEW_REPORT":
         return <ReviewReportArtifactCard content={content} />;
       case "EXPORT":

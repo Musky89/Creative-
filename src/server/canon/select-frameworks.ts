@@ -1,9 +1,14 @@
 import type { WorkflowStage } from "@/generated/prisma/client";
 import type { TaskAgentContext } from "@/server/agents/context";
 import {
+  CANON_FRAMEWORKS,
   type CreativeFramework,
   getFrameworksByIds,
 } from "@/lib/canon/frameworks";
+import {
+  loadClientPerformanceMap,
+  scoreFrameworkPerformance,
+} from "./framework-scoring";
 
 function briefHaystack(ctx: TaskAgentContext): string {
   return [
@@ -26,13 +31,12 @@ function has(hay: string, ...words: string[]): boolean {
 }
 
 /**
- * Deterministic selection: 2–4 frameworks per stage from brief + brand signals.
- * No randomness; same inputs → same selection.
+ * Pure heuristic framework ids (pre-performance). Same logic as before.
  */
-export function selectFrameworksForTask(
+export function getHeuristicFrameworkIds(
   stage: WorkflowStage,
   context: TaskAgentContext,
-): CreativeFramework[] {
+): string[] {
   const hay = briefHaystack(context);
   const tone = context.brief.tone.toLowerCase();
 
@@ -61,8 +65,13 @@ export function selectFrameworksForTask(
     const picked =
       dedup.length >= 2
         ? dedup.slice(0, 4)
-        : ["transformation", "problem-agitation", "aspirational-identity", "cultural-relevance"];
-    return getFrameworksByIds(picked.slice(0, 4));
+        : [
+            "transformation",
+            "problem-agitation",
+            "aspirational-identity",
+            "cultural-relevance",
+          ];
+    return picked.slice(0, 4);
   }
 
   if (stage === "CONCEPTING") {
@@ -78,20 +87,15 @@ export function selectFrameworksForTask(
     } else {
       ids.push("cultural-relevance");
     }
-    const unique = [...new Set(ids)];
-    return getFrameworksByIds(unique.slice(0, 4));
+    return [...new Set(ids)].slice(0, 4);
   }
 
   if (stage === "COPY_DEVELOPMENT") {
     const fromConcept = extractConceptFrameworkIds(context);
     if (fromConcept.length >= 2) {
-      return getFrameworksByIds(fromConcept.slice(0, 4));
+      return fromConcept.slice(0, 4);
     }
-    return getFrameworksByIds([
-      "hyper-functional",
-      "problem-agitation",
-      "authority-proof",
-    ]);
+    return ["hyper-functional", "problem-agitation", "authority-proof"];
   }
 
   if (stage === "REVIEW") {
@@ -100,7 +104,7 @@ export function selectFrameworksForTask(
       fromConcept.length > 0
         ? [...fromConcept, "authority-proof"]
         : ["authority-proof", "minimalist-premium", "hyper-functional"];
-    return getFrameworksByIds([...new Set(base)].slice(0, 4));
+    return [...new Set(base)].slice(0, 4);
   }
 
   return [];
@@ -128,6 +132,43 @@ function extractConceptFrameworkIds(context: TaskAgentContext): string[] {
     return [c.frameworkUsed.trim()];
   }
   return [];
+}
+
+/**
+ * Adaptive selection: rank by heuristic position + FrameworkPerformance.
+ * Guarantees at least one heuristic-shortlist id in the final set (exploration / anti-overfit).
+ */
+export async function selectFrameworksForTask(
+  stage: WorkflowStage,
+  context: TaskAgentContext,
+): Promise<CreativeFramework[]> {
+  const heuristicIds = getHeuristicFrameworkIds(stage, context);
+
+  if (heuristicIds.length === 0) {
+    return [];
+  }
+
+  const pool = [...new Set([...heuristicIds, ...CANON_FRAMEWORKS.map((f) => f.id)])];
+  const perfMap = await loadClientPerformanceMap(context.clientId);
+
+  const scored = pool.map((id) => {
+    const hIdx = heuristicIds.indexOf(id);
+    const heuristicRank = hIdx >= 0 ? hIdx : null;
+    const row = perfMap.get(id);
+    const score = scoreFrameworkPerformance(row, heuristicRank);
+    return { id, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+
+  const chosen = scored.slice(0, 4).map((s) => s.id);
+  const hasHeuristic = chosen.some((id) => heuristicIds.includes(id));
+  if (!hasHeuristic && heuristicIds[0]) {
+    chosen.pop();
+    chosen.unshift(heuristicIds[0]);
+  }
+
+  return getFrameworksByIds([...new Set(chosen)].slice(0, 4));
 }
 
 /** Format selected frameworks for system/user prompts. */

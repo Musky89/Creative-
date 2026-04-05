@@ -25,6 +25,7 @@ import {
 import type { WorkflowStateResponse, WorkflowTaskSnapshot } from "./types";
 import { getV1PipelineRow, stageOrderIndex, V1_PIPELINE } from "./v1-pipeline";
 import { buildPlaceholderArtifactContent } from "./scaffold/placeholder-stage-output";
+import { recordArtifactOutcomeAndPerformance } from "@/server/canon/outcomes";
 
 function toIso(d: Date | null): string | null {
   return d ? d.toISOString() : null;
@@ -381,7 +382,10 @@ export class OrchestratorService {
     feedback?: string,
     reviewerLabel?: string | null,
   ): Promise<WorkflowStateResponse> {
-    const task = await this.db.task.findUnique({ where: { id: taskId } });
+    const task = await this.db.task.findUnique({
+      where: { id: taskId },
+      include: { brief: { select: { clientId: true } } },
+    });
     if (!task) {
       throw new OrchestratorError("NOT_FOUND", `Task not found: ${taskId}`, 404);
     }
@@ -412,6 +416,15 @@ export class OrchestratorService {
       });
     });
 
+    if (latestArtifact) {
+      await recordArtifactOutcomeAndPerformance(this.db, {
+        clientId: task.brief.clientId,
+        artifactId: latestArtifact.id,
+        artifactContent: latestArtifact.content,
+        outcome: "APPROVED",
+      });
+    }
+
     await this.unlockDependentTasks(taskId);
     return this.getWorkflowState(task.briefId);
   }
@@ -428,7 +441,10 @@ export class OrchestratorService {
       );
     }
 
-    const task = await this.db.task.findUnique({ where: { id: taskId } });
+    const task = await this.db.task.findUnique({
+      where: { id: taskId },
+      include: { brief: { select: { clientId: true } } },
+    });
     if (!task) {
       throw new OrchestratorError("NOT_FOUND", `Task not found: ${taskId}`, 404);
     }
@@ -458,6 +474,15 @@ export class OrchestratorService {
         },
       });
     });
+
+    if (latestArtifact) {
+      await recordArtifactOutcomeAndPerformance(this.db, {
+        clientId: task.brief.clientId,
+        artifactId: latestArtifact.id,
+        artifactContent: latestArtifact.content,
+        outcome: "REVISED",
+      });
+    }
 
     return this.getWorkflowState(task.briefId);
   }

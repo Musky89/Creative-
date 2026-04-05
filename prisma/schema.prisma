@@ -57,6 +57,13 @@ enum ReviewStatus {
   REVISION_REQUESTED
 }
 
+/// Recorded when review resolves an artifact (creative memory lite).
+enum ArtifactOutcomeType {
+  APPROVED
+  REVISED
+  REJECTED
+}
+
 /// Class of engagement / template used to instantiate work from a Brief.
 enum ServiceBlueprintTemplateType {
   FULL_PIPELINE
@@ -75,9 +82,11 @@ model Client {
   industry  String
   createdAt DateTime @default(now())
 
-  brandBible         BrandBible?
-  serviceBlueprint ServiceBlueprint?
-  briefs             Brief[]
+  brandBible             BrandBible?
+  serviceBlueprint       ServiceBlueprint?
+  briefs                 Brief[]
+  frameworkPerformances  FrameworkPerformance[]
+  artifactOutcomes       ArtifactOutcome[]
 }
 
 /// One canonical Brand Bible per client (1:1).
@@ -196,11 +205,48 @@ model Artifact {
   version Int
   createdAt DateTime @default(now())
 
-  reviewItems ReviewItem[]
+  reviewItems     ReviewItem[]
+  artifactOutcomes ArtifactOutcome[]
 
   @@unique([taskId, type, version])
   @@index([taskId])
   @@index([taskId, type])
+}
+
+/// Per-client rolling stats for Creative Canon framework ids (string keys, not FK to a Framework table).
+model FrameworkPerformance {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  frameworkId String
+
+  timesUsed                  Int      @default(0)
+  approvals                  Int      @default(0)
+  revisions                  Int      @default(0)
+  rejections                 Int      @default(0)
+  stillWeakAfterRegenCount   Int      @default(0)
+  lastUsedAt                 DateTime @default(now())
+
+  @@unique([clientId, frameworkId])
+  @@index([clientId])
+  @@index([frameworkId])
+}
+
+model ArtifactOutcome {
+  id         String   @id @default(cuid())
+  clientId   String
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  artifactId String
+  artifact   Artifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  frameworkIds         Json
+  outcome                ArtifactOutcomeType
+  stillWeakAfterRegen    Boolean  @default(false)
+  createdAt              DateTime @default(now())
+
+  @@index([clientId])
+  @@index([artifactId])
+  @@index([clientId, createdAt])
 }
 
 model ReviewItem {

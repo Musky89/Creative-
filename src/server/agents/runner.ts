@@ -145,7 +145,7 @@ export async function executeAgentForTask(
 
   const { context } = await loadTaskAgentContext(taskId);
   const contextBlock = formatContextForPrompt(context);
-  const frameworks = selectFrameworksForTask(stage, context);
+  const frameworks = await selectFrameworksForTask(stage, context);
   const canonUserSection = buildCreativeCanonUserSection(frameworks);
   const promptOptions: AgentPromptOptions = {
     canonUserSection,
