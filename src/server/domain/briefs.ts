@@ -25,6 +25,7 @@ export async function getBriefForClient(briefId: string, clientId: string) {
           reviewItems: { orderBy: { createdAt: "desc" } },
         },
       },
+      visualAssets: { orderBy: { createdAt: "desc" } },
     },
   });
 }
@@ -42,6 +43,7 @@ export async function getBriefForStudio(briefId: string, clientId: string) {
           reviewItems: { orderBy: { createdAt: "desc" } },
         },
       },
+      visualAssets: { orderBy: { createdAt: "desc" } },
     },
   });
 }

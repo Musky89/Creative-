@@ -12,6 +12,7 @@ import {
   getTopPreferredFrameworkIds,
 } from "@/server/canon/client-canon-ui";
 import { orchestrator } from "@/server/orchestrator/orchestrator-service";
+import { VisualAssetsPanel } from "@/components/studio/visual-assets-panel";
 import { WorkflowControls } from "@/components/workflow/workflow-controls";
 import { WorkflowTimeline } from "@/components/workflow/workflow-timeline";
 
@@ -289,11 +290,29 @@ export default async function BriefStudioPage({
                           />
                         ) : null}
                         {promptPkg ? (
-                          <ArtifactByType
-                            type={promptPkg.type}
-                            content={promptPkg.content}
-                            preferredFrameworkIds={preferredFrameworkIds}
-                          />
+                          <>
+                            <ArtifactByType
+                              type={promptPkg.type}
+                              content={promptPkg.content}
+                              preferredFrameworkIds={preferredFrameworkIds}
+                            />
+                            <VisualAssetsPanel
+                              clientId={clientId}
+                              briefId={briefId}
+                              promptPackageArtifactId={promptPkg.id}
+                              assets={brief.visualAssets.map((va) => ({
+                                id: va.id,
+                                status: va.status,
+                                providerTarget: va.providerTarget,
+                                providerName: va.providerName,
+                                modelName: va.modelName,
+                                resultUrl: va.resultUrl,
+                                sourceArtifactId: va.sourceArtifactId,
+                                generationNotes: va.generationNotes,
+                                createdAt: va.createdAt.toISOString(),
+                              }))}
+                            />
+                          </>
                         ) : stage === "VISUAL_DIRECTION" && art ? (
                           <Card>
                             <p className="text-sm text-zinc-500">

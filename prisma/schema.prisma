@@ -112,6 +112,13 @@ enum VisualPromptProviderTarget {
   GPT_IMAGE
 }
 
+enum VisualAssetStatus {
+  PENDING
+  GENERATING
+  COMPLETED
+  FAILED
+}
+
 /// Class of engagement / template used to instantiate work from a Brief.
 enum ServiceBlueprintTemplateType {
   FULL_PIPELINE
@@ -135,6 +142,7 @@ model Client {
   briefs                 Brief[]
   frameworkPerformances  FrameworkPerformance[]
   artifactOutcomes       ArtifactOutcome[]
+  visualAssets           VisualAsset[]
 }
 
 /// One canonical Brand Bible per client (1:1).
@@ -214,7 +222,8 @@ model Brief {
   deadline                DateTime
   createdAt               DateTime @default(now())
 
-  tasks Task[]
+  tasks         Task[]
+  visualAssets  VisualAsset[]
 
   @@index([clientId])
   @@index([createdAt])
@@ -240,9 +249,10 @@ model Task {
   /// Edges where THIS task is the prerequisite: other tasks wait on this one.
   dependents   TaskDependency[] @relation("TaskDependencyPrerequisite")
 
-  artifacts   Artifact[]
-  reviewItems ReviewItem[]
-  agentRuns   AgentRun[]
+  artifacts    Artifact[]
+  reviewItems  ReviewItem[]
+  agentRuns    AgentRun[]
+  visualAssets VisualAsset[]
 
   @@index([briefId])
   @@index([briefId, stage])
@@ -277,8 +287,9 @@ model Artifact {
   version Int
   createdAt DateTime @default(now())
 
-  reviewItems     ReviewItem[]
+  reviewItems      ReviewItem[]
   artifactOutcomes ArtifactOutcome[]
+  sourcedVisualAssets VisualAsset[] @relation("VisualAssetSourceArtifact")
 
   @@unique([taskId, type, version])
   @@index([taskId])
@@ -363,4 +374,40 @@ model AgentRun {
   @@index([taskId])
   @@index([taskId, createdAt])
   @@index([agentType])
+}
+
+/// Generated image (or future video frame) from a VISUAL_PROMPT_PACKAGE — internal testing path.
+model VisualAsset {
+  id               String                     @id @default(cuid())
+  clientId         String
+  client           Client                     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  briefId          String
+  brief            Brief                      @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  taskId           String
+  task             Task                       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  sourceArtifactId String
+  sourceArtifact   Artifact                   @relation("VisualAssetSourceArtifact", fields: [sourceArtifactId], references: [id], onDelete: Cascade)
+
+  providerTarget      VisualPromptProviderTarget
+  providerName        String
+  modelName           String
+  promptUsed          String                   @db.Text
+  negativePromptUsed  String                   @db.Text
+  status              VisualAssetStatus        @default(PENDING)
+  /// Public URL to view the asset (e.g. `/api/visual-assets/{id}/file`).
+  resultUrl           String?
+  /// Relative path from project storage root (debug / ops).
+  localPath           String?
+  metadata            Json?
+  variantLabel        String?
+  generationNotes     String?                  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([briefId])
+  @@index([taskId])
+  @@index([sourceArtifactId])
+  @@index([status])
 }
