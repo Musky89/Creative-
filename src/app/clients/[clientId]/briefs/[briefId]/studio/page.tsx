@@ -15,6 +15,7 @@ import { WorkflowControls } from "@/components/workflow/workflow-controls";
 import { WorkflowTimeline } from "@/components/workflow/workflow-timeline";
 import { StudioNextCallout } from "./studio-next-callout";
 import { StudioArtifactsSection } from "./studio-artifacts-section";
+import { IdentityExportPanel } from "./identity-export-panel";
 
 function reviewStatusText(status: ReviewStatus) {
   const map: Record<ReviewStatus, string> = {
@@ -95,6 +96,14 @@ export default async function BriefStudioPage({
     stage: t.stage,
     requiresReview: t.requiresReview,
   }));
+
+  const hasIdentityArtifacts =
+    brief.identityWorkflowEnabled &&
+    brief.tasks.some(
+      (t) =>
+        (t.stage === "IDENTITY_STRATEGY" || t.stage === "IDENTITY_ROUTING") &&
+        t.artifacts.length > 0,
+    );
 
   const visualAssetsForStudio = brief.visualAssets.map((va) => ({
     id: va.id,
@@ -184,21 +193,33 @@ export default async function BriefStudioPage({
 
           <DisclosureSection
             title="Export"
-            subtitle="JSON or Markdown for archive or handoff"
+            subtitle="Full studio dump or identity delivery package"
             defaultOpen={false}
           >
-            <div className="flex flex-wrap gap-2">
+            {brief.identityWorkflowEnabled ? (
+              <div className="mb-6">
+                <IdentityExportPanel
+                  clientId={clientId}
+                  briefId={briefId}
+                  hasIdentityArtifacts={hasIdentityArtifacts}
+                />
+              </div>
+            ) : null}
+            <p className="text-xs text-zinc-500">
+              All stages (campaign + optional identity)
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
               <a
                 href={`/api/export/briefs/${briefId}?clientId=${encodeURIComponent(clientId)}&format=json`}
                 className="inline-flex rounded-lg border border-zinc-600 bg-zinc-900/80 px-3.5 py-2 text-sm font-medium text-zinc-100 hover:border-zinc-500"
               >
-                JSON
+                Studio JSON
               </a>
               <a
                 href={`/api/export/briefs/${briefId}?clientId=${encodeURIComponent(clientId)}&format=markdown`}
                 className="inline-flex rounded-lg border border-zinc-600 bg-zinc-900/80 px-3.5 py-2 text-sm font-medium text-zinc-100 hover:border-zinc-500"
               >
-                Markdown
+                Studio Markdown
               </a>
             </div>
           </DisclosureSection>

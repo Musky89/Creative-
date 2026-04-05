@@ -3,7 +3,7 @@ import { STAGE_LABELS, workflowStageOrderForBrief } from "@/lib/workflow-display
 import { getBriefForClient } from "@/server/domain/briefs";
 import { stageOrderIndex } from "@/server/orchestrator/v1-pipeline";
 
-function stripMeta(obj: Record<string, unknown>): Record<string, unknown> {
+export function stripMeta(obj: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {
     if (k.startsWith("_agenticforce")) continue;
