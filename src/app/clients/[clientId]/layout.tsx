@@ -16,14 +16,14 @@ export default async function ClientLayout({
 
   return (
     <div>
-      <div className="mb-6">
+      <div className="mb-8">
         <Link
           href="/clients"
-          className="text-xs font-medium text-zinc-500 hover:text-zinc-800"
+          className="text-xs font-medium text-zinc-500 hover:text-zinc-200"
         >
           ← Clients
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-900">
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-50">
           {client.name}
         </h1>
         <p className="text-sm text-zinc-500">{client.industry}</p>

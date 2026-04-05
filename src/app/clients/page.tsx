@@ -15,7 +15,7 @@ export default async function ClientsPage() {
       <>
         <PageHeader
           title="Clients"
-          description="Accounts you run through AgenticForce."
+          description="Accounts in AgenticForce."
         />
         <div className="max-w-xl">
           <DatabaseUnavailableNotice />
@@ -28,28 +28,29 @@ export default async function ClientsPage() {
     <>
       <PageHeader
         title="Clients"
-        description="Accounts you run through AgenticForce."
+        description="Pick a client to open Brand Bible, Blueprint, and briefs."
+        tone="muted"
         action={<ButtonLink href="/clients/new">New client</ButtonLink>}
       />
 
       {clients.length === 0 ? (
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-zinc-400">
           No clients yet.{" "}
-          <Link href="/clients/new" className="text-zinc-900 underline">
+          <Link href="/clients/new" className="text-zinc-100 underline decoration-zinc-600">
             Create one
           </Link>
           .
         </p>
       ) : (
-        <ul className="divide-y divide-zinc-200 rounded-xl border border-zinc-200/80 bg-white shadow-sm">
+        <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800/90 bg-zinc-900/40 shadow-sm">
           {clients.map((c) => (
             <li key={c.id}>
               <Link
                 href={`/clients/${c.id}`}
-                className="flex items-center justify-between px-4 py-4 transition-colors hover:bg-zinc-50"
+                className="flex items-center justify-between px-4 py-4 transition-colors hover:bg-zinc-800/40"
               >
                 <div>
-                  <p className="font-medium text-zinc-900">{c.name}</p>
+                  <p className="font-medium text-zinc-100">{c.name}</p>
                   <p className="text-sm text-zinc-500">{c.industry}</p>
                 </div>
                 <span className="text-sm text-zinc-500">

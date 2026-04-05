@@ -30,10 +30,10 @@ function ActionButton({
 }) {
   const v =
     variant === "dark"
-      ? "bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-50"
+      ? "bg-zinc-100 text-zinc-950 hover:bg-white disabled:opacity-50"
       : variant === "danger"
-        ? "border border-red-200 bg-red-50 text-red-900 hover:bg-red-100 disabled:opacity-50"
-        : "border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50 disabled:opacity-50";
+        ? "border border-red-500/40 bg-red-950/40 text-red-100 hover:bg-red-950/60 disabled:opacity-50"
+        : "border border-zinc-600 bg-zinc-950/60 text-zinc-100 hover:border-zinc-500 disabled:opacity-50";
   return (
     <button
       type="button"
@@ -55,10 +55,10 @@ function Notice({
 }) {
   const cls =
     variant === "success"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+      ? "border-emerald-500/30 bg-emerald-950/40 text-emerald-100"
       : variant === "error"
-        ? "border-red-200 bg-red-50 text-red-900"
-        : "border-zinc-200 bg-zinc-50 text-zinc-800";
+        ? "border-red-500/35 bg-red-950/40 text-red-100"
+        : "border-zinc-600 bg-zinc-950/50 text-zinc-200";
   return (
     <div className={`rounded-lg border px-3 py-2 text-sm ${cls}`}>{children}</div>
   );
@@ -129,12 +129,12 @@ export function WorkflowControls({
     : null;
 
   return (
-    <Card>
+    <Card id="review">
       <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-        Controls
+        Actions
       </p>
-      <p className="mt-1 text-sm text-zinc-600">
-        All transitions run through the orchestrator on the server.
+      <p className="mt-1 text-sm text-zinc-400">
+        Server-backed workflow — one deliberate step at a time.
       </p>
 
       {!brandReadiness.ok &&
@@ -156,7 +156,7 @@ export function WorkflowControls({
             </ul>
             <Link
               href={`/clients/${clientId}/brand-bible`}
-              className="mt-2 inline-block text-sm font-medium underline"
+              className="mt-2 inline-block text-sm font-medium text-emerald-200 underline decoration-emerald-500/50"
             >
               Open Brand Bible →
             </Link>
@@ -198,31 +198,29 @@ export function WorkflowControls({
                   run(() => executeNextTaskAction(clientId, briefId))
                 }
               >
-                Execute next task
+                Run next step
               </ActionButton>
               <FieldHint>
-                Runs the next READY task in pipeline order (starts and completes
-                in one step). Brand Bible must be complete before agent stages.
+                Runs the next ready stage in order. Brand Bible must be complete
+                before AI stages.
               </FieldHint>
             </div>
 
             {reviewTaskId ? (
-              <div className="border-t border-zinc-100 pt-4">
+              <div className="border-t border-zinc-800 pt-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <div>
-                    <p className="text-sm font-medium text-zinc-900">
-                      Review gate
+                    <p className="text-sm font-medium text-zinc-100">
+                      Your review
                     </p>
                     <p className="mt-0.5 text-xs text-zinc-500">
-                      <span className="font-medium text-zinc-700">
+                      <span className="font-medium text-zinc-300">
                         {reviewStageLabel}
                       </span>
-                      <span className="mx-1 text-zinc-300">·</span>
-                      <span className="font-mono">{reviewTaskId}</span>
                     </p>
                   </div>
-                  <span className="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900 ring-1 ring-amber-200/80">
-                    Awaiting your decision
+                  <span className="text-xs font-medium text-amber-200/90">
+                    Decision needed
                   </span>
                 </div>
 
@@ -233,7 +231,7 @@ export function WorkflowControls({
                     id="reviewerLabel"
                     type="text"
                     placeholder="e.g. Jordan — stored on review records"
-                    className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 focus:ring-2"
+                    className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-500/30"
                   />
                   <FieldHint>
                     Used for attribution until full auth exists.
@@ -270,7 +268,7 @@ export function WorkflowControls({
                   </ActionButton>
                 </div>
 
-                <div className="mt-6 border-t border-zinc-100 pt-4">
+                <div className="mt-6 border-t border-zinc-800 pt-4">
                   <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
                     Request changes
                   </p>
@@ -322,8 +320,8 @@ export function WorkflowControls({
             ) : null}
 
             {reviseTaskId ? (
-              <div className="border-t border-zinc-100 pt-4">
-                <p className="text-sm font-medium text-zinc-800">
+              <div className="border-t border-zinc-800 pt-4">
+                <p className="text-sm font-medium text-zinc-100">
                   Revision required
                 </p>
                 <p className="mt-0.5 text-xs text-zinc-500">

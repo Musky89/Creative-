@@ -24,7 +24,7 @@ export function ClientTabs({
           : "/briefs";
 
   return (
-    <nav className="flex flex-wrap gap-1 border-b border-zinc-200">
+    <nav className="flex flex-wrap gap-1 border-b border-zinc-800">
       {tabs.map((t) => {
         const path = `/clients/${clientId}${t.href}`;
         const active = t.href === key;
@@ -32,10 +32,10 @@ export function ClientTabs({
           <Link
             key={t.href || "overview"}
             href={path}
-            className={`relative px-3 py-2.5 text-sm font-medium ${
+            className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
               active
-                ? "text-zinc-900 after:absolute after:right-2 after:bottom-0 after:left-2 after:h-0.5 after:rounded-full after:bg-zinc-900"
-                : "text-zinc-500 hover:text-zinc-800"
+                ? "text-zinc-50 after:absolute after:right-3 after:bottom-0 after:left-3 after:h-0.5 after:rounded-full after:bg-zinc-100"
+                : "text-zinc-500 hover:text-zinc-200"
             }`}
           >
             {t.label}

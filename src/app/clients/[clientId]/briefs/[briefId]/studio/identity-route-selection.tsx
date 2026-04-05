@@ -50,21 +50,20 @@ export function IdentityRouteSelectionForm({
   if (routes.length === 0) return null;
 
   return (
-    <Card className="mt-4 border-violet-200/80 bg-violet-50/30">
-      <p className="text-xs font-medium uppercase tracking-wide text-violet-900/80">
-        Founder route selection
+    <Card className="mt-4 border-violet-500/25 bg-violet-950/25">
+      <p className="text-xs font-medium uppercase tracking-wide text-violet-300/90">
+        Choose a route
       </p>
-      <p className="mt-1 text-sm text-violet-950/85">
-        Pick the primary direction for future mark exploration. This updates the artifact JSON
-        (extension point for logo prompt builders — no image generation here).
+      <p className="mt-1 text-sm text-violet-100/80">
+        Primary direction for later mark exploration. Saved on the artifact.
       </p>
       {state?.error ? (
-        <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p className="mt-2 rounded-lg border border-red-500/30 bg-red-950/40 px-3 py-2 text-sm text-red-100">
           {state.error}
         </p>
       ) : null}
       {state?.ok ? (
-        <p className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <p className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-100">
           {state.ok}
         </p>
       ) : null}
@@ -78,7 +77,7 @@ export function IdentityRouteSelectionForm({
             defaultValue={
               currentPreferredIndex != null ? String(currentPreferredIndex) : ""
             }
-            className="mt-1 block w-full max-w-md rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
+            className="mt-1 block w-full max-w-md rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
           >
             <option value="">— Select —</option>
             {routes.map((r, i) => (
@@ -103,9 +102,9 @@ export function IdentityRouteSelectionForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-violet-900 px-4 py-2 text-sm font-medium text-white hover:bg-violet-800 disabled:opacity-50"
+          className="rounded-lg bg-violet-500/90 px-4 py-2 text-sm font-medium text-white hover:bg-violet-400 disabled:opacity-50"
         >
-          {pending ? "Saving…" : "Save selection"}
+          {pending ? "Saving…" : "Save preference"}
         </button>
       </form>
     </Card>
