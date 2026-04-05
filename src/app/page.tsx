@@ -1,23 +1,90 @@
-export default function Home() {
+import Link from "next/link";
+import { listRecentBriefs } from "@/server/domain/briefs";
+import { listClients } from "@/server/domain/clients";
+import { PageHeader } from "@/components/ui/section";
+import { Card } from "@/components/ui/section";
+import { ButtonLink } from "@/components/ui/button-link";
+
+export default async function DashboardPage() {
+  const [clients, briefs] = await Promise.all([
+    listClients(),
+    listRecentBriefs(8),
+  ]);
+
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center px-6 py-16">
-      <div className="max-w-lg text-center">
-        <p className="text-sm font-medium tracking-wide text-zinc-500 uppercase">
-          Foundation
-        </p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
-          AgenticForce
-        </h1>
-        <p className="mt-4 text-base leading-relaxed text-zinc-600">
-          An AI-native creative agency operating system. Strategy before
-          creative, founder review gates, and a single server orchestrator —
-          not a generic SaaS shell.
-        </p>
-        <p className="mt-8 text-xs text-zinc-400">
-          Product UI and workflows are not wired yet; this page confirms the
-          app scaffold is live.
-        </p>
+    <>
+      <PageHeader
+        title="Dashboard"
+        description="Internal operating view — clients, briefs, and workflow. No analytics theater."
+        action={<ButtonLink href="/clients/new">New client</ButtonLink>}
+      />
+
+      <div className="grid gap-8 lg:grid-cols-2">
+        <section>
+          <h2 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+            Clients
+          </h2>
+          <ul className="mt-3 space-y-2">
+            {clients.length === 0 ? (
+              <Card>
+                <p className="text-sm text-zinc-600">No clients yet.</p>
+                <ButtonLink href="/clients/new" className="mt-3 inline-flex">
+                  Create client
+                </ButtonLink>
+              </Card>
+            ) : (
+              clients.slice(0, 6).map((c) => (
+                <li key={c.id}>
+                  <Link
+                    href={`/clients/${c.id}`}
+                    className="flex items-center justify-between rounded-xl border border-zinc-200/80 bg-white px-4 py-3 text-sm shadow-sm transition-colors hover:border-zinc-300"
+                  >
+                    <span className="font-medium text-zinc-900">{c.name}</span>
+                    <span className="text-zinc-500">{c.industry}</span>
+                  </Link>
+                </li>
+              ))
+            )}
+          </ul>
+          {clients.length > 0 ? (
+            <Link
+              href="/clients"
+              className="mt-3 inline-block text-sm text-zinc-600 hover:text-zinc-900"
+            >
+              View all clients →
+            </Link>
+          ) : null}
+        </section>
+
+        <section>
+          <h2 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+            Recent briefs
+          </h2>
+          <ul className="mt-3 space-y-2">
+            {briefs.length === 0 ? (
+              <Card>
+                <p className="text-sm text-zinc-600">
+                  Create a client, then add a brief from the client workspace.
+                </p>
+              </Card>
+            ) : (
+              briefs.map((b) => (
+                <li key={b.id}>
+                  <Link
+                    href={`/clients/${b.clientId}/briefs/${b.id}/studio`}
+                    className="block rounded-xl border border-zinc-200/80 bg-white px-4 py-3 text-sm shadow-sm transition-colors hover:border-zinc-300"
+                  >
+                    <span className="font-medium text-zinc-900">{b.title}</span>
+                    <span className="mt-0.5 block text-xs text-zinc-500">
+                      {b.client.name}
+                    </span>
+                  </Link>
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
       </div>
-    </main>
+    </>
   );
 }

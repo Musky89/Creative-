@@ -116,13 +116,34 @@ Implementation lives under [`src/server/orchestrator/`](src/server/orchestrator/
 
 ---
 
+## Internal product UI (founder OS)
+
+Routes (all server-driven; workflow actions call `OrchestratorService` via server actions):
+
+| Path | Purpose |
+|------|---------|
+| `/` | Dashboard — clients + recent briefs |
+| `/clients` | Client list |
+| `/clients/new` | Create client |
+| `/clients/[id]` | Overview + tabs |
+| `/clients/[id]/brand-bible` | Brand Bible form |
+| `/clients/[id]/service-blueprint` | Service Blueprint form |
+| `/clients/[id]/briefs` | Brief list |
+| `/clients/[id]/briefs/new` | Create brief |
+| `/clients/[id]/briefs/[briefId]/edit` | Edit brief |
+| `/clients/[id]/briefs/[briefId]/studio` | **Workflow studio** — timeline, orchestrator controls, artifacts, review log |
+
+The root layout sets **`dynamic = "force-dynamic"`** so `next build` does not require a live Postgres during static generation.
+
+---
+
 ## Current scope (this foundation)
 
 This repository **intentionally** has:
 
 - Next.js + TypeScript + Tailwind, `src/` layout, minimal homepage.
 - **Core domain Prisma schema** (eight models + `TaskDependency` for explicit task graphs) and PostgreSQL migrations.
-- **v1 workflow orchestrator** (Prisma-backed) and **Route Handlers** under `/api/orchestrator/*`.
+- **v1 workflow orchestrator** (Prisma-backed), **Route Handlers** under `/api/orchestrator/*`, and **internal UI** for clients, brand, blueprint, briefs, and the brief **studio**.
 - Documentation and reserved server folders for agents, brand, review, artifacts, storage.
 
 It **does not** yet include auth or real AI agent integrations — only deterministic placeholder scaffolding for artifacts and agent-run inputs.
