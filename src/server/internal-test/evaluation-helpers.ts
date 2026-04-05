@@ -22,6 +22,10 @@ export function artifactTypeForStage(
   switch (stage) {
     case "STRATEGY":
       return "STRATEGY";
+    case "IDENTITY_STRATEGY":
+      return "IDENTITY_STRATEGY";
+    case "IDENTITY_ROUTES":
+      return "IDENTITY_ROUTES_PACK";
     case "CONCEPT":
       return "CONCEPT";
     case "VISUAL_SPEC":

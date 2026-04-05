@@ -45,6 +45,10 @@ function parseBriefForm(formData: FormData): BriefFormInput | { error: string } 
       .map((x) => x.trim())
       .filter(Boolean);
 
+  const identityWorkflowEnabled =
+    formData.get("identityWorkflowEnabled") === "on" ||
+    formData.get("identityWorkflowEnabled") === "true";
+
   return {
     title,
     businessObjective,
@@ -55,6 +59,7 @@ function parseBriefForm(formData: FormData): BriefFormInput | { error: string } 
     tone,
     constraints: lines(constraintsRaw),
     deadline,
+    identityWorkflowEnabled,
   };
 }
 

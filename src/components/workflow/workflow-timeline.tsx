@@ -2,8 +2,7 @@ import type { TaskStatus, WorkflowStage } from "@/generated/prisma/client";
 import {
   STAGE_LABELS,
   TASK_STATUS_LABELS,
-  WORKFLOW_STAGE_ORDER,
-  type WorkflowStageId,
+  workflowStageOrderForBrief,
 } from "@/lib/workflow-display";
 
 type TaskRow = {
@@ -29,10 +28,13 @@ function statusPill(status: TaskStatus) {
 export function WorkflowTimeline({
   tasks,
   nextExecutableTaskIds,
+  identityWorkflowEnabled = false,
 }: {
   tasks: TaskRow[];
   nextExecutableTaskIds: string[];
+  identityWorkflowEnabled?: boolean;
 }) {
+  const order = workflowStageOrderForBrief(identityWorkflowEnabled);
   const byStage = new Map<WorkflowStage, TaskRow>();
   for (const t of tasks) {
     byStage.set(t.stage, t);
@@ -41,10 +43,10 @@ export function WorkflowTimeline({
 
   return (
     <ol className="space-y-0">
-      {WORKFLOW_STAGE_ORDER.map((stage, idx) => {
-        const task = byStage.get(stage as WorkflowStage);
-        const label = STAGE_LABELS[stage as WorkflowStageId];
-        const isLast = idx === WORKFLOW_STAGE_ORDER.length - 1;
+      {order.map((stage, idx) => {
+        const task = byStage.get(stage);
+        const label = STAGE_LABELS[stage];
+        const isLast = idx === order.length - 1;
         return (
           <li key={stage} className="relative flex gap-4 pb-8 last:pb-0">
             {!isLast ? (

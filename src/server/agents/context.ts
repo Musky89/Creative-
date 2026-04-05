@@ -92,9 +92,10 @@ export async function loadTaskAgentContext(taskId: string): Promise<{
     orderBy: { id: "asc" },
   });
 
-  const currentOrder = stageOrderIndex(task.stage);
+  const idFlow = brief.identityWorkflowEnabled;
+  const currentOrder = stageOrderIndex(task.stage, idFlow);
   const upstreamStages = allTasks.filter(
-    (t) => stageOrderIndex(t.stage) < currentOrder,
+    (t) => stageOrderIndex(t.stage, idFlow) < currentOrder,
   );
   const upstreamIds = upstreamStages.map((t) => t.id);
 

@@ -11,6 +11,7 @@ export type BriefFormInput = {
   tone: string;
   constraints: Prisma.InputJsonValue;
   deadline: Date;
+  identityWorkflowEnabled: boolean;
 };
 
 export async function getBriefForClient(briefId: string, clientId: string) {

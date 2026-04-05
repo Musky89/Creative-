@@ -202,6 +202,159 @@ export function IntakeSummaryCard({ content }: { content: unknown }) {
   );
 }
 
+export function IdentityStrategyArtifactCard({ content }: { content: unknown }) {
+  if (!isRecord(content)) return <JsonFallback content={content} />;
+  return (
+    <Card>
+      <SectionTitle>Identity strategy</SectionTitle>
+      <p className="mt-2 text-xs text-zinc-500">
+        Symbolic and semantic system — reasoning before any mark or campaign visuals.
+      </p>
+      <div className="mt-4 space-y-4">
+        <Field
+          label="Brand core idea"
+          value={asString(content.brandCoreIdea) || "—"}
+        />
+        <div>
+          <p className="text-xs font-medium text-zinc-500">Symbolic territories</p>
+          <StringList items={content.symbolicTerritories} empty="—" />
+        </div>
+        <div>
+          <p className="text-xs font-medium text-zinc-500">Identity archetypes</p>
+          <StringList items={content.identityArchetypes} empty="—" />
+        </div>
+        <div>
+          <p className="text-xs font-medium text-zinc-500">Semantic directions</p>
+          <StringList items={content.semanticDirections} empty="—" />
+        </div>
+        <div>
+          <p className="text-xs font-medium text-zinc-500">Visual tensions</p>
+          <StringList items={content.visualTensions} empty="—" />
+        </div>
+        <div>
+          <p className="text-xs font-medium text-zinc-500">Must signal</p>
+          <StringList items={content.whatTheIdentityMustSignal} empty="—" />
+        </div>
+        <div>
+          <p className="text-xs font-medium text-zinc-500">Must avoid</p>
+          <StringList items={content.whatTheIdentityMustAvoid} empty="—" />
+        </div>
+        <div>
+          <p className="text-xs font-medium text-zinc-500">Exploration hooks</p>
+          <StringList items={content.explorationHooks} empty="None." />
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+export function IdentityRoutesPackArtifactCard({ content }: { content: unknown }) {
+  if (!isRecord(content)) return <JsonFallback content={content} />;
+  const routes = content.routes;
+  const summary = asString(content.frameworkUsed);
+  const diff = asString(content.routeDifferentiationSummary);
+  const lr = content.logoExplorationReadiness;
+  return (
+    <Card>
+      <SectionTitle>Identity routes</SectionTitle>
+      {summary ? <p className="mt-2 text-sm text-zinc-700">{summary}</p> : null}
+      {diff ? (
+        <div className="mt-4">
+          <p className="text-xs font-medium text-zinc-500">How routes diverge</p>
+          <p className="mt-1 text-sm text-zinc-800">{diff}</p>
+        </div>
+      ) : null}
+      {typeof content.founderPreferredRouteIndex === "number" ? (
+        <p className="mt-3 rounded-lg border border-violet-200 bg-violet-50/60 px-3 py-2 text-sm text-violet-950">
+          Founder preferred route:{" "}
+          <span className="font-semibold">
+            #{Number(content.founderPreferredRouteIndex) + 1}
+          </span>
+          {typeof content.founderRouteFeedback === "string" &&
+          content.founderRouteFeedback.trim() ? (
+            <span className="mt-1 block text-xs text-violet-900/90">
+              {content.founderRouteFeedback}
+            </span>
+          ) : null}
+        </p>
+      ) : null}
+      {isRecord(lr) ? (
+        <div className="mt-4 rounded-lg border border-zinc-100 bg-zinc-50/50 px-3 py-2 text-xs text-zinc-700">
+          <p className="font-medium text-zinc-800">Logo exploration readiness</p>
+          <pre className="mt-1 overflow-auto font-mono text-[11px]">
+            {JSON.stringify(lr, null, 2)}
+          </pre>
+        </div>
+      ) : null}
+      {Array.isArray(routes) && routes.length > 0 ? (
+        <div className="mt-6 space-y-8">
+          {routes.map((raw, i) => {
+            if (!isRecord(raw)) return null;
+            return (
+              <div
+                key={i}
+                className="border-t border-zinc-100 pt-6 first:border-t-0 first:pt-0"
+              >
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  Route {i + 1}
+                </p>
+                <div className="mt-3 space-y-3">
+                  <Field
+                    label="Name"
+                    value={asString(raw.routeName) || "—"}
+                  />
+                  <Field
+                    label="Type"
+                    value={asString(raw.routeType) || "—"}
+                  />
+                  <Field
+                    label="Core concept"
+                    value={asString(raw.coreConcept) || "—"}
+                  />
+                  <Field
+                    label="Symbolic logic"
+                    value={asString(raw.symbolicLogic) || "—"}
+                  />
+                  <Field
+                    label="Typography logic"
+                    value={asString(raw.typographyLogic) || "—"}
+                  />
+                  <Field
+                    label="Geometry logic"
+                    value={asString(raw.geometryLogic) || "—"}
+                  />
+                  <Field
+                    label="Distinctiveness"
+                    value={asString(raw.distinctivenessRationale) || "—"}
+                  />
+                  <Field
+                    label="Why it works for brand"
+                    value={asString(raw.whyItWorksForBrand) || "—"}
+                  />
+                  <div>
+                    <p className="text-xs font-medium text-zinc-500">Risks</p>
+                    <StringList items={raw.risks} empty="—" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-zinc-500">Avoid</p>
+                    <StringList items={raw.avoidList} empty="—" />
+                  </div>
+                  <Field
+                    label="Mark exploration seed"
+                    value={asString(raw.markExplorationSeed) || "—"}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="mt-4 text-sm text-zinc-500">No routes in pack.</p>
+      )}
+    </Card>
+  );
+}
+
 export function StrategyArtifactCard({
   content,
   preferredFrameworkIds,
@@ -768,6 +921,10 @@ export function ArtifactByType({
             preferredFrameworkIds={preferredFrameworkIds}
           />
         );
+      case "IDENTITY_STRATEGY":
+        return <IdentityStrategyArtifactCard content={content} />;
+      case "IDENTITY_ROUTES_PACK":
+        return <IdentityRoutesPackArtifactCard content={content} />;
       case "CONCEPT":
         return (
           <ConceptArtifactCard

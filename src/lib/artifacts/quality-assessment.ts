@@ -52,7 +52,9 @@ export function mergeAntiGenericIssues(
     | "STRATEGY"
     | "CONCEPTING"
     | "VISUAL_DIRECTION"
-    | "COPY_DEVELOPMENT",
+    | "COPY_DEVELOPMENT"
+    | "IDENTITY_STRATEGY"
+    | "IDENTITY_ROUTING",
   content: Record<string, unknown>,
   bannedPhrases: string[],
 ): DeterministicQualityResult {
@@ -90,9 +92,145 @@ export function mergeAntiGenericIssues(
     gen.length >= 2 ||
     (stage === "COPY_DEVELOPMENT" && gen.length >= 1) ||
     (stage === "VISUAL_DIRECTION" && gen.length >= 1) ||
+    (stage === "IDENTITY_STRATEGY" && gen.length >= 1) ||
+    (stage === "IDENTITY_ROUTING" && gen.length >= 1) ||
     vague.length >= 4;
 
   return { issues, recommendRegeneration };
+}
+
+const IDENTITY_SLOP_TERMS = [
+  "futuristic",
+  "sleek",
+  "innovative design",
+  "next-gen",
+  "next gen",
+  "dynamic logo",
+  "abstract shapes",
+  "meaningful connection",
+  "node network",
+  "globe icon",
+] as const;
+
+export function deterministicIdentityStrategyChecks(
+  content: Record<string, unknown>,
+): DeterministicQualityResult {
+  const issues: string[] = [];
+  const core = String(content.brandCoreIdea ?? "");
+  if (core.length < 48) {
+    issues.push(
+      "brandCoreIdea is too thin — needs a single-minded, testable identity idea.",
+    );
+  }
+  const avoid = content.whatTheIdentityMustAvoid;
+  if (!Array.isArray(avoid) || avoid.length < 2) {
+    issues.push(
+      "whatTheIdentityMustAvoid must list concrete clichés and off-brand patterns.",
+    );
+  } else {
+    const joined = avoid.map((x) => String(x).toLowerCase()).join(" ");
+    if (joined.length < 40) {
+      issues.push(
+        "whatTheIdentityMustAvoid entries are too vague — name real tropes to reject.",
+      );
+    }
+  }
+  const blob = [
+    core,
+    String(content.symbolicTerritories ?? ""),
+    String(content.semanticDirections ?? ""),
+  ]
+    .join("\n")
+    .toLowerCase();
+  for (const t of IDENTITY_SLOP_TERMS) {
+    if (blob.includes(t)) {
+      issues.push(
+        `Identity strategy leans on generic/trend language ("${t}") — replace with brand-specific reasoning.`,
+      );
+      break;
+    }
+  }
+  return {
+    issues,
+    recommendRegeneration: issues.length >= 2,
+  };
+}
+
+export function deterministicIdentityRoutesChecks(
+  content: Record<string, unknown>,
+): DeterministicQualityResult {
+  const issues: string[] = [];
+  const routes = content.routes;
+  if (!Array.isArray(routes) || routes.length < 3) {
+    return {
+      issues: ["routes must include 3–5 distinct objects."],
+      recommendRegeneration: true,
+    };
+  }
+
+  const types: string[] = [];
+  const blobs: string[] = [];
+  for (let i = 0; i < routes.length; i++) {
+    const r = routes[i];
+    if (!r || typeof r !== "object") continue;
+    const o = r as Record<string, unknown>;
+    types.push(String(o.routeType ?? ""));
+    const piece = [
+      String(o.coreConcept ?? ""),
+      String(o.symbolicLogic ?? ""),
+      String(o.geometryLogic ?? ""),
+      String(o.typographyLogic ?? ""),
+    ].join(" ");
+    blobs.push(piece);
+    if (String(o.symbolicLogic ?? "").length < 55) {
+      issues.push(
+        `Route ${i + 1}: symbolicLogic is too thin — needs executable symbolic reasoning.`,
+      );
+    }
+    if (String(o.distinctivenessRationale ?? "").length < 45) {
+      issues.push(
+        `Route ${i + 1}: distinctivenessRationale is weak — explain non-interchangeability vs competitors.`,
+      );
+    }
+    const al = o.avoidList;
+    if (!Array.isArray(al) || al.length < 2) {
+      issues.push(
+        `Route ${i + 1}: avoidList must constrain clichés and slop patterns.`,
+      );
+    }
+  }
+
+  const uniqTypes = new Set(types.filter(Boolean));
+  if (uniqTypes.size < 2 && routes.length >= 3) {
+    issues.push(
+      "Routes should vary routeType more (wordmark vs symbol vs monogram, etc.).",
+    );
+  }
+
+  const sets = blobs.map(tokenize);
+  for (let i = 0; i < sets.length; i++) {
+    for (let j = i + 1; j < sets.length; j++) {
+      const sim = jaccard(sets[i]!, sets[j]!);
+      if (sim > 0.48) {
+        issues.push(
+          `Routes ${i + 1} and ${j + 1} overlap heavily (${Math.round(sim * 100)}% token overlap) — diverge mark logic and geometry.`,
+        );
+      }
+    }
+  }
+
+  const joined = blobs.join("\n").toLowerCase();
+  if (IDENTITY_SLOP_TERMS.some((t) => joined.includes(t))) {
+    issues.push(
+      "Route pack uses trend/slop vocabulary — ground in brand-specific construction logic.",
+    );
+  }
+
+  return {
+    issues,
+    recommendRegeneration:
+      issues.length >= 2 || issues.some((x) => x.includes("overlap")),
+  };
 }
 
 const VISUAL_VIBE_ONLY = [

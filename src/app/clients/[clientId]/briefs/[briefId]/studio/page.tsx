@@ -4,7 +4,11 @@ import type { ArtifactType, ReviewStatus } from "@/generated/prisma/client";
 import { ArtifactByType } from "@/components/artifacts/artifact-viewer";
 import { Card } from "@/components/ui/section";
 import { PageHeader } from "@/components/ui/section";
-import { STAGE_LABELS, WORKFLOW_STAGE_ORDER } from "@/lib/workflow-display";
+import {
+  STAGE_LABELS,
+  workflowStageOrderForBrief,
+} from "@/lib/workflow-display";
+import { getArtifactTypeForStudioStage } from "@/server/orchestrator/v1-pipeline";
 import { getBriefForStudio } from "@/server/domain/briefs";
 import { assessBrandBibleReadiness } from "@/server/brand/readiness";
 import {
@@ -19,6 +23,7 @@ import {
 } from "@/server/visual-generation/generate-visual-asset-from-prompt-package";
 import { WorkflowControls } from "@/components/workflow/workflow-controls";
 import { WorkflowTimeline } from "@/components/workflow/workflow-timeline";
+import { IdentityRouteSelectionWrapper } from "./identity-route-selection-wrapper";
 
 function reviewBadge(status: ReviewStatus) {
   const styles: Record<ReviewStatus, string> = {
@@ -75,7 +80,13 @@ export default async function BriefStudioPage({
 
   let reviewTaskId: string | null = null;
   let reviseTaskId: string | null = null;
-  for (const stage of WORKFLOW_STAGE_ORDER) {
+  const stageOrder = workflowStageOrderForBrief(brief.identityWorkflowEnabled);
+  const nextExecutableStage =
+    nextExecutableTaskIds.length > 0
+      ? timelineTasks.find((x) => x.id === nextExecutableTaskIds[0])?.stage ?? null
+      : null;
+
+  for (const stage of stageOrder) {
     const t = taskByStage.get(stage);
     if (!t) continue;
     if (t.status === "AWAITING_REVIEW" && !reviewTaskId) reviewTaskId = t.id;
@@ -147,6 +158,7 @@ export default async function BriefStudioPage({
             briefId={briefId}
             hasWorkflow={hasWorkflow}
             nextExecutableTaskIds={nextExecutableTaskIds}
+            nextExecutableStage={nextExecutableStage}
             reviewTaskId={reviewTaskId}
             reviseTaskId={reviseTaskId}
             brandReadiness={brandReadiness}
@@ -192,6 +204,7 @@ export default async function BriefStudioPage({
                 <WorkflowTimeline
                   tasks={timelineTasks}
                   nextExecutableTaskIds={nextExecutableTaskIds}
+                  identityWorkflowEnabled={brief.identityWorkflowEnabled}
                 />
               </div>
             )}
@@ -254,19 +267,11 @@ export default async function BriefStudioPage({
               Artifacts by stage
             </h3>
             <div className="mt-4 space-y-6">
-              {WORKFLOW_STAGE_ORDER.map((stage) => {
+              {stageOrder.map((stage) => {
                 const task = taskByStage.get(stage);
                 if (!task) return null;
-                const rowTypes: ArtifactType[] = [
-                  "INTAKE_SUMMARY",
-                  "STRATEGY",
-                  "CONCEPT",
-                  "VISUAL_SPEC",
-                  "COPY",
-                  "REVIEW_REPORT",
-                  "EXPORT",
-                ];
-                const at = rowTypes[WORKFLOW_STAGE_ORDER.indexOf(stage)];
+                const at = getArtifactTypeForStudioStage(stage);
+                if (!at) return null;
                 const art = latestArtifact(task.id, at);
                 const promptPkg =
                   stage === "VISUAL_DIRECTION"
@@ -287,11 +292,21 @@ export default async function BriefStudioPage({
                     ) : (
                       <div className="space-y-6">
                         {art ? (
-                          <ArtifactByType
-                            type={art.type}
-                            content={art.content}
-                            preferredFrameworkIds={preferredFrameworkIds}
-                          />
+                          <>
+                            <ArtifactByType
+                              type={art.type}
+                              content={art.content}
+                              preferredFrameworkIds={preferredFrameworkIds}
+                            />
+                            {stage === "IDENTITY_ROUTING" ? (
+                              <IdentityRouteSelectionWrapper
+                                clientId={clientId}
+                                briefId={briefId}
+                                taskId={task.id}
+                                content={art.content}
+                              />
+                            ) : null}
+                          </>
                         ) : null}
                         {promptPkg ? (
                           <>

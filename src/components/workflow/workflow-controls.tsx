@@ -78,6 +78,7 @@ export function WorkflowControls({
   briefId,
   hasWorkflow,
   nextExecutableTaskIds,
+  nextExecutableStage = null,
   reviewTaskId,
   reviseTaskId,
   brandReadiness,
@@ -87,6 +88,8 @@ export function WorkflowControls({
   briefId: string;
   hasWorkflow: boolean;
   nextExecutableTaskIds: string[];
+  /** When the next READY task is an agent stage, used to gate Brand Bible without blocking intake/export. */
+  nextExecutableStage?: WorkflowStage | null;
   reviewTaskId: string | null;
   reviseTaskId: string | null;
   brandReadiness: { ok: boolean; missing: string[] };
@@ -134,13 +137,17 @@ export function WorkflowControls({
         All transitions run through the orchestrator on the server.
       </p>
 
-      {!brandReadiness.ok ? (
+      {!brandReadiness.ok &&
+      nextExecutableStage != null &&
+      nextExecutableStage !== "BRIEF_INTAKE" &&
+      nextExecutableStage !== "EXPORT" ? (
         <div className="mt-4">
           <Notice variant="info">
             <p className="font-medium">Brand Bible required for AI stages</p>
             <p className="mt-1 text-sm opacity-90">
-              Complete the following before running Strategist, Creative Director, Art
-              Director, Copywriter, or Brand Guardian tasks:
+              Complete the following before running Strategist, Identity Strategist,
+              Identity Director, Creative Director, Art Director, Copywriter, or Brand
+              Guardian tasks:
             </p>
             <ul className="mt-2 list-inside list-disc text-sm">
               {brandReadiness.missing.map((m) => (
@@ -180,7 +187,13 @@ export function WorkflowControls({
             <div>
               <ActionButton
                 pending={pending}
-                disabled={nextExecutableCount === 0}
+                disabled={
+                  nextExecutableCount === 0 ||
+                  (!brandReadiness.ok &&
+                    nextExecutableStage != null &&
+                    nextExecutableStage !== "BRIEF_INTAKE" &&
+                    nextExecutableStage !== "EXPORT")
+                }
                 onClick={() =>
                   run(() => executeNextTaskAction(clientId, briefId))
                 }

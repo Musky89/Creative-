@@ -1,5 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
-import { V1_PIPELINE } from "./v1-pipeline";
+import { buildV1PipelineRows } from "./v1-pipeline";
 
 export type V1GraphInsertPlan = {
   tasks: Prisma.TaskCreateManyInput[];
@@ -10,8 +10,12 @@ export type V1GraphInsertPlan = {
  * Builds the canonical v1 linear graph: task i depends on task i-1.
  * Caller persists tasks (to obtain ids), then creates TaskDependency rows.
  */
-export function buildV1GraphInsertPlan(briefId: string): V1GraphInsertPlan {
-  const tasks: Prisma.TaskCreateManyInput[] = V1_PIPELINE.map((row) => ({
+export function buildV1GraphInsertPlan(
+  briefId: string,
+  identityWorkflowEnabled: boolean,
+): V1GraphInsertPlan {
+  const pipeline = buildV1PipelineRows(identityWorkflowEnabled);
+  const tasks: Prisma.TaskCreateManyInput[] = pipeline.map((row) => ({
     briefId,
     stage: row.stage,
     agentType: row.agentType,
@@ -20,7 +24,7 @@ export function buildV1GraphInsertPlan(briefId: string): V1GraphInsertPlan {
   }));
 
   const dependencies: { taskIndex: number; dependsOnIndex: number }[] = [];
-  for (let i = 1; i < V1_PIPELINE.length; i++) {
+  for (let i = 1; i < pipeline.length; i++) {
     dependencies.push({ taskIndex: i, dependsOnIndex: i - 1 });
   }
 

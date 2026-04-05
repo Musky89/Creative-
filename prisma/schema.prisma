@@ -17,6 +17,10 @@ datasource db {
 enum WorkflowStage {
   BRIEF_INTAKE
   STRATEGY
+  /// Symbolic / semantic identity system (parallel to campaign creative; new-brand path).
+  IDENTITY_STRATEGY
+  /// Distinct identity routes (wordmark, monogram, etc.) — reasoning before any mark generation.
+  IDENTITY_ROUTING
   CONCEPTING
   VISUAL_DIRECTION
   COPY_DEVELOPMENT
@@ -36,6 +40,8 @@ enum TaskStatus {
 
 enum AgentType {
   STRATEGIST
+  IDENTITY_STRATEGIST
+  IDENTITY_DIRECTOR
   CREATIVE_DIRECTOR
   ART_DIRECTOR
   COPYWRITER
@@ -46,6 +52,10 @@ enum ArtifactType {
   /// Structured confirmation of brief intake (orchestrator-owned shape until agents exist).
   INTAKE_SUMMARY
   STRATEGY
+  /// Identity intelligence — symbolic territory before routes (no logo pixels).
+  IDENTITY_STRATEGY
+  /// Pack of 3–5 distinct identity routes (mark types, logic, risks).
+  IDENTITY_ROUTES_PACK
   CONCEPT
   /// Structured art direction for future image/video/logo pipelines (pre-generation).
   VISUAL_SPEC
@@ -122,6 +132,8 @@ enum VisualAssetStatus {
 /// Internal validation — which pipeline slice was judged (not orchestrator review).
 enum PrivateEvaluationStage {
   STRATEGY
+  IDENTITY_STRATEGY
+  IDENTITY_ROUTES
   CONCEPT
   VISUAL_SPEC
   COPY
@@ -238,6 +250,9 @@ model Brief {
   constraints             Json
   deadline                DateTime
   createdAt               DateTime @default(now())
+
+  /// When true, workflow inserts IDENTITY_STRATEGY + IDENTITY_ROUTING after STRATEGY (new brand / identity builds).
+  identityWorkflowEnabled Boolean  @default(false)
 
   tasks         Task[]
   visualAssets  VisualAsset[]

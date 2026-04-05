@@ -113,6 +113,8 @@ function workflowStageForEval(
   stage: PrivateEvaluationStage,
 ): WorkflowStage | null {
   if (stage === "STRATEGY") return "STRATEGY";
+  if (stage === "IDENTITY_STRATEGY") return "IDENTITY_STRATEGY";
+  if (stage === "IDENTITY_ROUTES") return "IDENTITY_ROUTING";
   if (stage === "CONCEPT") return "CONCEPTING";
   if (stage === "VISUAL_SPEC") return "VISUAL_DIRECTION";
   if (stage === "COPY") return "COPY_DEVELOPMENT";
@@ -158,6 +160,8 @@ export async function getEvaluationTargetsForBrief(
 ): Promise<Record<PrivateEvaluationStage, EvalTarget>> {
   const stages: PrivateEvaluationStage[] = [
     "STRATEGY",
+    "IDENTITY_STRATEGY",
+    "IDENTITY_ROUTES",
     "CONCEPT",
     "VISUAL_SPEC",
     "COPY",

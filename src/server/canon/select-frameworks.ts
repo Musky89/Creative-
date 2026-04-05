@@ -44,6 +44,31 @@ export function getHeuristicFrameworkIds(
     return [];
   }
 
+  if (stage === "IDENTITY_STRATEGY") {
+    const ids: string[] = [
+      "minimalist-premium",
+      "authority-proof",
+      "cultural-relevance",
+      "aspirational-identity",
+    ];
+    if (has(hay, "trust", "regulated", "enterprise", "compliance")) {
+      ids.unshift("authority-proof");
+    }
+    if (has(hay, "new", "launch", "startup", "disrupt")) {
+      ids.push("unexpected-contrast", "transformation");
+    }
+    return [...new Set(ids)].slice(0, 4);
+  }
+
+  if (stage === "IDENTITY_ROUTING") {
+    return [
+      "minimalist-premium",
+      "material-as-emotion",
+      "unexpected-contrast",
+      "cultural-relevance",
+    ];
+  }
+
   if (stage === "STRATEGY") {
     const ids: string[] = [];
     if (has(hay, "premium", "luxury", "elegant", "craft")) {

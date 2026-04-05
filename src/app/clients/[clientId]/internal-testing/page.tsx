@@ -40,6 +40,8 @@ export default async function InternalTestingPage({
 
   const stageLabels: Record<string, string> = {
     STRATEGY: "Strategy",
+    IDENTITY_STRATEGY: "Identity strategy",
+    IDENTITY_ROUTES: "Identity routes",
     CONCEPT: "Concept",
     VISUAL_SPEC: "Visual spec",
     COPY: "Copy",
@@ -119,6 +121,8 @@ export default async function InternalTestingPage({
                 {(
                   [
                     "STRATEGY",
+                    "IDENTITY_STRATEGY",
+                    "IDENTITY_ROUTES",
                     "CONCEPT",
                     "VISUAL_SPEC",
                     "COPY",

@@ -2,6 +2,8 @@ import type { WorkflowStage } from "@/generated/prisma/client";
 import {
   deterministicConceptChecks,
   deterministicCopyChecks,
+  deterministicIdentityRoutesChecks,
+  deterministicIdentityStrategyChecks,
   deterministicStrategyChecks,
   deterministicVisualSpecChecks,
   mergeAntiGenericIssues,
@@ -19,6 +21,8 @@ You must judge whether the draft is specific and framework-grounded vs generic f
 The user message includes Brand Operating System rules: treat **banned phrases** as hard failures (flag regeneration).
 Also flag generic marketing clichés ("best in class", "innovative solution", "premium feel", vague superlatives without proof).
 For VISUAL_DIRECTION / VISUAL_SPEC drafts: reject vague "luxury / cinematic / high-end" without concrete composition, color, light, texture, and typography specifics; demand brand-grounded art direction a human team could shoot or design.
+For IDENTITY_STRATEGY: reject interchangeable symbolic fluff, trend-chasing aesthetics, and empty "modern/minimal" without strategic meaning.
+For IDENTITY_ROUTING / IDENTITY_ROUTES_PACK: reject routes that are the same idea reworded; demand divergent mark types and executable typography/geometry logic (not final logo pixels).
 
 Fields:
 - qualityVerdict: "STRONG" | "ACCEPTABLE" | "WEAK"
@@ -32,6 +36,8 @@ Be strict: generic marketing language, interchangeable hooks, or vague rationale
 
 export type QualityLoopStage =
   | "STRATEGY"
+  | "IDENTITY_STRATEGY"
+  | "IDENTITY_ROUTING"
   | "CONCEPTING"
   | "VISUAL_DIRECTION"
   | "COPY_DEVELOPMENT";
@@ -39,6 +45,8 @@ export type QualityLoopStage =
 export function stageUsesQualityLoop(stage: WorkflowStage): stage is QualityLoopStage {
   return (
     stage === "STRATEGY" ||
+    stage === "IDENTITY_STRATEGY" ||
+    stage === "IDENTITY_ROUTING" ||
     stage === "CONCEPTING" ||
     stage === "VISUAL_DIRECTION" ||
     stage === "COPY_DEVELOPMENT"
@@ -115,6 +123,22 @@ export function mergeDeterministicIssues(
   }
   if (stage === "VISUAL_DIRECTION") {
     const r = deterministicVisualSpecChecks(content);
+    const issues = [...anti.issues, ...r.issues];
+    return {
+      issues,
+      recommend: anti.recommendRegeneration || r.recommendRegeneration,
+    };
+  }
+  if (stage === "IDENTITY_STRATEGY") {
+    const r = deterministicIdentityStrategyChecks(content);
+    const issues = [...anti.issues, ...r.issues];
+    return {
+      issues,
+      recommend: anti.recommendRegeneration || r.recommendRegeneration,
+    };
+  }
+  if (stage === "IDENTITY_ROUTING") {
+    const r = deterministicIdentityRoutesChecks(content);
     const issues = [...anti.issues, ...r.issues];
     return {
       issues,

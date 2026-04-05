@@ -127,6 +127,25 @@ export function BriefForm({
           }
         />
       </div>
+      <div className="flex items-start gap-3 rounded-lg border border-zinc-200 bg-zinc-50/80 px-3 py-3">
+        <input
+          id="identityWorkflowEnabled"
+          name="identityWorkflowEnabled"
+          type="checkbox"
+          value="on"
+          defaultChecked={brief?.identityWorkflowEnabled === true}
+          className="mt-1 h-4 w-4 rounded border-zinc-300"
+        />
+        <div>
+          <Label htmlFor="identityWorkflowEnabled">
+            Identity workflow (new brand / identity build)
+          </Label>
+          <FieldHint>
+            Inserts Identity strategy and Identity routes after Strategy — symbolic reasoning
+            before campaign creative. Leave off for standard campaign work.
+          </FieldHint>
+        </div>
+      </div>
       <button
         type="submit"
         disabled={pending}

@@ -4,6 +4,8 @@ import { artDirectorAgent } from "./art-director";
 import { brandGuardianAgent } from "./brand-guardian";
 import { copywriterAgent } from "./copywriter";
 import { creativeDirectorAgent } from "./creative-director";
+import { identityDirectorAgent } from "./identity-director";
+import { identityStrategistAgent } from "./identity-strategist";
 import { strategistAgent } from "./strategist";
 import type { AgentDefinition } from "./types";
 import type { z } from "zod";
@@ -14,6 +16,8 @@ const byStage: Record<
 > = {
   BRIEF_INTAKE: undefined,
   STRATEGY: strategistAgent,
+  IDENTITY_STRATEGY: identityStrategistAgent,
+  IDENTITY_ROUTING: identityDirectorAgent,
   CONCEPTING: creativeDirectorAgent,
   VISUAL_DIRECTION: artDirectorAgent,
   COPY_DEVELOPMENT: copywriterAgent,
@@ -31,6 +35,10 @@ export function getArtifactShapeHint(stage: WorkflowStage): string {
   switch (stage) {
     case "STRATEGY":
       return ARTIFACT_SHAPE_HINTS.STRATEGY;
+    case "IDENTITY_STRATEGY":
+      return ARTIFACT_SHAPE_HINTS.IDENTITY_STRATEGY;
+    case "IDENTITY_ROUTING":
+      return ARTIFACT_SHAPE_HINTS.IDENTITY_ROUTES_PACK;
     case "CONCEPTING":
       return ARTIFACT_SHAPE_HINTS.CONCEPT;
     case "VISUAL_DIRECTION":

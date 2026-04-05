@@ -26,6 +26,8 @@ function testingPath(clientId: string, briefId?: string, sessionId?: string) {
 
 const STAGES: PrivateEvaluationStage[] = [
   "STRATEGY",
+  "IDENTITY_STRATEGY",
+  "IDENTITY_ROUTES",
   "CONCEPT",
   "VISUAL_SPEC",
   "COPY",

@@ -1,20 +1,23 @@
-/** UI-only ordering and labels — mirrors v1 pipeline without importing Prisma in client bundles. */
+import type { WorkflowStage } from "@/generated/prisma/client";
+import { buildV1PipelineRows } from "@/server/orchestrator/v1-pipeline";
 
-export const WORKFLOW_STAGE_ORDER = [
-  "BRIEF_INTAKE",
-  "STRATEGY",
-  "CONCEPTING",
-  "VISUAL_DIRECTION",
-  "COPY_DEVELOPMENT",
-  "REVIEW",
-  "EXPORT",
-] as const;
+/** UI ordering for timeline + studio — must match server pipeline for this brief. */
+export function workflowStageOrderForBrief(
+  identityWorkflowEnabled: boolean,
+): readonly WorkflowStage[] {
+  return buildV1PipelineRows(identityWorkflowEnabled).map((r) => r.stage);
+}
 
-export type WorkflowStageId = (typeof WORKFLOW_STAGE_ORDER)[number];
+/** Default order (standard pipeline) for types that don't have brief context. */
+export const WORKFLOW_STAGE_ORDER = workflowStageOrderForBrief(false);
 
-export const STAGE_LABELS: Record<WorkflowStageId, string> = {
+export type WorkflowStageId = WorkflowStage;
+
+export const STAGE_LABELS: Record<WorkflowStage, string> = {
   BRIEF_INTAKE: "Brief intake",
   STRATEGY: "Strategy",
+  IDENTITY_STRATEGY: "Identity strategy",
+  IDENTITY_ROUTING: "Identity routes",
   CONCEPTING: "Creative concepting",
   VISUAL_DIRECTION: "Visual direction",
   COPY_DEVELOPMENT: "Copy development",

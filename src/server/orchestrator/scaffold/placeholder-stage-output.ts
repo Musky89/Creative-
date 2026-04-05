@@ -44,6 +44,110 @@ export function buildPlaceholderArtifactContent(
         audience: ctx.brief.targetAudience,
         keyMessage: ctx.brief.keyMessage,
       };
+    case "IDENTITY_STRATEGY":
+      return {
+        ...base,
+        brandCoreIdea: `[Placeholder] Single-minded identity idea for ${ctx.brief.title} — symbolic system before any mark.`,
+        symbolicTerritories: [
+          "[Placeholder] Territory A — metaphor space the identity can own.",
+          "[Placeholder] Territory B — adjacent cultural or category space.",
+        ],
+        identityArchetypes: [
+          "[Placeholder] Primary archetype tension (e.g. caregiver + rebel) grounded in brief.",
+          "[Placeholder] Secondary archetype — how the brand shows up under stress.",
+        ],
+        semanticDirections: [
+          "[Placeholder] Meaning direction 1 — what the identity should read as before form.",
+          "[Placeholder] Meaning direction 2 — proof the system must carry.",
+        ],
+        visualTensions: [
+          "[Placeholder] Productive tension A vs B (e.g. precision vs warmth).",
+        ],
+        whatTheIdentityMustSignal: [
+          "[Placeholder] Signal 1 — category truth the mark must encode.",
+          "[Placeholder] Signal 2 — trust or desire hook at small scale.",
+        ],
+        whatTheIdentityMustAvoid: [
+          "[Placeholder] Cliché trope to reject (e.g. generic globe nodes).",
+          "[Placeholder] Trend aesthetic to reject for this brand.",
+        ],
+        explorationHooks: [
+          "[Optional] System note for future mark exploration — not a final prompt.",
+        ],
+      };
+    case "IDENTITY_ROUTES_PACK":
+      return {
+        ...base,
+        frameworkUsed:
+          "[Placeholder] Canon-informed pack: Minimalist Premium + Cultural Relevance (scaffold).",
+        routeDifferentiationSummary:
+          "[Placeholder] Route A emphasizes typographic authority; Route B is symbolic geometry; Route C combines mark + word — scaffold contrast only.",
+        routes: [
+          {
+            routeName: "[Placeholder] Route A — Wordmark system",
+            routeType: "wordmark" as const,
+            coreConcept:
+              "[Placeholder] Name-forward system where letterforms carry the strategic idea — spacing and rhythm do the persuasion.",
+            symbolicLogic:
+              "[Placeholder] How the word itself becomes the symbol through construction discipline and negative space logic.",
+            typographyLogic:
+              "[Placeholder] Voice of letterforms: stance, aperture, contrast — modularity at small sizes.",
+            geometryLogic:
+              "[Placeholder] Underlying grid and proportion rules so the wordmark scales to favicon and signage.",
+            distinctivenessRationale:
+              "[Placeholder] Why competitors cannot swap their name into this system without breaking the logic.",
+            whyItWorksForBrand:
+              "[Placeholder] Ties to Brand OS emotional register and positioning (scaffold).",
+            risks: ["[Placeholder] Risk: legibility at extreme small sizes."],
+            avoidList: [
+              "[Placeholder] Generic tech sans cliché",
+              "[Placeholder] Trendy monoline script",
+            ],
+          },
+          {
+            routeName: "[Placeholder] Route B — Monogram / letterform mark",
+            routeType: "monogram" as const,
+            coreConcept:
+              "[Placeholder] Compressed initials encode a ritual or motion from the product story.",
+            symbolicLogic:
+              "[Placeholder] What the monogram stands for beyond letters — the gesture or proof it recalls.",
+            typographyLogic:
+              "[Placeholder] How strokes are built: weight transitions, join logic, counter shapes.",
+            geometryLogic:
+              "[Placeholder] Modular construction for motion, stitch, emboss, and single-color lockups.",
+            distinctivenessRationale:
+              "[Placeholder] Why this monogram is not interchangeable with category defaults.",
+            whyItWorksForBrand:
+              "[Placeholder] Reinforces trust or desire per Brand OS (scaffold).",
+            risks: ["[Placeholder] Risk: reads as generic if geometry is too symmetric."],
+            avoidList: [
+              "[Placeholder] Hexagon + letter mashups",
+              "[Placeholder] Infinite-loop S curves",
+            ],
+          },
+          {
+            routeName: "[Placeholder] Route C — Abstract symbol",
+            routeType: "abstract" as const,
+            coreConcept:
+              "[Placeholder] Non-literal form carries a single proof from the strategy — not decoration.",
+            symbolicLogic:
+              "[Placeholder] What the abstract shape indexes in culture or category without literal illustration.",
+            typographyLogic:
+              "[Placeholder] How type pairs with the symbol: lockup rules, clearspace, voice match.",
+            geometryLogic:
+              "[Placeholder] Build logic (grid, symmetry or intentional asymmetry) and scalability rules.",
+            distinctivenessRationale:
+              "[Placeholder] Why this abstraction is ownable vs stock geometry.",
+            whyItWorksForBrand:
+              "[Placeholder] Aligns with Brand OS visual tensions (scaffold).",
+            risks: ["[Placeholder] Risk: reads as generic blob without tight rationale."],
+            avoidList: [
+              "[Placeholder] Random gradient orbits",
+              "[Placeholder] Meaningless nodes and lines",
+            ],
+          },
+        ],
+      };
     case "STRATEGY":
       return {
         ...base,

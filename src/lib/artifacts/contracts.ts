@@ -47,6 +47,62 @@ export const visualPromptPackageArtifactSchema = z.object({
     .strict(),
 });
 
+/** Identity route taxonomy — JSON-safe slug (not display labels). */
+export const identityRouteTypeSchema = z.enum([
+  "wordmark",
+  "monogram",
+  "symbol",
+  "abstract",
+  "combination_mark",
+]);
+
+/**
+ * Symbolic / semantic identity system before any mark or pixels.
+ * Extension: downstream logo exploration reads `explorationHooks` + route geometry/typography logic.
+ */
+export const identityStrategyArtifactSchema = z.object({
+  brandCoreIdea: z.string().min(40),
+  symbolicTerritories: z.array(z.string().min(1)).min(2).max(8),
+  identityArchetypes: z.array(z.string().min(1)).min(2).max(6),
+  semanticDirections: z.array(z.string().min(1)).min(2).max(8),
+  visualTensions: z.array(z.string().min(1)).min(1).max(6),
+  whatTheIdentityMustSignal: z.array(z.string().min(1)).min(2).max(10),
+  whatTheIdentityMustAvoid: z.array(z.string().min(1)).min(2).max(12),
+  /** Optional hooks for future logo / mark / typography pipelines (concrete system directions, not vibes). */
+  explorationHooks: z.array(z.string().min(1)).max(10).optional(),
+});
+
+export const identityRouteSubSchema = z.object({
+  routeName: z.string().min(1),
+  routeType: identityRouteTypeSchema,
+  coreConcept: z.string().min(40),
+  symbolicLogic: z.string().min(50),
+  typographyLogic: z.string().min(40),
+  geometryLogic: z.string().min(40),
+  distinctivenessRationale: z.string().min(40),
+  whyItWorksForBrand: z.string().min(40),
+  risks: z.array(z.string().min(1)).min(1).max(8),
+  avoidList: z.array(z.string().min(1)).min(2).max(16),
+  /** Optional: one-line seed for a future mark generator — reasoning-level, not a final prompt. */
+  markExplorationSeed: z.string().max(500).optional(),
+});
+
+/** Agent / LLM output for IDENTITY_ROUTES_PACK (founder selection is merged in Studio). */
+export const identityRoutesPackArtifactSchema = z.object({
+  /** Summary of Creative Canon ids informing the pack (must match provided ids). */
+  frameworkUsed: z.string().min(1),
+  routes: z.array(identityRouteSubSchema).min(3).max(5),
+  /** How routes diverge — required so reviewers see intentional contrast. */
+  routeDifferentiationSummary: z.string().min(60),
+  /** Extension: deterministic inputs for future logo prompt builders / boards. */
+  logoExplorationReadiness: z
+    .object({
+      primaryRoutesForExploration: z.array(z.number().int().min(0).max(4)).max(3).optional(),
+      systemConstraintsForMarks: z.array(z.string().min(1)).max(12).optional(),
+    })
+    .optional(),
+});
+
 export const strategyArtifactSchema = z.object({
   objective: z.string().min(1),
   audience: z.string().min(1),
@@ -137,6 +193,9 @@ export const reviewReportArtifactSchema = z.object({
 });
 
 export type StrategyArtifact = z.infer<typeof strategyArtifactSchema>;
+export type IdentityStrategyArtifact = z.infer<typeof identityStrategyArtifactSchema>;
+export type IdentityRouteVariant = z.infer<typeof identityRouteSubSchema>;
+export type IdentityRoutesPackArtifact = z.infer<typeof identityRoutesPackArtifactSchema>;
 export type ConceptArtifact = z.infer<typeof conceptArtifactSchema>;
 export type ConceptVariant = z.infer<typeof conceptSubSchema>;
 export type VisualSpecArtifact = z.infer<typeof visualSpecArtifactSchema>;
@@ -148,6 +207,27 @@ export type ReviewReportArtifact = z.infer<typeof reviewReportArtifactSchema>;
 
 /** For LLM repair prompts — exact keys and constraints. */
 export const ARTIFACT_SHAPE_HINTS = {
+  IDENTITY_STRATEGY: `{
+  "brandCoreIdea": string (min ~40 chars — single-minded idea the identity must encode),
+  "symbolicTerritories": string[] (min 2, max 8) — metaphor / cultural / category spaces to own,
+  "identityArchetypes": string[] (min 2, max 6) — Jungian or brand-archetype language tied to strategy,
+  "semanticDirections": string[] (min 2, max 8) — what the brand should "mean" before form,
+  "visualTensions": string[] (min 1, max 6) — productive oppositions (e.g. precision vs warmth),
+  "whatTheIdentityMustSignal": string[] (min 2, max 10),
+  "whatTheIdentityMustAvoid": string[] (min 2, max 12) — clichés, category defaults, AI-slop tropes,
+  "explorationHooks": optional string[] — concrete system notes for future mark/logo work (not final prompts)
+}`,
+  IDENTITY_ROUTES_PACK: `{
+  "frameworkUsed": string (summary; each route should align to provided Creative Canon ids where relevant),
+  "routes": array (min 3, max 5) of {
+    "routeName", "routeType": "wordmark" | "monogram" | "symbol" | "abstract" | "combination_mark",
+    "coreConcept", "symbolicLogic", "typographyLogic", "geometryLogic", "distinctivenessRationale", "whyItWorksForBrand" (substantive strings),
+    "risks": string[] (min 1), "avoidList": string[] (min 2),
+    "markExplorationSeed": optional string
+  },
+  "routeDifferentiationSummary": string (min ~60 — how routes diverge in mark type + logic),
+  "logoExplorationReadiness": optional object with primaryRoutesForExploration (0-based route indices) and systemConstraintsForMarks
+}`,
   STRATEGY: `{
   "objective": string,
   "audience": string,

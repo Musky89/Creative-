@@ -91,11 +91,62 @@ export function collectArtifactTextForQuality(
     | "STRATEGY"
     | "CONCEPTING"
     | "VISUAL_DIRECTION"
-    | "COPY_DEVELOPMENT",
+    | "COPY_DEVELOPMENT"
+    | "IDENTITY_STRATEGY"
+    | "IDENTITY_ROUTING",
   content: Record<string, unknown>,
 ): string {
   const parts: string[] = [];
-  if (stage === "STRATEGY") {
+  if (stage === "IDENTITY_STRATEGY") {
+    parts.push(
+      String(content.brandCoreIdea ?? ""),
+      String(content.visualTensions ?? ""),
+    );
+    for (const key of [
+      "symbolicTerritories",
+      "identityArchetypes",
+      "semanticDirections",
+      "whatTheIdentityMustSignal",
+      "whatTheIdentityMustAvoid",
+      "explorationHooks",
+    ] as const) {
+      const v = content[key];
+      if (Array.isArray(v)) parts.push(...v.map((x) => String(x)));
+    }
+  } else if (stage === "IDENTITY_ROUTING") {
+    parts.push(
+      String(content.frameworkUsed ?? ""),
+      String(content.routeDifferentiationSummary ?? ""),
+    );
+    const routes = content.routes;
+    if (Array.isArray(routes)) {
+      for (const r of routes) {
+        if (!r || typeof r !== "object") continue;
+        const o = r as Record<string, unknown>;
+        parts.push(
+          String(o.routeName ?? ""),
+          String(o.routeType ?? ""),
+          String(o.coreConcept ?? ""),
+          String(o.symbolicLogic ?? ""),
+          String(o.typographyLogic ?? ""),
+          String(o.geometryLogic ?? ""),
+          String(o.distinctivenessRationale ?? ""),
+          String(o.whyItWorksForBrand ?? ""),
+          String(o.markExplorationSeed ?? ""),
+        );
+        const al = o.avoidList;
+        if (Array.isArray(al)) parts.push(...al.map((x) => String(x)));
+        const rs = o.risks;
+        if (Array.isArray(rs)) parts.push(...rs.map((x) => String(x)));
+      }
+    }
+    const lr = content.logoExplorationReadiness;
+    if (lr && typeof lr === "object") {
+      const o = lr as Record<string, unknown>;
+      const c = o.systemConstraintsForMarks;
+      if (Array.isArray(c)) parts.push(...c.map((x) => String(x)));
+    }
+  } else if (stage === "STRATEGY") {
     parts.push(
       String(content.objective ?? ""),
       String(content.audience ?? ""),

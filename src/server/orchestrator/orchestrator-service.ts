@@ -33,7 +33,11 @@ import {
   isBlockedForInitialUnlock,
 } from "./task-state";
 import type { WorkflowStateResponse, WorkflowTaskSnapshot } from "./types";
-import { getV1PipelineRow, stageOrderIndex, V1_PIPELINE } from "./v1-pipeline";
+import {
+  buildV1PipelineRows,
+  getV1PipelineRow,
+  stageOrderIndex,
+} from "./v1-pipeline";
 import { buildPlaceholderArtifactContent } from "./scaffold/placeholder-stage-output";
 import { recordArtifactOutcomeAndPerformance } from "@/server/canon/outcomes";
 
@@ -82,14 +86,15 @@ export class OrchestratorService {
       );
     }
 
-    const plan = buildV1GraphInsertPlan(briefId);
+    const plan = buildV1GraphInsertPlan(briefId, brief.identityWorkflowEnabled);
+    const expectedLen = buildV1PipelineRows(brief.identityWorkflowEnabled).length;
 
     await this.db.$transaction(async (tx) => {
       const created = await tx.task.createManyAndReturn({
         data: plan.tasks,
       });
 
-      if (created.length !== V1_PIPELINE.length) {
+      if (created.length !== expectedLen) {
         throw new Error("Unexpected task create count");
       }
 
@@ -129,7 +134,9 @@ export class OrchestratorService {
     ]);
 
     const ordered = [...tasks].sort(
-      (a, b) => stageOrderIndex(a.stage) - stageOrderIndex(b.stage),
+      (a, b) =>
+        stageOrderIndex(a.stage, brief.identityWorkflowEnabled) -
+        stageOrderIndex(b.stage, brief.identityWorkflowEnabled),
     );
     const statusById = statusMapFromTasks(tasks);
 
@@ -274,10 +281,10 @@ export class OrchestratorService {
     }
     assertTaskIsRunning(task.status);
 
-    const row = getV1PipelineRow(task.stage);
     const brief = await this.db.brief.findUniqueOrThrow({
       where: { id: task.briefId },
     });
+    const row = getV1PipelineRow(task.stage, brief.identityWorkflowEnabled);
 
     let usedPlaceholder: boolean;
     let content: Record<string, unknown>;
@@ -405,14 +412,19 @@ export class OrchestratorService {
   ): Promise<WorkflowStateResponse> {
     const task = await this.db.task.findUnique({
       where: { id: taskId },
-      include: { brief: { select: { clientId: true } } },
+      include: {
+        brief: { select: { clientId: true, identityWorkflowEnabled: true } },
+      },
     });
     if (!task) {
       throw new OrchestratorError("NOT_FOUND", `Task not found: ${taskId}`, 404);
     }
     assertTaskIsAwaitingReview(task.status);
 
-    const row = getV1PipelineRow(task.stage);
+    const row = getV1PipelineRow(
+      task.stage,
+      task.brief.identityWorkflowEnabled,
+    );
     const latestArtifact = await findLatestArtifactForPipelineRow(
       this.db,
       taskId,
@@ -475,14 +487,19 @@ export class OrchestratorService {
 
     const task = await this.db.task.findUnique({
       where: { id: taskId },
-      include: { brief: { select: { clientId: true } } },
+      include: {
+        brief: { select: { clientId: true, identityWorkflowEnabled: true } },
+      },
     });
     if (!task) {
       throw new OrchestratorError("NOT_FOUND", `Task not found: ${taskId}`, 404);
     }
     assertTaskIsAwaitingReview(task.status);
 
-    const row = getV1PipelineRow(task.stage);
+    const row = getV1PipelineRow(
+      task.stage,
+      task.brief.identityWorkflowEnabled,
+    );
     const latestArtifact = await findLatestArtifactForPipelineRow(
       this.db,
       taskId,
