@@ -12,7 +12,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "env:check": "npx --yes tsx scripts/check-env.ts"
+    "env:check": "npx --yes tsx scripts/check-env.ts",
+    "qa:bootstrap": "npx --yes tsx scripts/private-dev-qa-bootstrap.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.6.0",
