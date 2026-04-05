@@ -61,6 +61,14 @@ npm run env:check
 
 Uses the same rules as server startup validation (requires `dotenv` + `tsx` via `npx`).
 
+### 5b. Optional: seed internal test lab + briefs
+
+```bash
+npx prisma db seed
+```
+
+Creates client **`[INTERNAL] AgenticForce test lab`** and five `[TEST]` briefs (idempotent).
+
 ### 6. Run
 
 ```bash

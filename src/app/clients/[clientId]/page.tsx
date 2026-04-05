@@ -58,6 +58,12 @@ export default async function ClientOverviewPage({
           >
             New brief
           </Link>
+          <Link
+            href={`/clients/${clientId}/internal-testing`}
+            className="text-zinc-700 underline decoration-zinc-300 hover:decoration-zinc-600"
+          >
+            Internal testing & evaluation
+          </Link>
           {client.briefs[0] ? (
             <Link
               href={`/clients/${clientId}/briefs/${client.briefs[0].id}/studio`}

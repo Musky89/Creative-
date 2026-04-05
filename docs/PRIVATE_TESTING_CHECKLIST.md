@@ -2,6 +2,15 @@
 
 Use this when validating a fresh deploy or onboarding a tester.
 
+## Internal testing page
+
+- [ ] Open **`/clients/{clientId}/internal-testing`**
+- [ ] Click **Ensure test briefs** (or run `npx prisma db seed` for a dedicated lab client + briefs)
+- [ ] Start an **evaluation session** (optional label) to group records
+- [ ] After running the pipeline in Studio, save **per-stage** pass / fail / needs work + notes
+
+---
+
 ## Environment
 
 - [ ] `DATABASE_URL` set and reachable from the app host

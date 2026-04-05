@@ -119,6 +119,21 @@ enum VisualAssetStatus {
   FAILED
 }
 
+/// Internal validation — which pipeline slice was judged (not orchestrator review).
+enum PrivateEvaluationStage {
+  STRATEGY
+  CONCEPT
+  VISUAL_SPEC
+  COPY
+  VISUAL_ASSET
+}
+
+enum PrivateEvaluationVerdict {
+  PASS
+  FAIL
+  NEEDS_WORK
+}
+
 /// Class of engagement / template used to instantiate work from a Brief.
 enum ServiceBlueprintTemplateType {
   FULL_PIPELINE
@@ -144,6 +159,7 @@ model Client {
   artifactOutcomes       ArtifactOutcome[]
   visualAssets           VisualAsset[]
   visualAssetReviews     VisualAssetReview[]
+  privateEvalRecords     PrivateEvaluationRecord[]
 }
 
 /// One canonical Brand Bible per client (1:1).
@@ -226,8 +242,16 @@ model Brief {
   tasks         Task[]
   visualAssets  VisualAsset[]
 
+  /// Seeded or harness-created briefs for internal QA (see docs/PRIVATE_TESTING_CHECKLIST.md).
+  isTestBrief   Boolean  @default(false)
+  testCategory  String?
+
+  privateEvalSessions   PrivateEvaluationSession[]
+  privateEvalRecords    PrivateEvaluationRecord[]
+
   @@index([clientId])
   @@index([createdAt])
+  @@index([clientId, isTestBrief])
 }
 
 /// Unit of orchestrated work within a Brief. Dependencies form a DAG enforced by the orchestrator.
@@ -292,6 +316,7 @@ model Artifact {
   artifactOutcomes ArtifactOutcome[]
   sourcedVisualAssets     VisualAsset[]         @relation("VisualAssetSourceArtifact")
   sourcedVisualReviews    VisualAssetReview[]   @relation("VisualReviewSourceSpec")
+  privateEvaluationRefs   PrivateEvaluationRecord[]
 
   @@unique([taskId, type, version])
   @@index([taskId])
@@ -411,6 +436,7 @@ model VisualAsset {
   regenerationAttempt Int                      @default(0)
 
   review VisualAssetReview?
+  privateEvaluationRefs PrivateEvaluationRecord[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -445,4 +471,57 @@ model VisualAssetReview {
 
   @@index([clientId])
   @@index([sourceSpecArtifactId])
+}
+
+/// Groups evaluation rows from one test run (optional).
+model PrivateEvaluationSession {
+  id        String   @id @default(cuid())
+  briefId   String
+  brief     Brief    @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  label     String?
+  createdAt DateTime @default(now())
+
+  records PrivateEvaluationRecord[]
+
+  @@index([briefId])
+  @@index([createdAt])
+}
+
+/// Founder judgment for internal QA (not production review).
+model PrivateEvaluationRecord {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  briefId  String
+  brief    Brief  @relation(fields: [briefId], references: [id], onDelete: Cascade)
+
+  sessionId String?
+  session   PrivateEvaluationSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  stage   PrivateEvaluationStage
+  verdict PrivateEvaluationVerdict
+
+  notes                 String  @db.Text
+  feltGeneric           Boolean @default(false)
+  brandAlignmentStrong  Boolean?
+  wouldUse              Boolean?
+
+  artifactId     String?
+  artifact       Artifact?    @relation(fields: [artifactId], references: [id], onDelete: SetNull)
+  visualAssetId  String?
+  visualAsset    VisualAsset? @relation(fields: [visualAssetId], references: [id], onDelete: SetNull)
+
+  /// Copied from artifact `_agenticforceQuality.stillWeakAfterRegen` when saving.
+  detectedStillWeakAfterRegen Boolean @default(false)
+  /// Framework ids extracted from evaluated artifact content (Creative Canon memory hook).
+  detectedFrameworkIds        Json?
+  /// Short tags e.g. ["generic_language","weak_visual_spec"] for summary rollups.
+  issueTags                   Json    @default("[]")
+
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
+  @@index([briefId])
+  @@index([clientId, createdAt])
+  @@index([stage])
 }

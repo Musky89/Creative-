@@ -6,6 +6,8 @@
 
 See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for env validation, migrations, storage, health checks, and common failures. Use **[docs/PRIVATE_TESTING_CHECKLIST.md](docs/PRIVATE_TESTING_CHECKLIST.md)** for end-to-end smoke testing.
 
+**Internal evaluation:** per-client page **`/clients/[clientId]/internal-testing`** — ensure canonical test briefs, log founder judgments per stage (strategy → visual asset), view weak/generic aggregates. Optional `npx prisma db seed` for a shared test lab client.
+
 ## What problem it solves
 
 Creative work routed through ad-hoc chats and one-off prompts produces:
