@@ -4,7 +4,8 @@ export type OrchestratorErrorCode =
   | "INVALID_TASK_STATUS"
   | "INVALID_STATE_TRANSITION"
   | "PREREQUISITES_NOT_MET"
-  | "VALIDATION_ERROR";
+  | "VALIDATION_ERROR"
+  | "BRAND_BIBLE_INCOMPLETE";
 
 export class OrchestratorError extends Error {
   readonly code: OrchestratorErrorCode;

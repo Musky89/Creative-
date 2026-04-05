@@ -36,9 +36,10 @@ export async function approveTaskAction(
   briefId: string,
   taskId: string,
   feedback?: string,
+  reviewerLabel?: string | null,
 ) {
   try {
-    await orchestrator.approveTask(taskId, feedback);
+    await orchestrator.approveTask(taskId, feedback, reviewerLabel);
   } catch (e) {
     return {
       error: e instanceof Error ? e.message : "Failed to approve task.",
@@ -53,9 +54,10 @@ export async function requestRevisionAction(
   briefId: string,
   taskId: string,
   feedback: string,
+  reviewerLabel?: string | null,
 ) {
   try {
-    await orchestrator.requestTaskRevision(taskId, feedback);
+    await orchestrator.requestTaskRevision(taskId, feedback, reviewerLabel);
   } catch (e) {
     return {
       error: e instanceof Error ? e.message : "Failed to request revision.",

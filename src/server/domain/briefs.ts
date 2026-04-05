@@ -29,6 +29,23 @@ export async function getBriefForClient(briefId: string, clientId: string) {
   });
 }
 
+/** Studio page: includes Brand Bible for readiness messaging. */
+export async function getBriefForStudio(briefId: string, clientId: string) {
+  return getPrisma().brief.findFirst({
+    where: { id: briefId, clientId },
+    include: {
+      client: { include: { brandBible: true } },
+      tasks: {
+        orderBy: { id: "asc" },
+        include: {
+          artifacts: { orderBy: [{ type: "asc" }, { version: "desc" }] },
+          reviewItems: { orderBy: { createdAt: "desc" } },
+        },
+      },
+    },
+  });
+}
+
 export async function createBrief(clientId: string, data: BriefFormInput) {
   return getPrisma().brief.create({
     data: { clientId, ...data },

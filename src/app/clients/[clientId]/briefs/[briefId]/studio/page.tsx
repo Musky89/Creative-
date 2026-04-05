@@ -5,7 +5,8 @@ import { ArtifactByType } from "@/components/artifacts/artifact-viewer";
 import { Card } from "@/components/ui/section";
 import { PageHeader } from "@/components/ui/section";
 import { STAGE_LABELS, WORKFLOW_STAGE_ORDER } from "@/lib/workflow-display";
-import { getBriefForClient } from "@/server/domain/briefs";
+import { getBriefForStudio } from "@/server/domain/briefs";
+import { assessBrandBibleReadiness } from "@/server/brand/readiness";
 import { orchestrator } from "@/server/orchestrator/orchestrator-service";
 import { WorkflowControls } from "@/components/workflow/workflow-controls";
 import { WorkflowTimeline } from "@/components/workflow/workflow-timeline";
@@ -26,9 +27,13 @@ export default async function BriefStudioPage({
   params: Promise<{ clientId: string; briefId: string }>;
 }) {
   const { clientId, briefId } = await params;
-  const briefLoaded = await getBriefForClient(briefId, clientId);
+  const briefLoaded = await getBriefForStudio(briefId, clientId);
   if (!briefLoaded) notFound();
   const brief = briefLoaded;
+
+  const brandReadiness = assessBrandBibleReadiness(
+    brief.client.brandBible ?? null,
+  );
 
   const hasWorkflow = brief.tasks.length > 0;
   let nextExecutableTaskIds: string[] = [];
@@ -122,10 +127,35 @@ export default async function BriefStudioPage({
             clientId={clientId}
             briefId={briefId}
             hasWorkflow={hasWorkflow}
-            nextExecutableCount={nextExecutableTaskIds.length}
+            nextExecutableTaskIds={nextExecutableTaskIds}
             reviewTaskId={reviewTaskId}
             reviseTaskId={reviseTaskId}
+            brandReadiness={brandReadiness}
+            timelineTasks={timelineTasks}
           />
+
+          <Card>
+            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+              Export
+            </p>
+            <p className="mt-1 text-sm text-zinc-600">
+              Download structured outputs for handoff or archive.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <a
+                href={`/api/export/briefs/${briefId}?clientId=${encodeURIComponent(clientId)}&format=json`}
+                className="inline-flex rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+              >
+                Download JSON
+              </a>
+              <a
+                href={`/api/export/briefs/${briefId}?clientId=${encodeURIComponent(clientId)}&format=markdown`}
+                className="inline-flex rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+              >
+                Download Markdown
+              </a>
+            </div>
+          </Card>
         </div>
 
         <div className="lg:col-span-3 space-y-8">
@@ -182,6 +212,11 @@ export default async function BriefStudioPage({
                       <span className="text-xs text-zinc-500">
                         {STAGE_LABELS[r.taskStage]}
                       </span>
+                      {r.reviewerLabel ? (
+                        <span className="text-xs text-zinc-600">
+                          {r.reviewerLabel}
+                        </span>
+                      ) : null}
                       <span className="text-xs text-zinc-400">
                         {new Date(r.createdAt).toLocaleString()}
                       </span>

@@ -2,6 +2,10 @@ import type { Prisma, PrismaClient, Task, TaskStatus } from "@/generated/prisma/
 import { executeAgentForTask } from "@/server/agents/runner";
 import { buildAgentRunInput } from "@/server/agents/run-input";
 import { getAgentForStage } from "@/server/agents/registry";
+import {
+  assessBrandBibleReadiness,
+  formatReadinessMessage,
+} from "@/server/brand/readiness";
 import { getPrisma } from "@/server/db/prisma";
 import {
   arePrerequisitesSatisfied,
@@ -190,6 +194,22 @@ export class OrchestratorService {
       );
     }
 
+    if (task.agentType && getAgentForStage(task.stage)) {
+      const briefRow = await this.db.brief.findUnique({
+        where: { id: task.briefId },
+        include: { client: { include: { brandBible: true } } },
+      });
+      const readiness = assessBrandBibleReadiness(
+        briefRow?.client.brandBible ?? null,
+      );
+      if (!readiness.ok) {
+        throw new OrchestratorError(
+          "BRAND_BIBLE_INCOMPLETE",
+          formatReadinessMessage(readiness.missing),
+        );
+      }
+    }
+
     const now = new Date();
 
     return this.db.$transaction(async (tx) => {
@@ -240,6 +260,8 @@ export class OrchestratorService {
     let usedPlaceholder: boolean;
     let content: Record<string, unknown>;
 
+    let agentRunMetadata: Record<string, unknown> | null = null;
+
     if (artifactPayload !== undefined) {
       usedPlaceholder = false;
       content = { ...artifactPayload, _agenticforceUserPayload: true };
@@ -254,6 +276,15 @@ export class OrchestratorService {
             provider: agentResult.providerId,
             model: agentResult.model,
           },
+          _agenticforceGenerationPath: agentResult.generationPath,
+          _agenticforceRepaired: agentResult.repaired,
+        };
+        agentRunMetadata = {
+          provider: agentResult.providerId,
+          model: agentResult.model,
+          generationPath: agentResult.generationPath,
+          repaired: agentResult.repaired,
+          usedPlaceholderFallback: false,
         };
       } else {
         usedPlaceholder = true;
@@ -263,6 +294,11 @@ export class OrchestratorService {
           }),
           _agenticforceSource: "placeholder_fallback",
           _agenticforceLlmError: agentResult.error,
+        };
+        agentRunMetadata = {
+          usedPlaceholderFallback: true,
+          llmError: agentResult.error,
+          ...(agentResult.partialMeta ?? {}),
         };
       }
     } else {
@@ -316,6 +352,10 @@ export class OrchestratorService {
             data: {
               output: content as Prisma.InputJsonValue,
               duration,
+              metadata:
+                agentRunMetadata === null
+                  ? undefined
+                  : (agentRunMetadata as Prisma.InputJsonValue),
             },
           });
         }
@@ -334,6 +374,7 @@ export class OrchestratorService {
   async approveTask(
     taskId: string,
     feedback?: string,
+    reviewerLabel?: string | null,
   ): Promise<WorkflowStateResponse> {
     const task = await this.db.task.findUnique({ where: { id: taskId } });
     if (!task) {
@@ -353,6 +394,8 @@ export class OrchestratorService {
           artifactId: latestArtifact?.id ?? null,
           status: "APPROVED",
           feedback: feedback ?? "",
+          reviewerLabel: reviewerLabel?.trim() || null,
+          reviewerSource: "studio",
         },
       });
       await tx.task.update({
@@ -371,6 +414,7 @@ export class OrchestratorService {
   async requestTaskRevision(
     taskId: string,
     feedback: string,
+    reviewerLabel?: string | null,
   ): Promise<WorkflowStateResponse> {
     if (!feedback.trim()) {
       throw new OrchestratorError(
@@ -397,6 +441,8 @@ export class OrchestratorService {
           artifactId: latestArtifact?.id ?? null,
           status: "REVISION_REQUESTED",
           feedback,
+          reviewerLabel: reviewerLabel?.trim() || null,
+          reviewerSource: "studio",
         },
       });
       await tx.task.update({

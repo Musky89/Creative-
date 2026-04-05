@@ -1,7 +1,7 @@
 import { handleOrchestrator } from "@/server/orchestrator/http";
 import { orchestrator } from "@/server/orchestrator/orchestrator-service";
 
-type Body = { feedback?: string };
+type Body = { feedback?: string; reviewerLabel?: string };
 
 export async function POST(
   req: Request,
@@ -9,11 +9,13 @@ export async function POST(
 ) {
   const { taskId } = await ctx.params;
   let feedback: string | undefined;
+  let reviewerLabel: string | undefined;
   try {
     const text = await req.text();
     if (text) {
       const body = JSON.parse(text) as Body;
       feedback = body.feedback;
+      reviewerLabel = body.reviewerLabel;
     }
   } catch {
     return Response.json(
@@ -22,6 +24,6 @@ export async function POST(
     );
   }
   return handleOrchestrator(() =>
-    orchestrator.approveTask(taskId, feedback),
+    orchestrator.approveTask(taskId, feedback, reviewerLabel),
   );
 }

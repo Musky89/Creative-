@@ -5,6 +5,38 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+function ArtifactProvenance({ content }: { content: unknown }) {
+  if (!isRecord(content)) return null;
+  const src = content._agenticforceSource;
+  if (src !== "llm" && src !== "placeholder_fallback") return null;
+  const path = content._agenticforceGenerationPath;
+  const repaired = content._agenticforceRepaired === true;
+  const model = isRecord(content._agenticforceModel)
+    ? `${String(content._agenticforceModel.provider ?? "")} / ${String(content._agenticforceModel.model ?? "")}`.trim()
+    : null;
+  const err = content._agenticforceLlmError;
+
+  return (
+    <div className="mb-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+      <span className="font-medium text-zinc-800">
+        {src === "llm" ? "Model output" : "Placeholder fallback"}
+      </span>
+      {src === "llm" && path ? (
+        <span className="ml-2">
+          · {path === "repair" ? "Repair pass" : "Primary pass"}
+          {repaired ? " (repaired)" : ""}
+        </span>
+      ) : null}
+      {model ? <span className="ml-2">· {model}</span> : null}
+      {src === "placeholder_fallback" && typeof err === "string" && err ? (
+        <p className="mt-1 font-mono text-[11px] text-red-800/90">
+          {err.length > 220 ? `${err.slice(0, 220)}…` : err}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function asString(v: unknown): string {
   if (v == null) return "";
   if (typeof v === "string") return v;
@@ -232,20 +264,29 @@ export function ArtifactByType({
   type: ArtifactType;
   content: unknown;
 }) {
-  switch (type) {
-    case "INTAKE_SUMMARY":
-      return <IntakeSummaryCard content={content} />;
-    case "STRATEGY":
-      return <StrategyArtifactCard content={content} />;
-    case "CONCEPT":
-      return <ConceptArtifactCard content={content} />;
-    case "COPY":
-      return <CopyArtifactCard content={content} />;
-    case "REVIEW_REPORT":
-      return <ReviewReportArtifactCard content={content} />;
-    case "EXPORT":
-      return <ExportArtifactCard content={content} />;
-    default:
-      return <JsonFallback content={content} />;
-  }
+  const inner = (() => {
+    switch (type) {
+      case "INTAKE_SUMMARY":
+        return <IntakeSummaryCard content={content} />;
+      case "STRATEGY":
+        return <StrategyArtifactCard content={content} />;
+      case "CONCEPT":
+        return <ConceptArtifactCard content={content} />;
+      case "COPY":
+        return <CopyArtifactCard content={content} />;
+      case "REVIEW_REPORT":
+        return <ReviewReportArtifactCard content={content} />;
+      case "EXPORT":
+        return <ExportArtifactCard content={content} />;
+      default:
+        return <JsonFallback content={content} />;
+    }
+  })();
+
+  return (
+    <div>
+      <ArtifactProvenance content={content} />
+      {inner}
+    </div>
+  );
 }

@@ -99,6 +99,12 @@ Set **`OPENAI_API_KEY`** and/or **`ANTHROPIC_API_KEY`**. Optional: **`LLM_PROVID
 
 When no provider is configured, **STRATEGY / CONCEPTING / COPY / REVIEW** tasks still complete but persist **labeled placeholder** artifacts with `_agenticforceSource: "placeholder_fallback"` and the error reason in `_agenticforceLlmError` when an API key exists but the call failed.
 
+**Brand Bible gate:** agent stages (Strategist → Brand Guardian) **cannot start** until the client Brand Bible includes positioning, target audience, tone of voice, and at least one messaging pillar.
+
+**Exports:** `GET /api/export/briefs/[briefId]?clientId=...&format=json|markdown` returns an attachment (pipeline snapshot; `_agenticforce*` keys stripped from artifact bodies in JSON).
+
+**JSON repair:** if primary model output fails Zod validation, one **repair** LLM pass runs; artifacts record `_agenticforceGenerationPath` (`primary` \| `repair`) and `_agenticforceRepaired`.
+
 The initial migration is [`prisma/migrations/20260405120000_init_core_domain/migration.sql`](prisma/migrations/20260405120000_init_core_domain/migration.sql). If your database was empty, `prisma migrate dev` will apply it and record it in `_prisma_migrations`.
 
 ---

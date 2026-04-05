@@ -212,6 +212,10 @@ model ReviewItem {
 
   status   ReviewStatus @default(PENDING)
   feedback String       @db.Text
+  /// Until auth ships: founder-supplied label (e.g. display name) for attribution.
+  reviewerLabel  String?
+  reviewerSource String   @default("studio")
+
   createdAt DateTime    @default(now())
 
   @@index([taskId])
@@ -233,6 +237,9 @@ model AgentRun {
   output    Json
   /// Wall-clock duration of the run in milliseconds (nullable if run did not complete).
   duration  Int?
+  /// Provider id, model, repair path, fallback flags, etc. (keeps output JSON artifact-focused).
+  metadata  Json?
+
   createdAt DateTime @default(now())
 
   @@index([taskId])
