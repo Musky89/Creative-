@@ -10,6 +10,10 @@ import {
   prePersistQualitySchema,
   type PrePersistQuality,
 } from "@/lib/artifacts/quality-assessment";
+import {
+  mergeSpecificityEngineIssues,
+  type SpecificityAnchorContext,
+} from "@/lib/brand/specificity-engine";
 import { extractJsonObject } from "@/server/llm/extract-json";
 import type { LlmProvider } from "@/server/llm/types";
 import { summarizeZodError } from "./repair-json";
@@ -20,6 +24,7 @@ Output a single JSON object only. No markdown.
 You must judge whether the draft is specific and framework-grounded vs generic filler.
 The user message includes Brand Operating System rules: treat **banned phrases** as hard failures (flag regeneration).
 Also flag generic marketing clichés ("best in class", "innovative solution", "premium feel", vague superlatives without proof).
+A **specificity engine** also runs deterministically: abstract words ("premium", "innovative") without concrete proof, missing visual execution detail, generic-any-brand claims, or weak anchoring to brief/brand — treat those as regeneration-worthy.
 For VISUAL_DIRECTION / VISUAL_SPEC drafts: reject vague "luxury / cinematic / high-end" without concrete composition, color, light, texture, and typography specifics; demand brand-grounded art direction a human team could shoot or design.
 For IDENTITY_STRATEGY: reject interchangeable symbolic fluff, trend-chasing aesthetics, and empty "modern/minimal" without strategic meaning.
 For IDENTITY_ROUTING / IDENTITY_ROUTES_PACK: reject routes that are the same idea reworded; demand divergent mark types and executable typography/geometry logic (not final logo pixels).
@@ -104,53 +109,73 @@ export function mergeDeterministicIssues(
   stage: QualityLoopStage,
   content: Record<string, unknown>,
   brandOsBannedPhrases: string[],
+  specificityAnchors: SpecificityAnchorContext | null = null,
 ): { issues: string[]; recommend: boolean } {
   const anti = mergeAntiGenericIssues(stage, content, brandOsBannedPhrases);
+  const spec = mergeSpecificityEngineIssues(stage, content, specificityAnchors);
   if (stage === "CONCEPTING") {
     const r = deterministicConceptChecks(content);
-    const issues = [...anti.issues, ...r.issues];
+    const issues = [...anti.issues, ...spec.issues, ...r.issues];
     return {
       issues,
-      recommend: anti.recommendRegeneration || r.recommendRegeneration,
+      recommend:
+        anti.recommendRegeneration ||
+        spec.recommendRegeneration ||
+        r.recommendRegeneration,
     };
   }
   if (stage === "COPY_DEVELOPMENT") {
     const r = deterministicCopyChecks(content);
-    const issues = [...anti.issues, ...r.issues];
+    const issues = [...anti.issues, ...spec.issues, ...r.issues];
     return {
       issues,
-      recommend: anti.recommendRegeneration || r.recommendRegeneration,
+      recommend:
+        anti.recommendRegeneration ||
+        spec.recommendRegeneration ||
+        r.recommendRegeneration,
     };
   }
   if (stage === "VISUAL_DIRECTION") {
     const r = deterministicVisualSpecChecks(content);
-    const issues = [...anti.issues, ...r.issues];
+    const issues = [...anti.issues, ...spec.issues, ...r.issues];
     return {
       issues,
-      recommend: anti.recommendRegeneration || r.recommendRegeneration,
+      recommend:
+        anti.recommendRegeneration ||
+        spec.recommendRegeneration ||
+        r.recommendRegeneration,
     };
   }
   if (stage === "IDENTITY_STRATEGY") {
     const r = deterministicIdentityStrategyChecks(content);
-    const issues = [...anti.issues, ...r.issues];
+    const issues = [...anti.issues, ...spec.issues, ...r.issues];
     return {
       issues,
-      recommend: anti.recommendRegeneration || r.recommendRegeneration,
+      recommend:
+        anti.recommendRegeneration ||
+        spec.recommendRegeneration ||
+        r.recommendRegeneration,
     };
   }
   if (stage === "IDENTITY_ROUTING") {
     const r = deterministicIdentityRoutesChecks(content);
-    const issues = [...anti.issues, ...r.issues];
+    const issues = [...anti.issues, ...spec.issues, ...r.issues];
     return {
       issues,
-      recommend: anti.recommendRegeneration || r.recommendRegeneration,
+      recommend:
+        anti.recommendRegeneration ||
+        spec.recommendRegeneration ||
+        r.recommendRegeneration,
     };
   }
   const r = deterministicStrategyChecks(content);
-  const issues = [...anti.issues, ...r.issues];
+  const issues = [...anti.issues, ...spec.issues, ...r.issues];
   return {
     issues,
-    recommend: anti.recommendRegeneration || r.recommendRegeneration,
+    recommend:
+      anti.recommendRegeneration ||
+      spec.recommendRegeneration ||
+      r.recommendRegeneration,
   };
 }
 

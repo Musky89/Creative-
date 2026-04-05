@@ -19,6 +19,7 @@ import {
   summarizeZodError,
 } from "./repair-json";
 import { mergeTasteEnforcementPhrases } from "@/lib/brand/brand-os-taste";
+import { buildSpecificityAnchorsFromBriefContext } from "@/lib/brand/specificity-engine";
 import type { AgentExecutionResult, AgentPromptOptions } from "./types";
 
 function stripInternalKeys(data: Record<string, unknown>): Record<string, unknown> {
@@ -187,7 +188,24 @@ export async function executeAgentForTask(
           categoryClichesToAvoid: os.categoryClichesToAvoid,
         })
       : [];
-    const det = mergeDeterministicIssues(qStage, stripped, brandBanned);
+    const specificityAnchors = buildSpecificityAnchorsFromBriefContext({
+      clientName: context.clientName,
+      briefTitle: context.brief.title,
+      briefBusinessObjective: context.brief.businessObjective,
+      briefCommunicationObjective: context.brief.communicationObjective,
+      briefTargetAudience: context.brief.targetAudience,
+      briefKeyMessage: context.brief.keyMessage,
+      brandPositioning: context.brand?.positioning ?? "",
+      brandAudience: context.brand?.targetAudience ?? "",
+      brandTone: context.brand?.toneOfVoice ?? "",
+      brandPillars: context.brand?.messagingPillars ?? [],
+    });
+    const det = mergeDeterministicIssues(
+      qStage,
+      stripped,
+      brandBanned,
+      specificityAnchors,
+    );
     const llmQ = await assessPrePersistQuality(
       provider,
       qStage,
@@ -218,7 +236,7 @@ export async function executeAgentForTask(
 
     const critique = [...det.issues, ...llmQ.regenerationReasons].join("\n");
     const mustPreserve =
-      "Output MUST match the same JSON schema as this stage. Honor Brand Bible, Brand Operating System (banned phrases, vocabulary/sentence style, emotional boundaries), brief, and upstream artifacts. Apply Creative Canon visibly — no generic marketing filler. For CONCEPTING: concepts must use different frameworkIds, include whyItWorksForBrand per route, and be clearly distinct. For VISUAL_DIRECTION: one chosen concept route, concrete art-direction specifics, strong avoidList, no vague luxury filler.";
+      "Output MUST match the same JSON schema as this stage. Honor Brand Bible, Brand Operating System (banned phrases, vocabulary/sentence style, emotional boundaries, taste engine), brief, and upstream artifacts. Apply Creative Canon visibly — no generic marketing filler. **Specificity:** replace abstraction with concrete execution detail; anchor claims in this client, audience, and brief (use vocabulary from context). For CONCEPTING: concepts must use different frameworkIds, include whyItWorksForBrand per route, and be clearly distinct. For VISUAL_DIRECTION: one chosen concept route, concrete art-direction specifics (materials, light, composition, texture), strong avoidList, no vibes-only luxury filler.";
 
     const regenUser = buildRegenerationUserPrompt({
       stage: qStage,
@@ -255,7 +273,12 @@ export async function executeAgentForTask(
     }
 
     const stripped2 = stripInternalKeys(regen.content);
-    const det2 = mergeDeterministicIssues(qStage, stripped2, brandBanned);
+    const det2 = mergeDeterministicIssues(
+      qStage,
+      stripped2,
+      brandBanned,
+      specificityAnchors,
+    );
     const llmQ2 = await assessPrePersistQuality(
       provider,
       qStage,
