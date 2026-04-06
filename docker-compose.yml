@@ -1,0 +1,30 @@
+# Optional local PostgreSQL for AgenticForce (dev only).
+# Usage:
+#   docker compose up -d
+#   cp .env.example .env   # ensure DATABASE_URL matches POSTGRES_* below
+#   npm run db:migrate:deploy
+#
+# Stop: docker compose down
+# Data persists in the named volume until you docker compose down -v
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: agenticforce-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: agenticforce
+    volumes:
+      - agenticforce_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d agenticforce"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  agenticforce_pgdata:

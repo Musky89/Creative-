@@ -1,0 +1,569 @@
+// AgenticForce — core domain schema (PostgreSQL)
+// Workflow engine, review gating, and agent execution history.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum WorkflowStage {
+  BRIEF_INTAKE
+  STRATEGY
+  /// Symbolic / semantic identity system (parallel to campaign creative; new-brand path).
+  IDENTITY_STRATEGY
+  /// Distinct identity routes (wordmark, monogram, etc.) — reasoning before any mark generation.
+  IDENTITY_ROUTING
+  CONCEPTING
+  VISUAL_DIRECTION
+  COPY_DEVELOPMENT
+  REVIEW
+  EXPORT
+}
+
+enum TaskStatus {
+  PENDING
+  READY
+  RUNNING
+  AWAITING_REVIEW
+  REVISE_REQUIRED
+  COMPLETED
+  FAILED
+}
+
+enum AgentType {
+  STRATEGIST
+  IDENTITY_STRATEGIST
+  IDENTITY_DIRECTOR
+  CREATIVE_DIRECTOR
+  ART_DIRECTOR
+  COPYWRITER
+  BRAND_GUARDIAN
+}
+
+enum ArtifactType {
+  /// Structured confirmation of brief intake (orchestrator-owned shape until agents exist).
+  INTAKE_SUMMARY
+  STRATEGY
+  /// Identity intelligence — symbolic territory before routes (no logo pixels).
+  IDENTITY_STRATEGY
+  /// Pack of 3–5 distinct identity routes (mark types, logic, risks).
+  IDENTITY_ROUTES_PACK
+  CONCEPT
+  /// Structured art direction for future image/video/logo pipelines (pre-generation).
+  VISUAL_SPEC
+  /// Deterministic prompt package derived from VISUAL_SPEC + Brand OS (pre-generation).
+  VISUAL_PROMPT_PACKAGE
+  COPY
+  REVIEW_REPORT
+  EXPORT
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVISION_REQUESTED
+}
+
+/// Recorded when review resolves an artifact (creative memory lite).
+enum ArtifactOutcomeType {
+  APPROVED
+  REVISED
+  REJECTED
+}
+
+/// Brand Operating System — language vocabulary register.
+enum VocabularyStyle {
+  SIMPLE
+  ELEVATED
+  TECHNICAL
+  POETIC
+  MIXED
+}
+
+/// Brand Operating System — typical sentence construction.
+enum SentenceStyle {
+  SHORT
+  MEDIUM
+  LONG
+  VARIED
+}
+
+/// Brand Operating System — primary emotional register.
+enum PrimaryEmotion {
+  ASPIRATION
+  TRUST
+  DESIRE
+  URGENCY
+  CALM
+  BOLD
+}
+
+/// Brand Operating System — persuasion mode.
+enum PersuasionStyle {
+  SUBTLE
+  DIRECT
+  STORY_LED
+  PROOF_LED
+}
+
+/// Target image provider for assembled prompt packages (adapters; no generation yet).
+enum VisualPromptProviderTarget {
+  GENERIC
+  GEMINI_IMAGE
+  GPT_IMAGE
+}
+
+enum VisualAssetStatus {
+  PENDING
+  GENERATING
+  COMPLETED
+  FAILED
+}
+
+/// Internal validation — which pipeline slice was judged (not orchestrator review).
+enum PrivateEvaluationStage {
+  STRATEGY
+  IDENTITY_STRATEGY
+  IDENTITY_ROUTES
+  CONCEPT
+  VISUAL_SPEC
+  COPY
+  VISUAL_ASSET
+}
+
+enum PrivateEvaluationVerdict {
+  PASS
+  FAIL
+  NEEDS_WORK
+}
+
+/// Class of engagement / template used to instantiate work from a Brief.
+enum ServiceBlueprintTemplateType {
+  FULL_PIPELINE
+  CAMPAIGN_SPRINT
+  RETAINER_MONTHLY
+  CUSTOM
+}
+
+// ---------------------------------------------------------------------------
+// Client & brand
+// ---------------------------------------------------------------------------
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  industry  String
+  createdAt DateTime @default(now())
+
+  brandBible             BrandBible?
+  serviceBlueprint       ServiceBlueprint?
+  briefs                 Brief[]
+  frameworkPerformances  FrameworkPerformance[]
+  artifactOutcomes       ArtifactOutcome[]
+  visualAssets           VisualAsset[]
+  visualAssetReviews     VisualAssetReview[]
+  privateEvalRecords     PrivateEvaluationRecord[]
+}
+
+/// One canonical Brand Bible per client (1:1).
+model BrandBible {
+  id        String @id @default(cuid())
+  clientId  String @unique
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  positioning    String @db.Text
+  targetAudience String @db.Text
+  toneOfVoice    String @db.Text
+
+  messagingPillars    Json
+  visualIdentity      Json
+  channelGuidelines   Json
+  mandatoryInclusions Json
+  thingsToAvoid       Json
+
+  /// Brand Operating System — language rules
+  vocabularyStyle   VocabularyStyle @default(SIMPLE)
+  sentenceStyle     SentenceStyle   @default(MEDIUM)
+  bannedPhrases     Json            @default("[]")
+  preferredPhrases  Json            @default("[]")
+  signaturePatterns Json            @default("[]")
+
+  /// Brand Operating System — emotional profile
+  primaryEmotion             PrimaryEmotion @default(TRUST)
+  emotionalToneDescription   String         @default("") @db.Text
+  emotionalBoundaries        Json           @default("[]")
+
+  /// Brand Operating System — creative patterns
+  hookStyles        Json            @default("[]")
+  narrativeStyles   Json            @default("[]")
+  persuasionStyle   PersuasionStyle @default(DIRECT)
+
+  /// Brand Operating System — visual language (future image workflows)
+  visualStyle        String @default("") @db.Text
+  colorPhilosophy    String @default("") @db.Text
+  compositionStyle   String @default("") @db.Text
+  textureFocus       String @default("") @db.Text
+  lightingStyle      String @default("") @db.Text
+
+  /// Taste engine — language DNA (precision copy)
+  languageDnaPhrasesUse       Json @default("[]")
+  languageDnaPhrasesNever     Json @default("[]")
+  languageDnaSentenceRhythm   Json @default("[]")
+  languageDnaHeadlinePatterns Json @default("[]")
+  languageDnaCtaPatterns      Json @default("[]")
+
+  /// Taste engine — category & differentiation
+  categoryTypicalBehavior  String @default("") @db.Text
+  categoryClichesToAvoid   Json @default("[]")
+  categoryDifferentiation  String @default("") @db.Text
+
+  /// Taste engine — productive tension
+  tensionCoreContradiction  String @default("") @db.Text
+  tensionEmotionalBalance   String @default("") @db.Text
+
+  /// Taste engine — references & feel
+  tasteCloserThan       Json    @default("[]")
+  tasteShouldFeelLike   String  @default("") @db.Text
+  tasteMustNotFeelLike  String  @default("") @db.Text
+
+  /// Taste engine — visual guardrails (stricter than generic visual language)
+  visualNeverLooksLike            Json   @default("[]")
+  visualCompositionTendencies     String @default("") @db.Text
+  visualMaterialTextureDirection  String @default("") @db.Text
+  visualLightingTendencies        String @default("") @db.Text
+
+  updatedAt DateTime @updatedAt
+}
+
+/// Per-client service / quality contract (1:1).
+model ServiceBlueprint {
+  id       String @id @default(cuid())
+  clientId String @unique
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  templateType      ServiceBlueprintTemplateType
+  activeServices    Json
+  qualityThreshold  Float
+  approvalRequired  Boolean
+
+  @@index([templateType])
+}
+
+// ---------------------------------------------------------------------------
+// Brief & workflow tasks
+// ---------------------------------------------------------------------------
+
+model Brief {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  title                   String
+  businessObjective       String   @db.Text
+  communicationObjective  String   @db.Text
+  targetAudience          String   @db.Text
+  keyMessage              String   @db.Text
+  deliverablesRequested   Json
+  tone                    String
+  constraints             Json
+  deadline                DateTime
+  createdAt               DateTime @default(now())
+
+  /// When true, workflow inserts IDENTITY_STRATEGY + IDENTITY_ROUTING after STRATEGY (new brand / identity builds).
+  identityWorkflowEnabled Boolean  @default(false)
+
+  tasks         Task[]
+  visualAssets  VisualAsset[]
+
+  /// Seeded or harness-created briefs for internal QA (see docs/PRIVATE_TESTING_CHECKLIST.md).
+  isTestBrief   Boolean  @default(false)
+  testCategory  String?
+
+  privateEvalSessions   PrivateEvaluationSession[]
+  privateEvalRecords    PrivateEvaluationRecord[]
+
+  @@index([clientId])
+  @@index([createdAt])
+  @@index([clientId, isTestBrief])
+}
+
+/// Unit of orchestrated work within a Brief. Dependencies form a DAG enforced by the orchestrator.
+model Task {
+  id     String @id @default(cuid())
+  briefId String
+  brief   Brief  @relation(fields: [briefId], references: [id], onDelete: Cascade)
+
+  stage          WorkflowStage
+  /// Null for system stages (e.g. brief intake, export packaging) that do not invoke an agent role.
+  agentType      AgentType?
+  status         TaskStatus    @default(PENDING)
+  requiresReview Boolean       @default(false)
+
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  /// Edges where THIS task is the successor: "this task depends on prerequisite(s)".
+  dependencies TaskDependency[] @relation("TaskDependencyDependent")
+  /// Edges where THIS task is the prerequisite: other tasks wait on this one.
+  dependents   TaskDependency[] @relation("TaskDependencyPrerequisite")
+
+  artifacts    Artifact[]
+  reviewItems  ReviewItem[]
+  agentRuns    AgentRun[]
+  visualAssets VisualAsset[]
+
+  @@index([briefId])
+  @@index([briefId, stage])
+  @@index([briefId, status])
+  @@index([status])
+}
+
+/// Explicit prerequisite edge: `taskId` cannot proceed until `dependsOnTaskId` satisfies orchestrator rules.
+model TaskDependency {
+  id              String @id @default(cuid())
+  taskId          String
+  dependsOnTaskId String
+
+  task          Task @relation("TaskDependencyDependent", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOnTask Task @relation("TaskDependencyPrerequisite", fields: [dependsOnTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, dependsOnTaskId])
+  @@index([dependsOnTaskId])
+}
+
+// ---------------------------------------------------------------------------
+// Artifacts & review
+// ---------------------------------------------------------------------------
+
+model Artifact {
+  id     String @id @default(cuid())
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  type    ArtifactType
+  content Json
+  version Int
+  createdAt DateTime @default(now())
+
+  reviewItems      ReviewItem[]
+  artifactOutcomes ArtifactOutcome[]
+  sourcedVisualAssets     VisualAsset[]         @relation("VisualAssetSourceArtifact")
+  sourcedVisualReviews    VisualAssetReview[]   @relation("VisualReviewSourceSpec")
+  privateEvaluationRefs   PrivateEvaluationRecord[]
+
+  @@unique([taskId, type, version])
+  @@index([taskId])
+  @@index([taskId, type])
+}
+
+/// Per-client rolling stats for Creative Canon framework ids (string keys, not FK to a Framework table).
+model FrameworkPerformance {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  frameworkId String
+
+  timesUsed                  Int      @default(0)
+  approvals                  Int      @default(0)
+  revisions                  Int      @default(0)
+  rejections                 Int      @default(0)
+  stillWeakAfterRegenCount   Int      @default(0)
+  lastUsedAt                 DateTime @default(now())
+
+  @@unique([clientId, frameworkId])
+  @@index([clientId])
+  @@index([frameworkId])
+}
+
+model ArtifactOutcome {
+  id         String   @id @default(cuid())
+  clientId   String
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  artifactId String
+  artifact   Artifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  frameworkIds         Json
+  outcome                ArtifactOutcomeType
+  stillWeakAfterRegen    Boolean  @default(false)
+  createdAt              DateTime @default(now())
+
+  @@index([clientId])
+  @@index([artifactId])
+  @@index([clientId, createdAt])
+}
+
+model ReviewItem {
+  id         String @id @default(cuid())
+  taskId     String
+  artifactId String?
+  task       Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  artifact   Artifact? @relation(fields: [artifactId], references: [id], onDelete: SetNull)
+
+  status   ReviewStatus @default(PENDING)
+  feedback String       @db.Text
+  /// Until auth ships: founder-supplied label (e.g. display name) for attribution.
+  reviewerLabel  String?
+  reviewerSource String   @default("studio")
+
+  createdAt DateTime    @default(now())
+
+  @@index([taskId])
+  @@index([taskId, status])
+  @@index([artifactId])
+}
+
+// ---------------------------------------------------------------------------
+// Agent execution audit trail
+// ---------------------------------------------------------------------------
+
+model AgentRun {
+  id     String @id @default(cuid())
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  agentType AgentType
+  input     Json
+  output    Json
+  /// Wall-clock duration of the run in milliseconds (nullable if run did not complete).
+  duration  Int?
+  /// Provider id, model, repair path, fallback flags, etc. (keeps output JSON artifact-focused).
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+  @@index([taskId, createdAt])
+  @@index([agentType])
+}
+
+/// Generated image (or future video frame) from a VISUAL_PROMPT_PACKAGE — internal testing path.
+model VisualAsset {
+  id               String                     @id @default(cuid())
+  clientId         String
+  client           Client                     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  briefId          String
+  brief            Brief                      @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  taskId           String
+  task             Task                       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  sourceArtifactId String
+  sourceArtifact   Artifact                   @relation("VisualAssetSourceArtifact", fields: [sourceArtifactId], references: [id], onDelete: Cascade)
+
+  providerTarget      VisualPromptProviderTarget
+  providerName        String
+  modelName           String
+  promptUsed          String                   @db.Text
+  negativePromptUsed  String                   @db.Text
+  status              VisualAssetStatus        @default(PENDING)
+  /// Public URL to view the asset (e.g. `/api/visual-assets/{id}/file`).
+  resultUrl           String?
+  /// Relative path from project storage root (debug / ops).
+  localPath           String?
+  metadata            Json?
+  variantLabel        String?
+  generationNotes     String?                  @db.Text
+  /// Founder marked this variant as the preferred pick for this prompt package.
+  isPreferred         Boolean                  @default(false)
+  /// Founder explicitly rejected this variant (weak / off-brief).
+  founderRejected     Boolean                  @default(false)
+  /// Bounded regeneration: incremented when generation used a critique suffix.
+  regenerationAttempt Int                      @default(0)
+
+  review VisualAssetReview?
+  privateEvaluationRefs PrivateEvaluationRecord[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([briefId])
+  @@index([taskId])
+  @@index([sourceArtifactId])
+  @@index([status])
+}
+
+/// Structured visual QA for a generated asset (deterministic + optional vision LLM).
+model VisualAssetReview {
+  id              String      @id @default(cuid())
+  clientId        String
+  client          Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  visualAssetId   String      @unique
+  visualAsset     VisualAsset @relation(fields: [visualAssetId], references: [id], onDelete: Cascade)
+  /// VISUAL_SPEC artifact id (for provenance and framework memory).
+  sourceSpecArtifactId String?
+  sourceSpecArtifact   Artifact? @relation("VisualReviewSourceSpec", fields: [sourceSpecArtifactId], references: [id], onDelete: SetNull)
+
+  /// Full structured payload (matches VisualAssetEvaluation schema + extras).
+  evaluation               Json
+  qualityVerdict           String
+  regenerationRecommended  Boolean              @default(false)
+  /// deterministic | openai_vision | skipped_no_provider
+  evaluator                String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([sourceSpecArtifactId])
+}
+
+/// Groups evaluation rows from one test run (optional).
+model PrivateEvaluationSession {
+  id        String   @id @default(cuid())
+  briefId   String
+  brief     Brief    @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  label     String?
+  createdAt DateTime @default(now())
+
+  records PrivateEvaluationRecord[]
+
+  @@index([briefId])
+  @@index([createdAt])
+}
+
+/// Founder judgment for internal QA (not production review).
+model PrivateEvaluationRecord {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  briefId  String
+  brief    Brief  @relation(fields: [briefId], references: [id], onDelete: Cascade)
+
+  sessionId String?
+  session   PrivateEvaluationSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  stage   PrivateEvaluationStage
+  verdict PrivateEvaluationVerdict
+
+  notes                 String  @db.Text
+  feltGeneric           Boolean @default(false)
+  brandAlignmentStrong  Boolean?
+  wouldUse              Boolean?
+
+  artifactId     String?
+  artifact       Artifact?    @relation(fields: [artifactId], references: [id], onDelete: SetNull)
+  visualAssetId  String?
+  visualAsset    VisualAsset? @relation(fields: [visualAssetId], references: [id], onDelete: SetNull)
+
+  /// Copied from artifact `_agenticforceQuality.stillWeakAfterRegen` when saving.
+  detectedStillWeakAfterRegen Boolean @default(false)
+  /// Framework ids extracted from evaluated artifact content (Creative Canon memory hook).
+  detectedFrameworkIds        Json?
+  /// Short tags e.g. ["generic_language","weak_visual_spec"] for summary rollups.
+  issueTags                   Json    @default("[]")
+
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
+  @@index([briefId])
+  @@index([clientId, createdAt])
+  @@index([stage])
+}

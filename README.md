@@ -2,6 +2,14 @@
 
 **AgenticForce** is an **AI-native creative agency operating system**. It is not a generic multi-tenant SaaS template. It is built for a **single founder** who runs **multiple clients** through a **task-based pipeline** with **explicit review gates**, **injectable brand context**, and a **server-side orchestrator** as the only workflow engine.
 
+## Deploying privately
+
+**First-time on your laptop:** **[docs/LOCAL_DEV.md](docs/LOCAL_DEV.md)** — Postgres (optional Docker), `.env`, migrate, `npm run preflight`, `npm run qa:bootstrap`, `npm run dev`.
+
+See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for env validation, migrations, storage, health checks, and common failures. **Demo script:** **[docs/FOUNDER_WALKTHROUGH.md](docs/FOUNDER_WALKTHROUGH.md)**. **Smoke checklist:** **[docs/PRIVATE_TESTING_CHECKLIST.md](docs/PRIVATE_TESTING_CHECKLIST.md)**.
+
+**Internal evaluation:** per-client page **`/clients/[clientId]/internal-testing`** — ensure canonical test briefs, log founder judgments per stage (strategy → visual asset), view weak/generic aggregates. Optional `npx prisma db seed` for a shared test lab client.
+
 ## What problem it solves
 
 Creative work routed through ad-hoc chats and one-off prompts produces:
@@ -33,7 +41,8 @@ AgenticForce addresses this by treating the agency as a **structured workflow of
 - `src/app/` — Next.js App Router (pages, layouts).
 - `src/components/` — Shared UI (to be built against orchestrator-driven data).
 - `src/lib/` — Pure utilities shared across client and server where safe.
-- `src/server/` — Server-only code: orchestrator, agents, brand assembly, review, artifacts, storage, DB access (when added).
+- `src/server/` — Server-only code: orchestrator, agents, brand assembly, review, artifacts, storage, DB access (`src/server/db/`).
+- `prisma/` — PostgreSQL schema and migrations; Prisma Client is generated to `src/generated/prisma` (gitignored).
 - `src/types/` — Shared TypeScript types and domain shapes.
 - `docs/` — Product vision, workflow definitions, agent roster, data model overview, architecture rules.
 
@@ -43,14 +52,22 @@ AgenticForce addresses this by treating the agency as a **structured workflow of
 
 ```bash
 npm install
+cp .env.example .env
+# Set DATABASE_URL — hosted Postgres (Neon/Supabase) is fine; local Docker optional
+npm run db:migrate:deploy
+npm run preflight
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The current homepage is a **minimal placeholder** confirming the scaffold only.
+Open [http://localhost:3000](http://localhost:3000). If the database is not running, the dashboard shows a **Database unreachable** notice with fix steps instead of a generic error.
+
+Full steps: **[docs/LOCAL_DEV.md](docs/LOCAL_DEV.md)**.
 
 ```bash
-npm run build   # production build
-npm run lint    # ESLint
+npm run build      # production build
+npm run lint       # ESLint
+npm run typecheck  # TypeScript (CI-friendly; no stale .next incremental refs)
+npm run test:e2e   # Playwright UI walkthrough + video (see docs/E2E_VIDEO_WALKTHROUGH.md)
 ```
 
 ---
@@ -59,6 +76,10 @@ npm run lint    # ESLint
 
 | Document | Purpose |
 |----------|---------|
+| [docs/LOCAL_DEV.md](docs/LOCAL_DEV.md) | First-time laptop bring-up: Postgres, migrate, preflight, bootstrap, dev server. |
+| [docs/FOUNDER_WALKTHROUGH.md](docs/FOUNDER_WALKTHROUGH.md) | Demo / QA click path + what to record on video. |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Private deploy, env strictness, health, storage, failures. |
+| [docs/PRIVATE_TESTING_CHECKLIST.md](docs/PRIVATE_TESTING_CHECKLIST.md) | Smoke checklist for testers. |
 | [docs/product_vision.md](docs/product_vision.md) | What the platform is and how it behaves (no fluff). |
 | [docs/workflow_pipeline.md](docs/workflow_pipeline.md) | The only approved end-to-end pipeline. |
 | [docs/agent_roster.md](docs/agent_roster.md) | v1 agent roles and boundaries. |
@@ -67,14 +88,110 @@ npm run lint    # ESLint
 
 ---
 
-## Current scope (this foundation)
+## Database (PostgreSQL + Prisma)
 
-This repository **intentionally** has:
+1. Copy [`.env.example`](.env.example) to `.env` and set `DATABASE_URL` to your Postgres instance (include `?schema=public` if needed).
+2. Apply migrations:
 
-- Next.js + TypeScript + Tailwind, `src/` layout, minimal homepage.
-- Documentation and **empty** server subtree folders reserved for orchestrator, agents, brand, review, artifacts, storage, and DB.
+   ```bash
+   npm run db:migrate
+   ```
 
-It **does not** yet include Prisma, auth, orchestrator logic, or real agents — those come in later slices aligned with the docs above.
+   In CI or production against an existing database, use:
+
+   ```bash
+   npm run db:migrate:deploy
+   ```
+
+3. Regenerate the client after schema changes (also runs on `npm install` via `postinstall`):
+
+   ```bash
+   npm run db:generate
+   ```
+
+4. Optional: `npm run db:studio` opens Prisma Studio.
+
+**Prisma 7** reads the datasource URL from [`prisma.config.ts`](prisma.config.ts) (`DATABASE_URL`), not from `schema.prisma`.
+
+### LLM agents (v1)
+
+Set **`OPENAI_API_KEY`** and/or **`ANTHROPIC_API_KEY`**. Optional: **`LLM_PROVIDER`** (`auto` \| `openai` \| `anthropic`), **`OPENAI_MODEL`**, **`ANTHROPIC_MODEL`**. See [`.env.example`](.env.example).
+
+When no provider is configured, **STRATEGY / CONCEPTING / COPY / REVIEW** tasks still complete but persist **labeled placeholder** artifacts with `_agenticforceSource: "placeholder_fallback"` and the error reason in `_agenticforceLlmError` when an API key exists but the call failed.
+
+**Brand Bible gate:** agent stages (Strategist → Brand Guardian) **cannot start** until the client Brand Bible includes positioning, target audience, tone of voice, and at least one messaging pillar.
+
+**Brand Operating System (Brand OS):** extended fields on `BrandBible` (language rules, emotional profile, creative patterns, visual language) are formatted as a readable **BRAND OPERATING SYSTEM** section in `formatContextForPrompt`. Deterministic anti-generic checks and client **banned phrases** can trigger the pre-persist regeneration loop.
+
+**Exports:** `GET /api/export/briefs/[briefId]?clientId=...&format=json|markdown` returns an attachment (pipeline snapshot; `_agenticforce*` keys stripped from artifact bodies in JSON). **Identity workflow:** `GET /api/export/briefs/[briefId]/identity?clientId=...&format=zip|json|pdf|markdown` returns an agency-style identity delivery package (manifest, documents, asset folder contracts) when identity is enabled.
+
+**JSON repair:** if primary model output fails Zod validation, one **repair** LLM pass runs; artifacts record `_agenticforceGenerationPath` (`primary` \| `repair`) and `_agenticforceRepaired`.
+
+**Creative Canon:** in-code frameworks (`src/lib/canon/frameworks.ts`) are selected per stage (`selectFrameworksForTask`); agents receive them in prompts and outputs include framework fields. Persisted artifacts also carry `_creativeCanonFrameworkIds` for audit.
+
+**Pre-persist quality loop (strategy, concept, visual direction, copy):** after a valid JSON artifact, a fast LLM quality pass plus deterministic checks may trigger **one** regeneration with explicit critique; metadata is stored on the artifact as `_agenticforceQuality` and mirrored in `AgentRun.metadata.qualityLoop`. If the second pass still fails, the **best available** draft is kept with `stillWeakAfterRegen`. Visual specs add deterministic checks against vague “luxury/cinematic” filler and thin `avoidList` / `referenceLogic`.
+
+**Visual prompt assembly:** approving the **visual direction** task creates a versioned **`VISUAL_PROMPT_PACKAGE`** artifact on the same task (deterministic: `VISUAL_SPEC` + Brand OS + optional founder approval note). It stores neutral instruction sections plus **GENERIC**, **GEMINI_IMAGE**, and **GPT_IMAGE** adapter bundles (`src/server/visual-prompt/`).
+
+**Visual asset generation (internal):** Studio can **Generate visual asset** when a prompt package exists. This calls `generateVisualAssetFromPromptPackage` (`src/server/visual-generation/`), which uses **OpenAI Images** (`OPENAI_API_KEY`, optional `OPENAI_IMAGE_MODEL`) or **Google Imagen** (`GEMINI_API_KEY` or `GOOGLE_API_KEY`, optional `GEMINI_IMAGE_MODEL`, default `imagen-4.0-generate-001`). Files are stored under `STORAGE_ROOT` / `storage/visual-assets/` and served at `GET /api/visual-assets/[id]/file?clientId=...`. Rows are persisted in **`VisualAsset`** (status COMPLETED or FAILED — failures are never shown as fake images).
+
+**Visual review loop:** On successful generation, **`VisualAssetReview`** stores structured evaluation (`src/lib/visual/visual-asset-evaluation.ts`): deterministic prompt/spec heuristics plus optional **OpenAI vision** (`OPENAI_VISION_MODEL`, default `gpt-4o-mini`) when `OPENAI_API_KEY` is set. Studio supports **Select** / **Reject**, **critique-bounded regenerate** (max 3 critique runs and 16 assets per package), and ties **Select/Reject** to **`FrameworkPerformance`** via **`VISUAL_SPEC`** (`recordVisualMemoryFromSpecArtifact`).
+
+**Client creative memory (lite):** `FrameworkPerformance` and `ArtifactOutcome` tables record review outcomes per client and framework id; `selectFrameworksForTask` ranks the global pool using heuristic position plus these stats (always keeps ≥1 heuristic id in the final four). Studio shows a short client Canon hint and “Strong for this client” on matching framework strips.
+
+The initial migration is [`prisma/migrations/20260405120000_init_core_domain/migration.sql`](prisma/migrations/20260405120000_init_core_domain/migration.sql). If your database was empty, `prisma migrate dev` will apply it and record it in `_prisma_migrations`.
+
+---
+
+## Orchestrator HTTP API (v1)
+
+All responses are JSON: success `{ ok: true, data }`, errors `{ ok: false, error: { code, message } }`.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/api/orchestrator/briefs/[briefId]/initialize` | Create the canonical linear task graph for the brief (intake → strategy → concept → **visual direction** → copy → review → export); first task becomes `READY`. |
+| `GET` | `/api/orchestrator/briefs/[briefId]/workflow` | Full workflow state: tasks (pipeline order), edges, `nextExecutableTaskIds`. |
+| `POST` | `/api/orchestrator/briefs/[briefId]/execute-next` | `startTask` + `completeTask` on the next READY task (optional JSON body `{ "artifactPayload": { ... } }`). |
+| `POST` | `/api/orchestrator/tasks/[taskId]/start` | `READY` → `RUNNING`; creates `AgentRun` when `agentType` is set. |
+| `POST` | `/api/orchestrator/tasks/[taskId]/complete` | Persist artifact, version bump, `RUNNING` → `AWAITING_REVIEW` or `COMPLETED`; optional `{ "artifactPayload": { ... } }`. |
+| `POST` | `/api/orchestrator/tasks/[taskId]/approve` | Record approval `ReviewItem`, complete task, unlock dependents. Optional `{ "feedback": "..." }`. |
+| `POST` | `/api/orchestrator/tasks/[taskId]/request-revision` | Body `{ "feedback": "..." }` (required); `AWAITING_REVIEW` → `REVISE_REQUIRED`. |
+| `POST` | `/api/orchestrator/tasks/[taskId]/reset-ready` | `REVISE_REQUIRED` → `READY` (clears run timestamps). |
+
+Implementation lives under [`src/server/orchestrator/`](src/server/orchestrator/). Placeholder artifact content is in [`src/server/orchestrator/scaffold/`](src/server/orchestrator/scaffold/) — not AI output.
+
+---
+
+## Internal product UI (founder OS)
+
+Routes (all server-driven; workflow actions call `OrchestratorService` via server actions):
+
+| Path | Purpose |
+|------|---------|
+| `/` | Dashboard — clients + recent briefs |
+| `/clients` | Client list |
+| `/clients/new` | Create client |
+| `/clients/[id]` | Overview + tabs |
+| `/clients/[id]/brand-bible` | Brand Bible form |
+| `/clients/[id]/service-blueprint` | Service Blueprint form |
+| `/clients/[id]/briefs` | Brief list |
+| `/clients/[id]/briefs/new` | Create brief |
+| `/clients/[id]/briefs/[briefId]/edit` | Edit brief |
+| `/clients/[id]/briefs/[briefId]/studio` | **Workflow studio** — timeline, orchestrator controls, artifacts, review log |
+
+The root layout sets **`dynamic = "force-dynamic"`** so `next build` does not require a live Postgres during static generation.
+
+---
+
+## Current scope (this branch)
+
+This repository includes:
+
+- Next.js + TypeScript + Tailwind, `src/` layout, founder-facing dashboard and studio UI.
+- **Core domain Prisma schema** and PostgreSQL migrations.
+- **v1 workflow orchestrator** (Prisma-backed), **Route Handlers** under `/api/orchestrator/*`, and **internal UI** for clients, brand, blueprint, briefs, and the brief **studio**.
+
+It **does not** yet include production auth or full parity with every doc scenario — extend using the architecture rules and data model notes below.
 
 ---
 
@@ -90,4 +207,4 @@ Lock these before choosing tables, migrations, and storage APIs:
 6. **AgentRun correlation** — Idempotency keys for retried runs; PII redaction in stored prompts; retention for logs and token usage.
 7. **Task templates** — How `ServiceBlueprint` maps to instantiated tasks (1:1 vs. graph); parallel tasks within a stage allowed or not.
 
-These are outlined conceptually in [docs/data_model_overview.md](docs/data_model_overview.md) and are **not** fixed in the foundation repo.
+These are outlined conceptually in [docs/data_model_overview.md](docs/data_model_overview.md). The running codebase uses Prisma migrations as the source of truth for the implemented schema.

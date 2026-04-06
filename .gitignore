@@ -22,6 +22,9 @@
 .DS_Store
 *.pem
 
+# local generated visual assets (see STORAGE_ROOT / storage/visual-assets)
+/storage/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
@@ -37,3 +40,10 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+/src/generated/prisma
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
