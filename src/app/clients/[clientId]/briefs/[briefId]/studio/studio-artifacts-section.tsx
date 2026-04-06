@@ -4,15 +4,10 @@ import type {
 } from "@/generated/prisma/client";
 import { ArtifactByType } from "@/components/artifacts/artifact-viewer";
 import { DisclosureSection } from "@/components/ui/collapse";
-import { VisualAssetsPanel } from "@/components/studio/visual-assets-panel";
 import { Card } from "@/components/ui/section";
 import { STAGE_LABELS, type WorkflowStageOrder } from "@/lib/workflow-display";
 import { getArtifactTypeForStudioStage } from "@/server/orchestrator/v1-pipeline";
 import { IdentityRouteSelectionWrapper } from "./identity-route-selection-wrapper";
-import {
-  MAX_CRITIQUE_REGENERATIONS_PER_PACKAGE,
-  MAX_VISUAL_ASSETS_PER_PACKAGE,
-} from "@/server/visual-generation/generate-visual-asset-from-prompt-package";
 
 type TaskRow = {
   id: string;
@@ -26,32 +21,6 @@ type TaskRow = {
   }[];
 };
 
-type VisualAssetRow = {
-  id: string;
-  status: string;
-  providerTarget: string;
-  providerName: string;
-  modelName: string;
-  resultUrl: string | null;
-  sourceArtifactId: string;
-  generationNotes: string | null;
-  createdAt: Date;
-  isPreferred: boolean;
-  isSecondary: boolean;
-  autoRejected: boolean;
-  founderRejected: boolean;
-  cdDirectorPick?: boolean;
-  regenerationAttempt: number;
-  variantLabel: string | null;
-  composed: boolean;
-  review: {
-    qualityVerdict: string;
-    regenerationRecommended: boolean;
-    evaluator: string;
-    evaluation: Record<string, unknown> | null;
-  } | null;
-};
-
 function latestArtifact(
   task: TaskRow | undefined,
   type: ArtifactType,
@@ -62,57 +31,27 @@ function latestArtifact(
   return same.reduce((a, b) => (a.version >= b.version ? a : b));
 }
 
-const assetRowsForPanel = (visualAssets: VisualAssetRow[]) =>
-  visualAssets.map((va) => ({
-    id: va.id,
-    status: va.status,
-    providerTarget: va.providerTarget,
-    providerName: va.providerName,
-    modelName: va.modelName,
-    resultUrl: va.resultUrl,
-    sourceArtifactId: va.sourceArtifactId,
-    generationNotes: va.generationNotes,
-    createdAt: va.createdAt.toISOString(),
-    isPreferred: va.isPreferred,
-    isSecondary: va.isSecondary,
-    autoRejected: va.autoRejected,
-    founderRejected: va.founderRejected,
-    cdDirectorPick: va.cdDirectorPick,
-    regenerationAttempt: va.regenerationAttempt,
-    variantLabel: va.variantLabel,
-    composed: va.composed,
-    review: va.review
-      ? {
-          qualityVerdict: va.review.qualityVerdict,
-          regenerationRecommended: va.review.regenerationRecommended,
-          evaluator: va.review.evaluator,
-          evaluation: va.review.evaluation,
-        }
-      : null,
-  }));
-
 export function StudioArtifactsSection({
   clientId,
   briefId,
   stageOrder,
   taskByStage,
   preferredFrameworkIds,
-  visualAssets,
-  composeDefaultHeadline,
 }: {
   clientId: string;
   briefId: string;
   stageOrder: WorkflowStageOrder;
   taskByStage: Map<WorkflowStage, TaskRow>;
   preferredFrameworkIds: string[];
-  visualAssets: VisualAssetRow[];
-  composeDefaultHeadline: string | null;
 }) {
   return (
     <section className="space-y-3">
       <h2 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-        Outputs
+        Creative
       </h2>
+      <p className="text-xs text-zinc-600">
+        Stage-by-stage records — expand a stage to review the full creative.
+      </p>
       <div className="space-y-2">
         {stageOrder.map((stage) => {
           const task = taskByStage.get(stage);
@@ -167,7 +106,7 @@ export function StudioArtifactsSection({
                                 href="#studio-image-generation"
                                 className="text-sky-400 underline"
                               >
-                                Campaign images
+                                Frames &amp; finishing
                               </a>{" "}
                               after you approve Visual direction in{" "}
                               <a href="#review" className="text-sky-400 underline">
@@ -185,14 +124,14 @@ export function StudioArtifactsSection({
                 {promptPkg ? (
                   <div className="rounded-xl border border-dashed border-zinc-700/60 bg-zinc-950/30 px-4 py-3">
                     <p className="text-xs font-medium text-zinc-500 uppercase">
-                      Also in Campaign images
+                      Prompt package
                     </p>
                     <p className="mt-1 text-sm text-zinc-400">
-                      Prompt package + generation controls are duplicated in the{" "}
+                      Generate frames and run the finishing pass in{" "}
                       <a href="#studio-image-generation" className="text-sky-400 underline">
-                        Campaign images
-                      </a>{" "}
-                      section above for visibility.
+                        Explore alternatives
+                      </a>
+                      .
                     </p>
                     <div className="mt-4">
                       <ArtifactByType
@@ -201,17 +140,6 @@ export function StudioArtifactsSection({
                         preferredFrameworkIds={preferredFrameworkIds}
                       />
                     </div>
-                    <VisualAssetsPanel
-                      clientId={clientId}
-                      briefId={briefId}
-                      promptPackageArtifactId={promptPkg.id}
-                      critiqueRegenLimit={MAX_CRITIQUE_REGENERATIONS_PER_PACKAGE}
-                      packageAssetLimit={MAX_VISUAL_ASSETS_PER_PACKAGE}
-                      composeDefaultHeadline={composeDefaultHeadline}
-                      assets={assetRowsForPanel(visualAssets)}
-                      compact
-                      panelTitle="Visual variants (same as hub)"
-                    />
                   </div>
                 ) : null}
               </div>

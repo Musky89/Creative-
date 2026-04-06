@@ -17,7 +17,10 @@ import { StudioNextCallout } from "./studio-next-callout";
 import { StudioArtifactsSection } from "./studio-artifacts-section";
 import { IdentityExportPanel } from "./identity-export-panel";
 import { getVisualGenerationReadiness } from "@/lib/studio/visual-generation-readiness";
-import { StudioVisualGenerationHub } from "./studio-visual-generation-hub";
+import { StudioCreativeHero } from "./studio-creative-hero";
+import { StudioCreativeRouteSections } from "./studio-creative-routes";
+import { StudioExploreAlternatives } from "./studio-explore-alternatives";
+import { parseConceptPack } from "./studio-concept-summary";
 import { getDefaultHeadlineForBrief } from "@/server/visual-finishing/headline-from-brief";
 
 function reviewStatusText(status: ReviewStatus) {
@@ -152,6 +155,13 @@ export default async function BriefStudioPage({
 
   const composeDefaultHeadline = await getDefaultHeadlineForBrief(briefId);
 
+  const conceptTask = taskByStage.get("CONCEPTING");
+  const latestConceptArt = conceptTask?.artifacts
+    .filter((a) => a.type === "CONCEPT")
+    .sort((a, b) => b.version - a.version)[0];
+  const parsedConcepts = parseConceptPack(latestConceptArt?.content ?? null);
+  const winnerConcept = parsedConcepts?.winner ?? null;
+
   const visualAssetsForStudio = brief.visualAssets.map((va) => ({
     id: va.id,
     status: va.status,
@@ -184,6 +194,53 @@ export default async function BriefStudioPage({
     cdDirectorPick: cdSelectedVisualId === va.id,
   }));
 
+  const pkgAssets = promptPackageArtifactId
+    ? visualAssetsForStudio.filter(
+        (a) => a.sourceArtifactId === promptPackageArtifactId,
+      )
+    : [];
+
+  const cdPickAsset = cdSelectedVisualId
+    ? visualAssetsForStudio.find((a) => a.id === cdSelectedVisualId) ?? null
+    : null;
+
+  const composedHeroAsset =
+    pkgAssets.find(
+      (a) =>
+        a.variantLabel === "COMPOSED" &&
+        a.composed &&
+        a.resultUrl &&
+        a.status === "COMPLETED",
+    ) ?? null;
+
+  const preferredRawHero =
+    pkgAssets.find(
+      (a) =>
+        !a.composed &&
+        a.isPreferred &&
+        a.resultUrl &&
+        a.status === "COMPLETED",
+    ) ?? null;
+
+  /** Prefer finished campaign frame in hero; fall back to CD pick, then preferred raw. */
+  const heroImageUrl =
+    composedHeroAsset?.resultUrl ??
+    (cdPickAsset?.resultUrl && cdPickAsset.status === "COMPLETED"
+      ? cdPickAsset.resultUrl
+      : null) ??
+    preferredRawHero?.resultUrl ??
+    null;
+
+  const exploreAlternativesDefaultOpen =
+    Boolean(promptPackageArtifactId) &&
+    !pkgAssets.some(
+      (a) =>
+        a.variantLabel === "COMPOSED" &&
+        a.composed &&
+        a.status === "COMPLETED" &&
+        a.resultUrl,
+    );
+
   return (
     <>
       <PageHeader
@@ -191,6 +248,20 @@ export default async function BriefStudioPage({
         description={`${brief.client.name} · Studio`}
         tone="muted"
       />
+
+      <div className="mb-10 space-y-10">
+        <StudioCreativeHero
+          clientId={clientId}
+          imageUrl={heroImageUrl}
+          headline={composeDefaultHeadline}
+          conceptName={winnerConcept?.conceptName ?? null}
+          conceptHook={winnerConcept?.hook ?? null}
+        />
+        <StudioCreativeRouteSections
+          parsed={parsedConcepts}
+          conceptTaskStatus={conceptTask?.status ?? null}
+        />
+      </div>
 
       <div className="grid gap-10 lg:grid-cols-12">
         <div className="space-y-6 lg:col-span-5">
@@ -303,7 +374,7 @@ export default async function BriefStudioPage({
             )}
           </Card>
 
-          <StudioVisualGenerationHub
+          <StudioExploreAlternatives
             clientId={clientId}
             briefId={briefId}
             visualDirectionStatus={vdTask?.status ?? null}
@@ -314,6 +385,7 @@ export default async function BriefStudioPage({
             readinessLines={visualGenReadiness}
             creativeDirectorDecision={cdDecision}
             composeDefaultHeadline={composeDefaultHeadline}
+            defaultOpen={exploreAlternativesDefaultOpen}
           />
 
           <DisclosureSection
@@ -365,8 +437,6 @@ export default async function BriefStudioPage({
             stageOrder={stageOrder}
             taskByStage={taskByStage}
             preferredFrameworkIds={preferredFrameworkIds}
-            visualAssets={visualAssetsForStudio}
-            composeDefaultHeadline={composeDefaultHeadline}
           />
         </div>
       </div>
