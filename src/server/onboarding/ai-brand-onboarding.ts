@@ -6,6 +6,116 @@ import type { BriefFormInput } from "@/server/domain/briefs";
 
 const lineArray = z.array(z.string()).default([]);
 
+/**
+ * Models often emit a single string or prose block for fields we expect as string[].
+ * Coerce before Zod so onboarding does not fail on shape alone.
+ */
+export function coerceStringArray(v: unknown): string[] {
+  if (v == null) return [];
+  if (Array.isArray(v)) {
+    return v
+      .map((x) => String(x).trim())
+      .filter((s) => s.length > 0);
+  }
+  if (typeof v === "string") {
+    const t = v.trim();
+    if (!t) return [];
+    const lines = t
+      .split(/\r?\n/)
+      .map((s) => s.replace(/^[-*•]\s*/, "").trim())
+      .filter((s) => s.length > 0);
+    if (lines.length > 1) return lines;
+    const semi = t.split(/;\s+/).map((s) => s.trim()).filter((s) => s.length > 0);
+    if (semi.length > 1) return semi;
+    return [t];
+  }
+  return [];
+}
+
+function coerceMessagingPillars(v: unknown): string[] {
+  const arr = coerceStringArray(v);
+  if (arr.length >= 2) return arr.slice(0, 8);
+  if (arr.length === 1) {
+    const one = arr[0]!;
+    for (const sep of [/\s*\|\s*/, /\s*\/\s*/, /\s+•\s+/, /\s+–\s+/]) {
+      const parts = one.split(sep).map((s) => s.trim()).filter(Boolean);
+      if (parts.length >= 2) return parts.slice(0, 8);
+    }
+    const numbered = one
+      .split(/\d+[\.)]\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (numbered.length >= 2) return numbered.slice(0, 8);
+    return [one, "Refine this pillar split in Brand Bible after review"];
+  }
+  return ["Audience truth & tension", "Brand role in culture", "Proof or product edge"];
+}
+
+const BRAND_BIBLE_ARRAY_KEYS = [
+  "visualIdentity",
+  "channelGuidelines",
+  "mandatoryInclusions",
+  "thingsToAvoid",
+  "bannedPhrases",
+  "preferredPhrases",
+  "signaturePatterns",
+  "emotionalBoundaries",
+  "hookStyles",
+  "narrativeStyles",
+  "languageDnaPhrasesUse",
+  "languageDnaPhrasesNever",
+  "languageDnaSentenceRhythm",
+  "languageDnaHeadlinePatterns",
+  "languageDnaCtaPatterns",
+  "categoryClichesToAvoid",
+  "tasteCloserThan",
+  "visualNeverLooksLike",
+  "voicePrinciples",
+  "rhythmRules",
+  "signatureDevices",
+  "culturalCodes",
+] as const;
+
+function normalizeOnboardingParsedJson(parsed: unknown): unknown {
+  if (!parsed || typeof parsed !== "object") return parsed;
+  const root = { ...(parsed as Record<string, unknown>) };
+
+  const bb = root.brandBible;
+  if (bb && typeof bb === "object") {
+    const o = { ...(bb as Record<string, unknown>) };
+    o.messagingPillars = coerceMessagingPillars(o.messagingPillars);
+    for (const key of BRAND_BIBLE_ARRAY_KEYS) {
+      if (key in o) o[key] = coerceStringArray(o[key]);
+    }
+    root.brandBible = o;
+  }
+
+  const sp = root.serviceBlueprint;
+  if (sp && typeof sp === "object") {
+    const o = { ...(sp as Record<string, unknown>) };
+    let sv = coerceStringArray(o.activeServices);
+    if (sv.length === 0) sv = ["Campaign strategy & creative"];
+    o.activeServices = sv;
+    root.serviceBlueprint = o;
+  }
+
+  const ob = root.optionalBrief;
+  if (ob && typeof ob === "object") {
+    const o = { ...(ob as Record<string, unknown>) };
+    if ("deliverablesRequested" in o) {
+      let d = coerceStringArray(o.deliverablesRequested);
+      if (d.length === 0) d = ["Hero key visual + social toolkit"];
+      o.deliverablesRequested = d;
+    }
+    if ("constraints" in o) {
+      o.constraints = coerceStringArray(o.constraints);
+    }
+    root.optionalBrief = o;
+  }
+
+  return root;
+}
+
 /** LLM output shape — map to Prisma enums and domain types downstream. */
 export const onboardingLlmDraftSchema = z.object({
   industry: z.string().min(1),
@@ -108,6 +218,7 @@ Rules:
 - Avoid banned clichés: "best in class", "innovative solution", "premium feel", "elevate your".
 - Use public-brand-level knowledge only; do not claim confidential documents.
 - Arrays of strings: short, actionable lines where appropriate.
+- **Critical:** Any field described as string[] MUST be a JSON array, e.g. \`"visualIdentity": ["line one", "line two"]\` — never a single string or comma-joined paragraph for those keys.
 - Enums must be exact uppercase tokens as specified.
 - If includeBrief is false, omit optionalBrief entirely (null) or use key "optionalBrief": null in JSON — actually omit the key optionalBrief.
 `;
@@ -147,7 +258,7 @@ Return JSON with this structure:
     "tasteShouldFeelLike", "tasteMustNotFeelLike": string,
     "visualNeverLooksLike": string[],
     "visualCompositionTendencies", "visualMaterialTextureDirection", "visualLightingTendencies": string,
-    "voicePrinciples", "rhythmRules", "signatureDevices", "culturalCodes": string[],
+    "voicePrinciples", "rhythmRules", "signatureDevices", "culturalCodes": string[] (JSON arrays only, not one string),
     "emotionalRange", "metaphorStyle", "visualPhilosophy", "brandTension": string
   },
   "serviceBlueprint": {
@@ -218,7 +329,8 @@ export async function generateOnboardingDraftLlm(
     }
   }
 
-  const refined = onboardingLlmDraftSchema.safeParse(parsed);
+  const normalized = normalizeOnboardingParsedJson(parsed);
+  const refined = onboardingLlmDraftSchema.safeParse(normalized);
   if (!refined.success) {
     return {
       ok: false,
