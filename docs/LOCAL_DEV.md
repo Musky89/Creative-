@@ -6,9 +6,10 @@ Single path to get AgenticForce running on your machine for honest end-to-end te
 
 - **Node.js 20+** (matches typical Next.js 15 setups)
 - **npm**
-- **PostgreSQL 16+** reachable from your machine — *either*:
-  - **Option A:** Docker Desktop (or compatible engine) + repo `docker-compose.yml`
-  - **Option B:** Local install (Homebrew Postgres, Postgres.app, Linux package) or a managed instance (Neon, RDS, etc.)
+- **PostgreSQL** reachable from your machine — the app **cannot** run workflows or Studio data without it. Pick one:
+  - **Option A — No local DB install:** Create a **free hosted Postgres** (e.g. [Neon](https://neon.tech), Supabase, Railway), copy the `postgresql://…` URL into `.env` as `DATABASE_URL`, then `npm run db:migrate:deploy`. Your laptop only runs Node.
+  - **Option B:** Docker + repo `docker-compose.yml` (local Postgres in a container).
+  - **Option C:** Local Postgres install (Homebrew, Postgres.app, Linux packages, RDS, etc.)
 
 ## 1. Install dependencies
 

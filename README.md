@@ -53,7 +53,7 @@ AgenticForce addresses this by treating the agency as a **structured workflow of
 ```bash
 npm install
 cp .env.example .env
-# Start Postgres (e.g. docker compose up -d) and set DATABASE_URL
+# Set DATABASE_URL — hosted Postgres (Neon/Supabase) is fine; local Docker optional
 npm run db:migrate:deploy
 npm run preflight
 npm run dev
