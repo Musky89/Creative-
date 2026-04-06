@@ -17,6 +17,7 @@ import { StudioNextCallout } from "./studio-next-callout";
 import { StudioArtifactsSection } from "./studio-artifacts-section";
 import { IdentityExportPanel } from "./identity-export-panel";
 import { getVisualGenerationReadiness } from "@/lib/studio/visual-generation-readiness";
+import { StudioVisualGenerationHub } from "./studio-visual-generation-hub";
 
 function reviewStatusText(status: ReviewStatus) {
   const map: Record<ReviewStatus, string> = {
@@ -107,13 +108,24 @@ export default async function BriefStudioPage({
     );
 
   const vdTask = brief.tasks.find((t) => t.stage === "VISUAL_DIRECTION");
-  const hasPromptPackage =
-    vdTask?.artifacts.some((a) => a.type === "VISUAL_PROMPT_PACKAGE") ?? false;
+  const promptPkgArtifact = vdTask?.artifacts
+    .filter((a) => a.type === "VISUAL_PROMPT_PACKAGE")
+    .sort((a, b) => b.version - a.version)[0];
+  const hasPromptPackage = !!promptPkgArtifact;
+  const promptPackageArtifactId = promptPkgArtifact?.id ?? null;
+  const hasVisualSpec =
+    vdTask?.artifacts.some((a) => a.type === "VISUAL_SPEC") ?? false;
   const visualGenReadiness = getVisualGenerationReadiness({
     brandBible: brief.client.brandBible ?? null,
     hasPromptPackage,
     visualDirectionTaskStatus: vdTask?.status ?? null,
   });
+
+  const visualDirectionAwaitingReview = vdTask?.status === "AWAITING_REVIEW";
+  const imageGenReady =
+    !!promptPackageArtifactId &&
+    hasPromptPackage &&
+    visualGenReadiness.every((l) => l.level !== "block");
 
   const visualAssetsForStudio = brief.visualAssets.map((va) => ({
     id: va.id,
@@ -157,6 +169,8 @@ export default async function BriefStudioPage({
             reviseTaskId={reviseTaskId}
             nextExecutableStage={nextExecutableStage}
             tasks={taskLite}
+            visualDirectionAwaitingReview={visualDirectionAwaitingReview}
+            imageGenReady={imageGenReady}
           />
 
           <WorkflowControls
@@ -255,35 +269,16 @@ export default async function BriefStudioPage({
             )}
           </Card>
 
-          <Card className="border-zinc-800/90 bg-zinc-950/40">
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-              Image generation readiness
-            </p>
-            <p className="mt-1 text-xs text-zinc-500">
-              Why Generate might fail — fix blockers before blaming the model.
-            </p>
-            <ul className="mt-3 space-y-2 text-sm">
-              {visualGenReadiness.map((line, i) => (
-                <li
-                  key={i}
-                  className={
-                    line.level === "ok"
-                      ? "text-emerald-300/90"
-                      : line.level === "warn"
-                        ? "text-amber-200/90"
-                        : "text-red-300/90"
-                  }
-                >
-                  {line.level === "block"
-                    ? "Block: "
-                    : line.level === "warn"
-                      ? "Warn: "
-                      : "OK: "}
-                  {line.text}
-                </li>
-              ))}
-            </ul>
-          </Card>
+          <StudioVisualGenerationHub
+            clientId={clientId}
+            briefId={briefId}
+            visualDirectionStatus={vdTask?.status ?? null}
+            hasVisualSpec={hasVisualSpec}
+            hasPromptPackage={hasPromptPackage}
+            promptPackageArtifactId={promptPackageArtifactId}
+            visualAssets={visualAssetsForStudio}
+            readinessLines={visualGenReadiness}
+          />
 
           <DisclosureSection
             title="Review history"

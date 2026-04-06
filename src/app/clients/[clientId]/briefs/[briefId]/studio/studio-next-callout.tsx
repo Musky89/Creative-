@@ -16,6 +16,8 @@ export function StudioNextCallout({
   reviseTaskId,
   nextExecutableStage,
   tasks,
+  visualDirectionAwaitingReview,
+  imageGenReady,
 }: {
   clientId: string;
   briefId: string;
@@ -25,6 +27,8 @@ export function StudioNextCallout({
   reviseTaskId: string | null;
   nextExecutableStage: WorkflowStage | null;
   tasks: BriefTaskLite[];
+  visualDirectionAwaitingReview?: boolean;
+  imageGenReady?: boolean;
 }) {
   if (!hasWorkflow) {
     return (
@@ -52,6 +56,9 @@ export function StudioNextCallout({
     detail = "All stages are complete. Export or revisit any artifact below.";
   }
 
+  const vdReview = visualDirectionAwaitingReview ?? false;
+  const imagesReady = imageGenReady ?? false;
+
   return (
     <div className="rounded-2xl border border-emerald-900/50 bg-emerald-950/30 px-5 py-4">
       <p className="text-xs font-medium tracking-wide text-emerald-400/90 uppercase">
@@ -61,6 +68,27 @@ export function StudioNextCallout({
         {primary}
       </p>
       {detail ? <p className="mt-1 text-sm text-zinc-400">{detail}</p> : null}
+      {vdReview && !imagesReady ? (
+        <p className="mt-2 text-sm text-zinc-400">
+          Approving <span className="text-zinc-300">Visual direction</span> in{" "}
+          <a href="#review" className="text-emerald-300 underline decoration-emerald-700">
+            Actions
+          </a>{" "}
+          assembles the visual prompt package for{" "}
+          <a
+            href="#studio-image-generation"
+            className="text-emerald-300 underline decoration-emerald-700"
+          >
+            campaign images
+          </a>
+          .
+        </p>
+      ) : null}
+      {imagesReady ? (
+        <p className="mt-2 text-sm text-emerald-200/90">
+          Campaign image generation is ready — open the hub to generate variants.
+        </p>
+      ) : null}
       <div className="mt-4 flex flex-wrap gap-2">
         {reviewTaskId ? (
           <a
@@ -76,6 +104,14 @@ export function StudioNextCallout({
             className="inline-flex rounded-lg bg-orange-500/15 px-3 py-2 text-sm font-medium text-orange-100 ring-1 ring-orange-500/30 hover:bg-orange-500/25"
           >
             Reset revision
+          </a>
+        ) : null}
+        {imagesReady ? (
+          <a
+            href="#studio-image-generation"
+            className="inline-flex rounded-lg bg-sky-500/15 px-3 py-2 text-sm font-medium text-sky-100 ring-1 ring-sky-500/35 hover:bg-sky-500/25"
+          >
+            Campaign images
           </a>
         ) : null}
         <Link

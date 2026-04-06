@@ -69,6 +69,8 @@ export function VisualAssetsPanel({
   assets,
   critiqueRegenLimit,
   packageAssetLimit,
+  panelTitle = "Visual variants",
+  compact = false,
 }: {
   clientId: string;
   briefId: string;
@@ -76,6 +78,10 @@ export function VisualAssetsPanel({
   assets: AssetRow[];
   critiqueRegenLimit: number;
   packageAssetLimit: number;
+  /** Override section heading (e.g. when embedded in Studio hub). */
+  panelTitle?: string;
+  /** Less top margin when nested under another card. */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -118,9 +124,11 @@ export function VisualAssetsPanel({
   };
 
   return (
-    <div className="mt-6 rounded-2xl border border-zinc-700/80 bg-zinc-950/50 p-5">
+    <div
+      className={`rounded-2xl border border-zinc-700/80 bg-zinc-950/50 p-5 ${compact ? "mt-0" : "mt-6"}`}
+    >
       <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
-        Visual variants
+        {panelTitle}
       </p>
       <p className="mt-1 text-sm text-zinc-500">
         {taskAssets.length}/{packageAssetLimit} variants · compare and pick one
