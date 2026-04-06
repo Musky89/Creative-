@@ -1181,9 +1181,52 @@ export function ReviewReportArtifactCard({ content }: { content: unknown }) {
 export function ExportArtifactCard({ content }: { content: unknown }) {
   if (!isRecord(content)) return <JsonFallback content={content} />;
   const meta = content.metadata;
+  const cd = isRecord(content._creativeDirectorDecision)
+    ? (content._creativeDirectorDecision as Record<string, unknown>)
+    : null;
   return (
     <Card>
       <SectionTitle>Export</SectionTitle>
+      {cd ? (
+        <div className="mt-4 rounded-xl border border-violet-600/35 bg-violet-950/30 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-violet-200/90">
+            Creative Director decision
+          </p>
+          <p className="mt-2 text-sm font-medium text-violet-50">
+            {asString(cd.verdict) || "—"}
+          </p>
+          <Field label="Rationale" value={asString(cd.rationale) || "—"} />
+          {isRecord(cd.selectedAssets) ? (
+            <div className="mt-3 space-y-1 text-sm text-violet-100/85">
+              <p>
+                <span className="text-violet-300/80">Visual: </span>
+                {asString(
+                  (cd.selectedAssets as Record<string, unknown>).visualAssetId,
+                ) || "—"}
+              </p>
+              <p>
+                <span className="text-violet-300/80">Copy: </span>
+                {asString(
+                  (cd.selectedAssets as Record<string, unknown>).copyVariant,
+                ) || "—"}
+              </p>
+            </div>
+          ) : null}
+          {Array.isArray(cd.improvementDirectives) &&
+          cd.improvementDirectives.length > 0 ? (
+            <div className="mt-3">
+              <p className="text-xs font-medium text-violet-300/80">
+                Improvement directives
+              </p>
+              <ul className="mt-1 list-inside list-disc text-sm text-violet-100/80">
+                {(cd.improvementDirectives as unknown[]).map((x, i) => (
+                  <li key={i}>{String(x)}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       <div className="mt-4 space-y-4">
         <Field
           label="Export status"

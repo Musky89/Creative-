@@ -458,6 +458,13 @@ export const ARTIFACT_SHAPE_HINTS = {
   "bodyCopyOptions": string[] (min 1, max 6),
   "ctaOptions": string[] (min 1, max 6)
 }`,
+  CREATIVE_DIRECTOR_FINAL: `{
+  "finalVerdict": "APPROVE" | "REWORK",
+  "selectedVisualAssetId": string | null,
+  "selectedCopyVariant": string,
+  "rationale": string (min ~80 chars),
+  "improvementDirectives": string[] (min 1, max 12)
+}`,
   REVIEW_REPORT: `{
   "scoreSummary": string,
   "verdict": string,

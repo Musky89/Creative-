@@ -299,6 +299,11 @@ model Brief {
   isTestBrief   Boolean  @default(false)
   testCategory  String?
 
+  /// Creative Director (final) rework budget — max one automatic retry loop.
+  cdReworkCount Int      @default(0)
+  /// Directives from last CD final REWORK — injected into copy regen; cleared on APPROVE.
+  cdLastImprovementDirectives Json @default("[]")
+
   privateEvalSessions   PrivateEvaluationSession[]
   privateEvalRecords    PrivateEvaluationRecord[]
 

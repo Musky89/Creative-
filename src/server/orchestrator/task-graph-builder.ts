@@ -28,5 +28,11 @@ export function buildV1GraphInsertPlan(
     dependencies.push({ taskIndex: i, dependsOnIndex: i - 1 });
   }
 
+  const exportIdx = pipeline.findIndex((r) => r.stage === "EXPORT");
+  const copyIdx = pipeline.findIndex((r) => r.stage === "COPY_DEVELOPMENT");
+  if (exportIdx >= 0 && copyIdx >= 0 && copyIdx !== exportIdx - 1) {
+    dependencies.push({ taskIndex: exportIdx, dependsOnIndex: copyIdx });
+  }
+
   return { tasks, dependencies };
 }

@@ -34,6 +34,8 @@ export type TaskAgentContext = {
     deliverablesSummary: string;
     constraintsSummary: string;
     deadlineIso: string;
+    /** Creative Director final rework directives (copy stage). */
+    cdImprovementDirectives: string[];
   };
   brand: {
     positioning: string;
@@ -130,6 +132,15 @@ export async function loadTaskAgentContext(taskId: string): Promise<{
   const bb: BrandBible | null = client.brandBible;
   const bp: ServiceBlueprint | null = client.serviceBlueprint;
 
+  const cdDirsRaw = brief.cdLastImprovementDirectives;
+  const cdImprovementDirectives =
+    task.stage === "COPY_DEVELOPMENT" && Array.isArray(cdDirsRaw)
+      ? cdDirsRaw
+          .map((x) => String(x).trim())
+          .filter((s) => s.length > 0)
+          .slice(0, 12)
+      : [];
+
   const context: TaskAgentContext = {
     clientId: client.id,
     clientName: client.name,
@@ -146,6 +157,7 @@ export async function loadTaskAgentContext(taskId: string): Promise<{
       ),
       constraintsSummary: asStringArray(brief.constraints, 12).join("; "),
       deadlineIso: brief.deadline.toISOString(),
+      cdImprovementDirectives,
     },
     brand: bb
       ? {
@@ -243,6 +255,15 @@ export function formatContextForPrompt(
     `- Constraints: ${work.brief.constraintsSummary || "(none listed)"}`,
     `- Deadline: ${work.brief.deadlineIso}`,
   ];
+
+  if (work.brief.cdImprovementDirectives.length > 0) {
+    lines.push(
+      "",
+      "## Creative Director (final) — mandatory rework directives",
+      "The Executive CD rejected the prior bundle. You MUST address every bullet in fresh copy:",
+      ...work.brief.cdImprovementDirectives.map((d, i) => `${i + 1}. ${d}`),
+    );
+  }
 
   if (work.brand) {
     lines.push(

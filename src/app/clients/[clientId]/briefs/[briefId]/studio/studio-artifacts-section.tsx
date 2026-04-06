@@ -40,6 +40,7 @@ type VisualAssetRow = {
   isSecondary: boolean;
   autoRejected: boolean;
   founderRejected: boolean;
+  cdDirectorPick?: boolean;
   regenerationAttempt: number;
   review: {
     qualityVerdict: string;
@@ -74,6 +75,7 @@ const assetRowsForPanel = (visualAssets: VisualAssetRow[]) =>
     isSecondary: va.isSecondary,
     autoRejected: va.autoRejected,
     founderRejected: va.founderRejected,
+    cdDirectorPick: va.cdDirectorPick,
     regenerationAttempt: va.regenerationAttempt,
     review: va.review
       ? {

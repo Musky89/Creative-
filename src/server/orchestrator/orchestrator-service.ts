@@ -42,6 +42,14 @@ import { buildPlaceholderArtifactContent } from "./scaffold/placeholder-stage-ou
 import { recordArtifactOutcomeAndPerformance } from "@/server/canon/outcomes";
 import { runCreativeDirectorJudge } from "@/server/agents/creative-director-judge";
 import {
+  buildCreativeDirectorDecisionPersisted,
+  runCreativeDirectorFinalForExportTask,
+} from "@/server/agents/creative-director-final-runner";
+import {
+  applyCreativeDirectorReworkLoop,
+  applyCreativeDirectorVisualPick,
+} from "@/server/orchestrator/creative-director-rework";
+import {
   ensureConceptIds,
   mergeConceptSelectionIntoArtifact,
 } from "@/server/orchestrator/concept-selection";
@@ -341,6 +349,86 @@ export class OrchestratorService {
           ...(agentResult.partialMeta ?? {}),
         };
       }
+    } else if (task.stage === "EXPORT" && row.artifactType === "EXPORT") {
+      if (brief.cdReworkCount >= 1) {
+        usedPlaceholder = false;
+        const decision = {
+          verdict: "APPROVE" as const,
+          rationale:
+            "Automatic pass: Creative Director final rework budget (one retry) was already consumed. Ship the latest copy and visuals; founder may still reject manually in Studio.",
+          selectedAssets: {
+            visualAssetId: null as string | null,
+            copyVariant: "Latest COPY artifact after rework pass",
+          },
+          improvementDirectives: [] as string[],
+          finalPass: true,
+        };
+        content = {
+          exportStatus: "CREATIVE_DIRECTOR_APPROVED",
+          formats: ["markdown", "json"],
+          finalVerdict: "APPROVE",
+          selectedVisualAssetId: null,
+          selectedCopyVariant: decision.selectedAssets.copyVariant,
+          rationale: decision.rationale,
+          improvementDirectives: [],
+          metadata: { creativeDirectorFinal: "synthetic_second_pass_cap" },
+          _creativeDirectorDecision: decision,
+          _agenticforceSource: "system",
+        };
+        agentRunMetadata = {
+          generationPath: "creative_director_final_second_pass_cap",
+          usedPlaceholderFallback: false,
+        };
+      } else {
+      const cd = await runCreativeDirectorFinalForExportTask(taskId);
+      if (cd.ok) {
+        usedPlaceholder = false;
+        const decision = buildCreativeDirectorDecisionPersisted(cd.output, {
+          finalPass: brief.cdReworkCount >= 1,
+        });
+        content = {
+          exportStatus:
+            cd.output.finalVerdict === "APPROVE"
+              ? "CREATIVE_DIRECTOR_APPROVED"
+              : "CREATIVE_DIRECTOR_REWORK",
+          formats: ["markdown", "json"],
+          finalVerdict: cd.output.finalVerdict,
+          selectedVisualAssetId: cd.output.selectedVisualAssetId,
+          selectedCopyVariant: cd.output.selectedCopyVariant,
+          rationale: cd.output.rationale,
+          improvementDirectives: cd.output.improvementDirectives,
+          metadata: {
+            creativeDirectorFinal: cd.output,
+          },
+          _creativeDirectorDecision: decision,
+          _agenticforceSource: "llm",
+          _agenticforceModel: {
+            provider: cd.providerId,
+            model: cd.model,
+          },
+        };
+        agentRunMetadata = {
+          provider: cd.providerId,
+          model: cd.model,
+          generationPath: "creative_director_final",
+          usedPlaceholderFallback: false,
+        };
+      } else {
+        usedPlaceholder = true;
+        content = {
+          ...buildPlaceholderArtifactContent(task.stage, row.artifactType, {
+            brief,
+          }),
+          _agenticforceSource: "placeholder_fallback",
+          _agenticforceLlmError: cd.error,
+          exportStatus: "CREATIVE_DIRECTOR_SKIPPED",
+        };
+        agentRunMetadata = {
+          usedPlaceholderFallback: true,
+          llmError: cd.error,
+        };
+      }
+      }
     } else {
       usedPlaceholder = true;
       content = buildPlaceholderArtifactContent(task.stage, row.artifactType, {
@@ -447,6 +535,66 @@ export class OrchestratorService {
 
     if (nextStatus === "COMPLETED") {
       await this.unlockDependentTasks(taskId);
+    }
+
+    if (
+      task.stage === "EXPORT" &&
+      row.artifactType === "EXPORT" &&
+      !usedPlaceholder &&
+      content &&
+      typeof content.finalVerdict === "string" &&
+      !content._agenticforceUserPayload
+    ) {
+      const fv = content.finalVerdict as string;
+      const selId =
+        typeof content.selectedVisualAssetId === "string"
+          ? content.selectedVisualAssetId
+          : null;
+      const dirs = Array.isArray(content.improvementDirectives)
+        ? (content.improvementDirectives as unknown[]).map((x) => String(x))
+        : [];
+
+      await applyCreativeDirectorVisualPick(this.db, {
+        briefId: brief.id,
+        selectedVisualAssetId: selId,
+      });
+
+      const freshBrief = await this.db.brief.findUniqueOrThrow({
+        where: { id: brief.id },
+      });
+      const reworkCount = freshBrief.cdReworkCount;
+
+      if (fv === "APPROVE") {
+        await this.db.brief.update({
+          where: { id: brief.id },
+          data: { cdLastImprovementDirectives: [], cdReworkCount: 0 },
+        });
+      } else if (fv === "REWORK" && reworkCount === 0) {
+        await this.db.brief.update({
+          where: { id: brief.id },
+          data: {
+            cdReworkCount: 1,
+            cdLastImprovementDirectives: dirs,
+          },
+        });
+        const out = {
+          finalVerdict: fv as "APPROVE" | "REWORK",
+          selectedVisualAssetId: selId,
+          selectedCopyVariant: String(content.selectedCopyVariant ?? ""),
+          rationale: String(content.rationale ?? ""),
+          improvementDirectives: dirs,
+        };
+        await applyCreativeDirectorReworkLoop(this.db, {
+          briefId: brief.id,
+          clientId: brief.clientId,
+          output: out,
+        });
+      } else if (fv === "REWORK" && reworkCount >= 1) {
+        await this.db.brief.update({
+          where: { id: brief.id },
+          data: { cdLastImprovementDirectives: [] },
+        });
+      }
     }
 
     return { artifactId: result.id, usedPlaceholder };

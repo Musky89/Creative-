@@ -30,6 +30,7 @@ type AssetRow = {
   isSecondary: boolean;
   autoRejected: boolean;
   founderRejected: boolean;
+  cdDirectorPick?: boolean;
   regenerationAttempt: number;
   review: ReviewRow | null;
 };
@@ -252,6 +253,8 @@ export function VisualAssetsPanel({
                   ? "border-emerald-500/40 bg-emerald-950/25 ring-1 ring-emerald-500/20"
                   : a.isSecondary
                     ? "border-sky-600/35 bg-sky-950/20"
+                    : a.cdDirectorPick
+                      ? "border-violet-500/45 bg-violet-950/20 ring-2 ring-violet-500/30"
                     : a.autoRejected || a.founderRejected
                       ? "border-zinc-800 opacity-60"
                       : "border-zinc-700/80 bg-zinc-900/30"
@@ -270,6 +273,11 @@ export function VisualAssetsPanel({
                 ) : null}
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
+                    {a.cdDirectorPick ? (
+                      <span className="text-xs font-medium text-violet-300">
+                        CD pick
+                      </span>
+                    ) : null}
                     {a.isPreferred ? (
                       <span className="text-xs font-medium text-emerald-300">
                         Selected

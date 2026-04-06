@@ -127,6 +127,28 @@ export default async function BriefStudioPage({
     hasPromptPackage &&
     visualGenReadiness.every((l) => l.level !== "block");
 
+  const exportTask = brief.tasks.find((t) => t.stage === "EXPORT");
+  const latestExportArt = exportTask?.artifacts
+    .filter((a) => a.type === "EXPORT")
+    .sort((a, b) => b.version - a.version)[0];
+  const exportContent =
+    latestExportArt?.content && typeof latestExportArt.content === "object"
+      ? (latestExportArt.content as Record<string, unknown>)
+      : null;
+  const cdDecision =
+    exportContent && typeof exportContent._creativeDirectorDecision === "object"
+      ? (exportContent._creativeDirectorDecision as Record<string, unknown>)
+      : null;
+  const cdSelectedVisualId =
+    cdDecision &&
+    typeof cdDecision.selectedAssets === "object" &&
+    cdDecision.selectedAssets !== null
+      ? String(
+          (cdDecision.selectedAssets as Record<string, unknown>).visualAssetId ??
+            "",
+        ).trim() || null
+      : null;
+
   const visualAssetsForStudio = brief.visualAssets.map((va) => ({
     id: va.id,
     status: va.status,
@@ -150,6 +172,7 @@ export default async function BriefStudioPage({
           evaluation: va.review.evaluation as Record<string, unknown> | null,
         }
       : null,
+    cdDirectorPick: cdSelectedVisualId === va.id,
   }));
 
   return (
@@ -280,6 +303,7 @@ export default async function BriefStudioPage({
             promptPackageArtifactId={promptPackageArtifactId}
             visualAssets={visualAssetsForStudio}
             readinessLines={visualGenReadiness}
+            creativeDirectorDecision={cdDecision}
           />
 
           <DisclosureSection

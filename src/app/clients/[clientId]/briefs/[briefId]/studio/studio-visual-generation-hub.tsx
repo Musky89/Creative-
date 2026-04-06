@@ -21,6 +21,7 @@ type AssetRow = {
   isSecondary: boolean;
   autoRejected: boolean;
   founderRejected: boolean;
+  cdDirectorPick?: boolean;
   regenerationAttempt: number;
   review: {
     qualityVerdict: string;
@@ -29,6 +30,10 @@ type AssetRow = {
     evaluation: Record<string, unknown> | null;
   } | null;
 };
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
 
 export function StudioVisualGenerationHub({
   clientId,
@@ -39,6 +44,7 @@ export function StudioVisualGenerationHub({
   promptPackageArtifactId,
   visualAssets,
   readinessLines,
+  creativeDirectorDecision,
 }: {
   clientId: string;
   briefId: string;
@@ -48,6 +54,7 @@ export function StudioVisualGenerationHub({
   promptPackageArtifactId: string | null;
   visualAssets: AssetRow[];
   readinessLines: VisualGenReadinessLine[];
+  creativeDirectorDecision: Record<string, unknown> | null;
 }) {
   const canGenerate =
     hasPromptPackage &&
@@ -74,6 +81,28 @@ export function StudioVisualGenerationHub({
         </a>
         .
       </p>
+
+      {creativeDirectorDecision ? (
+        <div className="mt-4 rounded-xl border border-violet-700/40 bg-violet-950/25 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-violet-200/90">
+            Creative Director decision
+          </p>
+          <p className="mt-1 text-sm font-medium text-violet-50">
+            {String(creativeDirectorDecision.verdict ?? "—")}
+          </p>
+          {typeof creativeDirectorDecision.rationale === "string" ? (
+            <p className="mt-2 text-xs leading-relaxed text-violet-100/85">
+              {creativeDirectorDecision.rationale}
+            </p>
+          ) : null}
+          {isRecord(creativeDirectorDecision.selectedAssets) ? (
+            <p className="mt-2 text-xs text-violet-200/80">
+              Selected copy:{" "}
+              {String(creativeDirectorDecision.selectedAssets.copyVariant ?? "—")}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <ul className="mt-4 space-y-2 rounded-lg border border-zinc-800/80 bg-zinc-950/50 px-3 py-3 text-sm">
         <li className="flex gap-2 text-zinc-300">
@@ -199,6 +228,7 @@ export function StudioVisualGenerationHub({
               isSecondary: va.isSecondary,
               autoRejected: va.autoRejected,
               founderRejected: va.founderRejected,
+              cdDirectorPick: va.cdDirectorPick,
               regenerationAttempt: va.regenerationAttempt,
               review: va.review
                 ? {
