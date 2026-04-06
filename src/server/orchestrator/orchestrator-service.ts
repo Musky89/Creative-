@@ -40,6 +40,12 @@ import {
 } from "./v1-pipeline";
 import { buildPlaceholderArtifactContent } from "./scaffold/placeholder-stage-output";
 import { recordArtifactOutcomeAndPerformance } from "@/server/canon/outcomes";
+import { runCreativeDirectorJudge } from "@/server/agents/creative-director-judge";
+import {
+  ensureConceptIds,
+  mergeConceptSelectionIntoArtifact,
+} from "@/server/orchestrator/concept-selection";
+import { formatContextForPrompt, loadTaskAgentContext } from "@/server/agents/context";
 
 function toIso(d: Date | null): string | null {
   return d ? d.toISOString() : null;
@@ -340,6 +346,47 @@ export class OrchestratorService {
       content = buildPlaceholderArtifactContent(task.stage, row.artifactType, {
         brief,
       });
+    }
+
+    if (task.stage === "CONCEPTING" && row.artifactType === "CONCEPT") {
+      const withIds = ensureConceptIds(content) as Record<string, unknown>;
+      const conceptsArr = withIds.concepts;
+      if (Array.isArray(conceptsArr)) {
+        const judgePayload = conceptsArr.map((c, i) => {
+          const o =
+            c && typeof c === "object"
+              ? (c as Record<string, unknown>)
+              : ({} as Record<string, unknown>);
+          const id =
+            typeof o.conceptId === "string" && o.conceptId.trim()
+              ? o.conceptId.trim()
+              : `concept-${i}`;
+          return {
+            conceptId: id,
+            frameworkId: o.frameworkId,
+            conceptName: o.conceptName,
+            hook: o.hook,
+            rationale: o.rationale,
+            distinctivenessVsCategory: o.distinctivenessVsCategory,
+            whyBeatsCategoryNorm: o.whyBeatsCategoryNorm,
+            visualDirection: o.visualDirection,
+            distinctVisualWorld: o.distinctVisualWorld,
+            coreTension: o.coreTension,
+            emotionalCenter: o.emotionalCenter,
+            whyItWorksForBrand: o.whyItWorksForBrand,
+          };
+        });
+        const { context } = await loadTaskAgentContext(taskId);
+        const formatted = formatContextForPrompt(context);
+        const judge = await runCreativeDirectorJudge({
+          conceptsJson: judgePayload,
+          formattedContext: formatted,
+        });
+        content = mergeConceptSelectionIntoArtifact(withIds, judge) as Record<
+          string,
+          unknown
+        >;
+      }
     }
 
     const latest = await this.db.artifact.findFirst({

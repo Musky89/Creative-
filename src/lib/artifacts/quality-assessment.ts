@@ -397,8 +397,20 @@ export function deterministicVisualSpecChecks(
 export function deterministicConceptChecks(content: Record<string, unknown>): DeterministicQualityResult {
   const issues: string[] = [];
   const concepts = content.concepts;
-  if (!Array.isArray(concepts) || concepts.length < 2) {
-    return { issues, recommendRegeneration: false };
+  if (!Array.isArray(concepts) || concepts.length < 6) {
+    if (Array.isArray(concepts) && concepts.length > 0 && concepts.length < 6) {
+      issues.push("Concept pack must include at least 6 distinct routes for competitive selection.");
+    }
+    return { issues, recommendRegeneration: issues.length > 0 };
+  }
+
+  const fwIds = concepts.map((c) =>
+    c && typeof c === "object"
+      ? String((c as Record<string, unknown>).frameworkId ?? "").trim()
+      : "",
+  );
+  if (new Set(fwIds.filter(Boolean)).size !== fwIds.filter(Boolean).length) {
+    issues.push("Each concept must use a unique frameworkId (no duplicates in the pack).");
   }
 
   issues.push(...pairwiseStructureIssues(concepts.length, content.pairwiseDifferentiation, "Concept pack"));
@@ -419,7 +431,7 @@ export function deterministicConceptChecks(content: Record<string, unknown>): De
   const texts = concepts.map((c) => {
     if (!c || typeof c !== "object") return "";
     const o = c as Record<string, unknown>;
-    return `${String(o.hook ?? "")} ${String(o.rationale ?? "")} ${String(o.whyItWorksForBrand ?? "")} ${String(o.distinctVisualWorld ?? "")} ${String(o.coreTension ?? "")} ${String(o.whyBeatsCategoryNorm ?? "")}`;
+    return `${String(o.hook ?? "")} ${String(o.rationale ?? "")} ${String(o.whyItWorksForBrand ?? "")} ${String(o.distinctivenessVsCategory ?? "")} ${String(o.distinctVisualWorld ?? "")} ${String(o.coreTension ?? "")} ${String(o.whyBeatsCategoryNorm ?? "")}`;
   });
 
   for (let i = 0; i < texts.length; i++) {
@@ -450,6 +462,11 @@ export function deterministicConceptChecks(content: Record<string, unknown>): De
     }
     if (String(o.whyBeatsCategoryNorm ?? "").length < 45) {
       issues.push(`Concept ${i + 1}: whyBeatsCategoryNorm must explain edge vs category default.`);
+    }
+    if (String(o.distinctivenessVsCategory ?? "").length < 45) {
+      issues.push(
+        `Concept ${i + 1}: distinctivenessVsCategory must state a sharp category edge (not a hook paraphrase).`,
+      );
     }
   }
 

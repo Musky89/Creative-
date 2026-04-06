@@ -6,6 +6,7 @@ import {
   formatBrandOperatingSystemSection,
   type BrandOperatingSystemContext,
 } from "@/server/brand/brand-os-prompt";
+import { filterUpstreamToWinningConcept } from "./concept-context-filter";
 
 export type { BrandOperatingSystemContext };
 
@@ -218,57 +219,64 @@ export async function loadTaskAgentContext(taskId: string): Promise<{
   };
 }
 
-export function formatContextForPrompt(ctx: TaskAgentContext): string {
+export function formatContextForPrompt(
+  ctx: TaskAgentContext,
+  options?: { conceptWinnerOnly?: boolean },
+): string {
+  const work =
+    options?.conceptWinnerOnly === true
+      ? filterUpstreamToWinningConcept(ctx)
+      : ctx;
   const lines: string[] = [
     "## Client",
-    `- Name: ${ctx.clientName}`,
-    `- Industry: ${ctx.clientIndustry}`,
+    `- Name: ${work.clientName}`,
+    `- Industry: ${work.clientIndustry}`,
     "",
     "## Brief",
-    `- Title: ${ctx.brief.title}`,
-    `- Business objective: ${ctx.brief.businessObjective}`,
-    `- Communication objective: ${ctx.brief.communicationObjective}`,
-    `- Target audience (brief): ${ctx.brief.targetAudience}`,
-    `- Key message: ${ctx.brief.keyMessage}`,
-    `- Tone: ${ctx.brief.tone}`,
-    `- Deliverables: ${ctx.brief.deliverablesSummary || "(none listed)"}`,
-    `- Constraints: ${ctx.brief.constraintsSummary || "(none listed)"}`,
-    `- Deadline: ${ctx.brief.deadlineIso}`,
+    `- Title: ${work.brief.title}`,
+    `- Business objective: ${work.brief.businessObjective}`,
+    `- Communication objective: ${work.brief.communicationObjective}`,
+    `- Target audience (brief): ${work.brief.targetAudience}`,
+    `- Key message: ${work.brief.keyMessage}`,
+    `- Tone: ${work.brief.tone}`,
+    `- Deliverables: ${work.brief.deliverablesSummary || "(none listed)"}`,
+    `- Constraints: ${work.brief.constraintsSummary || "(none listed)"}`,
+    `- Deadline: ${work.brief.deadlineIso}`,
   ];
 
-  if (ctx.brand) {
+  if (work.brand) {
     lines.push(
       "",
       "## Brand Bible (must respect)",
-      `- Positioning: ${ctx.brand.positioning}`,
-      `- Brand target audience: ${ctx.brand.targetAudience}`,
-      `- Tone of voice: ${ctx.brand.toneOfVoice}`,
-      `- Messaging pillars: ${ctx.brand.messagingPillars.join(" | ") || "—"}`,
-      `- Mandatory inclusions: ${ctx.brand.mandatoryInclusions.join("; ") || "—"}`,
-      `- Things to avoid: ${ctx.brand.thingsToAvoid.join("; ") || "—"}`,
-      `- Visual identity notes: ${ctx.brand.visualIdentityBullets.join("; ") || "—"}`,
-      `- Channel guidelines: ${ctx.brand.channelGuidelinesBullets.join("; ") || "—"}`,
+      `- Positioning: ${work.brand.positioning}`,
+      `- Brand target audience: ${work.brand.targetAudience}`,
+      `- Tone of voice: ${work.brand.toneOfVoice}`,
+      `- Messaging pillars: ${work.brand.messagingPillars.join(" | ") || "—"}`,
+      `- Mandatory inclusions: ${work.brand.mandatoryInclusions.join("; ") || "—"}`,
+      `- Things to avoid: ${work.brand.thingsToAvoid.join("; ") || "—"}`,
+      `- Visual identity notes: ${work.brand.visualIdentityBullets.join("; ") || "—"}`,
+      `- Channel guidelines: ${work.brand.channelGuidelinesBullets.join("; ") || "—"}`,
       "",
-      formatBrandOperatingSystemSection(ctx.brand.operatingSystem),
+      formatBrandOperatingSystemSection(work.brand.operatingSystem),
     );
   } else {
     lines.push("", "## Brand Bible", "(Not configured — infer carefully from brief.)");
   }
 
-  if (ctx.blueprint) {
+  if (work.blueprint) {
     lines.push(
       "",
       "## Service blueprint",
-      `- Template: ${ctx.blueprint.templateType}`,
-      `- Quality threshold (0–1): ${ctx.blueprint.qualityThreshold}`,
-      `- Approval required flag: ${ctx.blueprint.approvalRequired}`,
-      `- Active services: ${ctx.blueprint.activeServicesLines.join("; ") || "—"}`,
+      `- Template: ${work.blueprint.templateType}`,
+      `- Quality threshold (0–1): ${work.blueprint.qualityThreshold}`,
+      `- Approval required flag: ${work.blueprint.approvalRequired}`,
+      `- Active services: ${work.blueprint.activeServicesLines.join("; ") || "—"}`,
     );
   }
 
-  if (ctx.upstreamArtifacts.length) {
+  if (work.upstreamArtifacts.length) {
     lines.push("", "## Upstream work (use as inputs; do not contradict approved strategy)");
-    for (const u of ctx.upstreamArtifacts) {
+    for (const u of work.upstreamArtifacts) {
       lines.push(
         `### ${u.stage} (${u.type} v${u.version})`,
         "```json",

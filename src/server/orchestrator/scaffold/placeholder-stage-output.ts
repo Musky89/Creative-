@@ -6,6 +6,7 @@
 
 import type { ArtifactType, WorkflowStage } from "@/generated/prisma/client";
 import type { Brief } from "@/generated/prisma/client";
+import { CANON_FRAMEWORKS } from "@/lib/canon/frameworks";
 
 const SCAFFOLD_MARKER = {
   _agenticforcePlaceholder: true,
@@ -24,6 +25,70 @@ export type PlaceholderContext = {
     | "keyMessage"
   >;
 };
+
+function scaffoldConceptPack(
+  base: Record<string, unknown>,
+): Record<string, unknown> {
+  const six = CANON_FRAMEWORKS.slice(0, 6);
+  const concepts = six.map((f, i) => ({
+    conceptId: `concept-${i}`,
+    frameworkId: f.id,
+    conceptName: `[Placeholder] Route ${String.fromCharCode(65 + i)} — ${f.name}`,
+    hook: `[Placeholder] Hook executing ${f.id} structure for this brief — scaffold only.`,
+    rationale:
+      "[Placeholder] Strategic rationale tying route to proposition and audience tension (scaffold).",
+    distinctivenessVsCategory:
+      "[Placeholder] This route is not interchangeable with category wallpaper because it commits to a specific Canon narrative device and visual temperature.",
+    visualDirection: `[Placeholder] Art direction notes aligned with ${f.id} — scaffold.`,
+    whyItWorksForBrand:
+      "[Placeholder] Brand OS alignment: emotional register, vocabulary boundaries, positioning (scaffold).",
+    coreTension:
+      "[Placeholder] Productive contradiction this route holds — aspiration vs proof in scaffold form.",
+    emotionalCenter:
+      "[Placeholder] Single feeling state the route owns — scaffold emotional center.",
+    whyBeatsCategoryNorm:
+      "[Placeholder] Sharp edge vs what everyone in the category defaults to — naming the cliché and diverging.",
+    whyCouldFail:
+      "[Placeholder] Honest execution risk if craft slips — scaffold warning.",
+    distinctVisualWorld:
+      "[Placeholder] Concrete capture world diverging from sibling routes — light, set, casting bias (scaffold).",
+  }));
+
+  const pairComparisons: {
+    leftIndex: number;
+    rightIndex: number;
+    overlapNotes: string;
+    howTheyDiffer: string;
+    strongerConceptThisPair: "left" | "right" | "tie";
+  }[] = [];
+  for (let i = 0; i < six.length; i++) {
+    for (let j = i + 1; j < six.length; j++) {
+      pairComparisons.push({
+        leftIndex: i,
+        rightIndex: j,
+        overlapNotes:
+          "[Placeholder] Both serve the same brief; overlap is strategic goal — scaffold pairwise note.",
+        howTheyDiffer: `[Placeholder] Route ${i} (${six[i]!.id}) vs ${j} (${six[j]!.id}) — different engines and visual worlds.`,
+        strongerConceptThisPair: "tie",
+      });
+    }
+  }
+
+  return {
+    ...base,
+    frameworkUsed:
+      "[Placeholder] Six distinct Creative Canon frameworks — competition field (scaffold only).",
+    concepts,
+    pairwiseDifferentiation: {
+      pairComparisons,
+      aggregateOverlap:
+        "[Placeholder] Shared proposition across routes; divergence is framework engine, hook architecture, and default visual temperature — scaffold aggregate.",
+      strongestConceptIndex: 0,
+      differentiationSummary:
+        "[Placeholder] Scaffold concept field spans six Canon frameworks; pairwise compares every route. Winner selection runs after generation in production — this placeholder is tied for review only.",
+    },
+  };
+}
 
 export function buildPlaceholderArtifactContent(
   stage: WorkflowStage,
@@ -241,69 +306,7 @@ export function buildPlaceholderArtifactContent(
         ],
       };
     case "CONCEPT":
-      return {
-        ...base,
-        frameworkUsed:
-          "[Placeholder] Two routes: Transformation + Problem Agitation (scaffold only).",
-        concepts: [
-          {
-            frameworkId: "transformation",
-            conceptName: "[Placeholder] Route A",
-            hook: "[Placeholder] Before → after hook using transformation logic.",
-            rationale: "[Placeholder] Why this fits the strategy.",
-            visualDirection: "[Placeholder] Visual notes for Route A.",
-            whyItWorksForBrand:
-              "[Placeholder] How Route A reinforces positioning and Brand OS emotional register.",
-            coreTension:
-              "[Placeholder] Aspiration vs proof — show the after-state without fantasy staging.",
-            emotionalCenter:
-              "[Placeholder] Relief and pride when the room finally behaves.",
-            whyBeatsCategoryNorm:
-              "[Placeholder] Leads with outcome truth instead of feature laundry lists common in the category.",
-            whyCouldFail:
-              "[Placeholder] After-state could feel generic if not tied to this product truth.",
-            distinctVisualWorld:
-              "[Placeholder] Natural light on real materials, editorial crop, no stock-smile humans — transformation shown through space, not slogans.",
-          },
-          {
-            frameworkId: "problem-agitation",
-            conceptName: "[Placeholder] Route B",
-            hook: "[Placeholder] Pain-forward hook using agitation logic.",
-            rationale: "[Placeholder] Why this fits the strategy.",
-            visualDirection: "[Placeholder] Visual notes for Route B.",
-            whyItWorksForBrand:
-              "[Placeholder] How Route B reinforces positioning and Brand OS emotional register.",
-            coreTension:
-              "[Placeholder] Urgency vs trust — agitate without fear-mongering.",
-            emotionalCenter:
-              "[Placeholder] Competent ally calling out the hidden cost of waiting.",
-            whyBeatsCategoryNorm:
-              "[Placeholder] Names the stakes the category usually smooths over with 'solutions' language.",
-            whyCouldFail:
-              "[Placeholder] Could read as negative if pain is not balanced with a credible fix.",
-            distinctVisualWorld:
-              "[Placeholder] Tighter frames, higher contrast, proof objects in frame — clinical but warm, not alarm-red retail.",
-          },
-        ],
-        pairwiseDifferentiation: {
-          pairComparisons: [
-            {
-              leftIndex: 0,
-              rightIndex: 1,
-              overlapNotes:
-                "[Placeholder] Both serve the same proposition; both avoid category fluff phrases in scaffold.",
-              howTheyDiffer:
-                "[Placeholder] A is transformation arc; B is pain→stakes→relief — narrative engine and visual temperature differ.",
-              strongerConceptThisPair: "tie" as const,
-            },
-          ],
-          aggregateOverlap:
-            "[Placeholder] Shared strategic goal; split is narrative mechanism and default visual temperature.",
-          strongestConceptIndex: 0,
-          differentiationSummary:
-            "[Placeholder] Route A optimizes for desire and after-state; Route B optimizes for urgency and credibility — pick by brief bias (scaffold).",
-        },
-      };
+      return scaffoldConceptPack(base);
     case "VISUAL_SPEC":
       return {
         ...base,

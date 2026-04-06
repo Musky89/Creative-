@@ -159,6 +159,7 @@ export function collectArtifactTextForQuality(
           String(o.rationale ?? ""),
           String(o.visualDirection ?? ""),
           String(o.whyItWorksForBrand ?? ""),
+          String(o.distinctivenessVsCategory ?? ""),
           String(o.coreTension ?? ""),
           String(o.emotionalCenter ?? ""),
           String(o.whyBeatsCategoryNorm ?? ""),

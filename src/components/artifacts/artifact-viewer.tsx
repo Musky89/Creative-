@@ -524,11 +524,40 @@ export function ConceptArtifactCard({
   const summary = asString(content.frameworkUsed);
 
   if (Array.isArray(concepts) && concepts.length > 0) {
+    const selection = isRecord(content._agenticforceSelection)
+      ? (content._agenticforceSelection as Record<string, unknown>)
+      : null;
     return (
       <Card>
         <SectionTitle>Concept pack</SectionTitle>
         {summary ? (
           <p className="mt-2 text-sm text-zinc-400">{summary}</p>
+        ) : null}
+        {selection ? (
+          <div className="mt-3 rounded-lg border border-teal-700/40 bg-teal-950/25 p-3 text-sm text-teal-100/90">
+            <p className="text-xs font-semibold uppercase tracking-wide text-teal-300/90">
+              Creative Director Judge
+            </p>
+            <p className="mt-1">
+              Winner:{" "}
+              <span className="font-mono text-teal-200">
+                {asString(selection.winnerConceptId) || "—"}
+              </span>
+            </p>
+            {Array.isArray(selection.rejectedConceptIds) &&
+            selection.rejectedConceptIds.length > 0 ? (
+              <p className="mt-1 text-xs text-teal-200/80">
+                Rejected:{" "}
+                {selection.rejectedConceptIds.map((x) => String(x)).join(", ")}
+              </p>
+            ) : null}
+            {isRecord(selection.scores) ? (
+              <p className="mt-2 text-xs text-zinc-400">
+                Scores persisted per conceptId in{" "}
+                <code className="text-zinc-300">_agenticforceSelection.scores</code>
+              </p>
+            ) : null}
+          </div>
         ) : null}
         {isRecord(content.pairwiseDifferentiation) ? (
           <div className="mt-4">
@@ -599,11 +628,23 @@ export function ConceptArtifactCard({
             const fid = asString(raw.frameworkId);
             const conceptTitle =
               asString(raw.conceptName) || `Concept ${i + 1}`;
+            const cid = asString(raw.conceptId);
+            const sel = raw.isSelected === true;
+            const rej = raw.isRejected === true;
             return (
               <DisclosureSection
-                key={i}
+                key={cid || i}
                 title={conceptTitle}
-                subtitle={fid ? "Creative Canon route" : undefined}
+                subtitle={
+                  [
+                    fid ? "Creative Canon route" : undefined,
+                    cid ? `id: ${cid}` : undefined,
+                    sel ? "SELECTED" : undefined,
+                    rej ? "REJECTED" : undefined,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || undefined
+                }
                 defaultOpen={i === 0}
               >
                 {fid ? (
@@ -631,6 +672,10 @@ export function ConceptArtifactCard({
                   <Field
                     label="Why it works for brand"
                     value={asString(raw.whyItWorksForBrand) || "—"}
+                  />
+                  <Field
+                    label="Distinctive vs category"
+                    value={asString(raw.distinctivenessVsCategory) || "—"}
                   />
                   <div className="rounded-lg border border-zinc-700/70 bg-zinc-950/40 p-3">
                     <p className="text-[11px] font-semibold uppercase text-zinc-600">

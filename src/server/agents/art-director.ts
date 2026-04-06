@@ -33,7 +33,7 @@ export const artDirectorAgent: AgentDefinition<typeof visualSpecArtifactSchema> 
       options.canonUserSection,
       "",
       "## Your task",
-      "1. Read upstream **CONCEPT** artifact. Choose **one** `concepts[]` route.",
+      "1. Read upstream **CONCEPT** artifact. Execute **only** the winning route: `isSelected: true`, or match `_agenticforceSelection.winnerConceptId` to `conceptId`.",
       "2. Set `conceptName` to that route's conceptName.",
       "3. Set `frameworkUsed` to that route's `frameworkId` (must appear in the Canon list above).",
       "4. Build the VISUAL_SPEC: each string field must be substantive and interconnected (mood ↔ light ↔ color ↔ composition).",

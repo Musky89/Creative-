@@ -206,6 +206,8 @@ export const strategyArtifactSchema = z.object({
 });
 
 export const conceptSubSchema = z.object({
+  /** Stable route id for judging / selection (or assigned server-side). */
+  conceptId: z.string().min(1).optional(),
   frameworkId: z.string().min(1),
   conceptName: z.string().min(1),
   hook: z.string().min(1),
@@ -213,17 +215,26 @@ export const conceptSubSchema = z.object({
   visualDirection: z.string().min(1),
   /** Ties the route to Brand OS / positioning (not generic praise). */
   whyItWorksForBrand: z.string().min(1),
+  /** One sharp line: why this idea is distinctive vs category wallpaper (not a paraphrase of hook alone). */
+  distinctivenessVsCategory: z.string().min(40),
   coreTension: z.string().min(35),
   emotionalCenter: z.string().min(28),
   whyBeatsCategoryNorm: z.string().min(40),
   whyCouldFail: z.string().min(30),
   distinctVisualWorld: z.string().min(45),
+  /** Set after Creative Director Judge — winner only. */
+  isSelected: z.boolean().optional(),
+  /** Set after Creative Director Judge — low-scoring tail. */
+  isRejected: z.boolean().optional(),
 });
+
+const maxConceptRoutes = 10;
+const maxPairIndex = maxConceptRoutes - 1;
 
 const conceptPairComparisonSchema = z
   .object({
-    leftIndex: z.number().int().min(0).max(2),
-    rightIndex: z.number().int().min(0).max(2),
+    leftIndex: z.number().int().min(0).max(maxPairIndex),
+    rightIndex: z.number().int().min(0).max(maxPairIndex),
     overlapNotes: z.string().min(30),
     howTheyDiffer: z.string().min(30),
     strongerConceptThisPair: z.enum(["left", "right", "tie"]),
@@ -232,9 +243,12 @@ const conceptPairComparisonSchema = z
 
 export const conceptPairwiseDifferentiationSchema = z
   .object({
-    pairComparisons: z.array(conceptPairComparisonSchema).min(1).max(3),
+    pairComparisons: z
+      .array(conceptPairComparisonSchema)
+      .min(1)
+      .max((maxConceptRoutes * (maxConceptRoutes - 1)) / 2),
     aggregateOverlap: z.string().min(40),
-    strongestConceptIndex: z.number().int().min(0).max(2),
+    strongestConceptIndex: z.number().int().min(0).max(maxPairIndex),
     differentiationSummary: z.string().min(80),
   })
   .strict();
@@ -243,8 +257,8 @@ export const conceptArtifactSchema = z
   .object({
     /** Human-readable summary of how frameworks were applied (e.g. "Three routes: Transformation, Contrast, Cultural"). */
     frameworkUsed: z.string().min(1),
-    concepts: z.array(conceptSubSchema).min(2).max(3),
-    /** Pairwise A vs B (vs C): overlap, difference, which is stronger per pair. */
+    concepts: z.array(conceptSubSchema).min(6).max(maxConceptRoutes),
+    /** Pairwise A vs B (…): overlap, difference, which is stronger per pair. */
     pairwiseDifferentiation: conceptPairwiseDifferentiationSchema,
   })
   .superRefine((data, ctx) => {
@@ -256,6 +270,15 @@ export const conceptArtifactSchema = z
         code: "custom",
         message: `pairwiseDifferentiation.pairComparisons must have exactly ${need} entries for ${n} concepts.`,
         path: ["pairwiseDifferentiation", "pairComparisons"],
+      });
+    }
+    const fwIds = data.concepts.map((c) => c.frameworkId.trim());
+    const uniqFw = new Set(fwIds);
+    if (uniqFw.size !== fwIds.length) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Each concept must use a distinct Creative Canon frameworkId (no duplicates).",
+        path: ["concepts"],
       });
     }
     const seen = new Set<string>();
@@ -416,8 +439,9 @@ export const ARTIFACT_SHAPE_HINTS = {
 }`,
   CONCEPT: `{
   "frameworkUsed": string,
-  "concepts": array (min 2, max 3) of { frameworkId, conceptName, hook, rationale, visualDirection, whyItWorksForBrand, coreTension, emotionalCenter, whyBeatsCategoryNorm, whyCouldFail, distinctVisualWorld },
-  "pairwiseDifferentiation": { pairComparisons (exactly n*(n-1)/2 pairs), aggregateOverlap, strongestConceptIndex, differentiationSummary }
+  "concepts": array (min 6, max 10) of { optional conceptId, frameworkId (unique per pack), conceptName, hook, rationale, distinctivenessVsCategory, visualDirection, whyItWorksForBrand, coreTension, emotionalCenter, whyBeatsCategoryNorm, whyCouldFail, distinctVisualWorld, optional isSelected, isRejected },
+  "pairwiseDifferentiation": { pairComparisons (exactly n*(n-1)/2 pairs for n concepts), aggregateOverlap, strongestConceptIndex, differentiationSummary },
+  "_agenticforceSelection": optional { winnerConceptId, rejectedConceptIds, scores, rankedConceptIds, rejectionReasons }
 }`,
   VISUAL_SPEC: `{
   "frameworkUsed": string (must be one of the provided Creative Canon ids — primary framework for this direction),
