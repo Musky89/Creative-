@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import type { VisualPromptProviderTarget } from "@/generated/prisma/client";
 import { getPrisma } from "@/server/db/prisma";
-import { generateVisualAssetFromPromptPackage } from "@/server/visual-generation/generate-visual-asset-from-prompt-package";
+import {
+  generateVisualAssetFromPromptPackage,
+  generateVisualVariantsFromPromptPackage,
+} from "@/server/visual-generation/generate-visual-asset-from-prompt-package";
 import { recordVisualMemoryFromSpecArtifact } from "@/server/visual-review/visual-memory-hook";
 
 function studioPath(clientId: string, briefId: string) {
@@ -61,20 +64,44 @@ export async function generateVisualAssetAction(
   }
 
   try {
-    const result = await generateVisualAssetFromPromptPackage(prisma, {
+    const c = critique?.trim() || null;
+    if (c) {
+      const result = await generateVisualAssetFromPromptPackage(prisma, {
+        promptPackageArtifactId,
+        clientId,
+        briefId,
+        providerTarget: target,
+        critique: c,
+      });
+      revalidatePath(studioPath(clientId, briefId));
+      if (result.status === "FAILED") {
+        return { error: result.error ?? "Generation failed." };
+      }
+      return { ok: true as const, assetId: result.id, variantCount: 1 };
+    }
+
+    const batch = await generateVisualVariantsFromPromptPackage(prisma, {
       promptPackageArtifactId,
       clientId,
       briefId,
       providerTarget: target,
-      critique: critique?.trim() || null,
+      critique: null,
     });
 
     revalidatePath(studioPath(clientId, briefId));
 
-    if (result.status === "FAILED") {
-      return { error: result.error ?? "Generation failed." };
+    const failed = batch.results.filter((r) => r.status === "FAILED");
+    if (failed.length === batch.results.length) {
+      return {
+        error: failed[0]?.error ?? "All variant generations failed.",
+      };
     }
-    return { ok: true as const, assetId: result.id };
+    return {
+      ok: true as const,
+      assetId: batch.results.find((r) => r.status === "COMPLETED")?.id,
+      variantCount: batch.results.filter((r) => r.status === "COMPLETED").length,
+      resolvedTarget: batch.resolvedTarget,
+    };
   } catch (e) {
     revalidatePath(studioPath(clientId, briefId));
     return { error: e instanceof Error ? e.message : "Generation failed." };
@@ -105,11 +132,16 @@ export async function selectPreferredVisualAssetAction(
   await prisma.$transaction(async (tx) => {
     await tx.visualAsset.updateMany({
       where: { sourceArtifactId: a.sourceArtifactId },
-      data: { isPreferred: false },
+      data: { isPreferred: false, isSecondary: false },
     });
     await tx.visualAsset.update({
       where: { id: assetId },
-      data: { isPreferred: true, founderRejected: false },
+      data: {
+        isPreferred: true,
+        isSecondary: false,
+        founderRejected: false,
+        autoRejected: false,
+      },
     });
   });
 

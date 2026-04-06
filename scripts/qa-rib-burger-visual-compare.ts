@@ -10,7 +10,7 @@ import "dotenv/config";
 import { getPrisma } from "../src/server/db/prisma";
 import { orchestrator } from "../src/server/orchestrator/orchestrator-service";
 import { stageOrderIndex } from "../src/server/orchestrator/v1-pipeline";
-import { generateVisualAssetFromPromptPackageDefaultDb } from "../src/server/visual-generation/generate-visual-asset-from-prompt-package";
+import { generateVisualVariantsFromPromptPackageDefaultDb } from "../src/server/visual-generation/generate-visual-asset-from-prompt-package";
 import { seedDemoBrandsIfMissing } from "../src/server/onboarding/seed-demo-brands";
 
 async function driveWorkflowToEnd(briefId: string, identityFlow: boolean) {
@@ -81,13 +81,14 @@ async function main() {
       continue;
     }
 
-    const gen = await generateVisualAssetFromPromptPackageDefaultDb({
+    const batch = await generateVisualVariantsFromPromptPackageDefaultDb({
       promptPackageArtifactId: pkg.id,
       clientId,
       briefId,
       providerTarget: "GENERIC",
-      variantLabel: label.includes("KFC") ? "rib-burger-kfc-style" : "rib-burger-mcd",
+      variantCount: 1,
     });
+    const gen = batch.results.find((r) => r.status === "COMPLETED") ?? batch.results[0]!;
     const studio = `/clients/${clientId}/briefs/${briefId}/studio#studio-image-generation`;
     console.log(`[rib-compare] Image: ${gen.status}${gen.error ? ` — ${gen.error}` : ""}`);
     if (gen.status === "COMPLETED") {

@@ -483,6 +483,10 @@ model VisualAsset {
   generationNotes     String?                  @db.Text
   /// Founder marked this variant as the preferred pick for this prompt package.
   isPreferred         Boolean                  @default(false)
+  /// Second-best auto-selected variant (max two surfaced by default).
+  isSecondary         Boolean                  @default(false)
+  /// Auto-filter rejected (slop / low realism) — still stored for audit.
+  autoRejected        Boolean                  @default(false)
   /// Founder explicitly rejected this variant (weak / off-brief).
   founderRejected     Boolean                  @default(false)
   /// Bounded regeneration: incremented when generation used a critique suffix.

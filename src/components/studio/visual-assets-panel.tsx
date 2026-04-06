@@ -7,6 +7,7 @@ import {
   rejectVisualAssetAction,
   selectPreferredVisualAssetAction,
 } from "@/app/actions/visual-assets";
+import { VISUAL_VARIANTS_PER_RUN_MIN } from "@/lib/visual/visual-variant-thresholds";
 
 type ReviewRow = {
   qualityVerdict: string;
@@ -26,6 +27,8 @@ type AssetRow = {
   generationNotes: string | null;
   createdAt: string;
   isPreferred: boolean;
+  isSecondary: boolean;
+  autoRejected: boolean;
   founderRejected: boolean;
   regenerationAttempt: number;
   review: ReviewRow | null;
@@ -49,11 +52,21 @@ function QualitySummary({ review }: { review: ReviewRow | null }) {
     isRecord(ev) && typeof ev.avoidListRespected === "string"
       ? ev.avoidListRespected
       : null;
+  const rs = isRecord(ev) && typeof ev.realismScore === "number" ? ev.realismScore : null;
+  const cs = isRecord(ev) && typeof ev.compositionScore === "number" ? ev.compositionScore : null;
+  const bf = isRecord(ev) && typeof ev.brandFitScore === "number" ? ev.brandFitScore : null;
+  const ss = isRecord(ev) && typeof ev.slopScore === "number" ? ev.slopScore : null;
   return (
     <div className="mt-2 rounded-md border border-amber-500/25 bg-amber-950/30 px-2 py-1.5 text-[11px] text-amber-100/90">
       <span className="font-semibold">{review.qualityVerdict}</span>
       {slop ? <span className="ml-2">· Slop: {slop}</span> : null}
       {avoid ? <span className="ml-2">· Avoid list: {avoid}</span> : null}
+      {rs != null ? (
+        <span className="ml-2">
+          · Realism {rs.toFixed(2)} / Comp {cs?.toFixed(2) ?? "—"} / Brand {bf?.toFixed(2) ?? "—"}{" "}
+          / Slop {ss?.toFixed(2) ?? "—"}
+        </span>
+      ) : null}
       {review.regenerationRecommended ? (
         <span className="ml-2 font-medium text-amber-200">· Regen suggested</span>
       ) : null}
@@ -88,6 +101,7 @@ export function VisualAssetsPanel({
   const [target, setTarget] = useState<string>("GENERIC");
   const [critique, setCritique] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [showRejected, setShowRejected] = useState(false);
 
   const taskAssets = useMemo(
     () =>
@@ -102,7 +116,26 @@ export function VisualAssetsPanel({
 
   const critiqueCount = taskAssets.filter((a) => a.regenerationAttempt > 0).length;
   const canCritiqueRegen = critiqueCount < critiqueRegenLimit;
-  const canAddMore = taskAssets.length < packageAssetLimit;
+  const batchNeed = critique.trim() ? 1 : VISUAL_VARIANTS_PER_RUN_MIN;
+  const canAddMore = taskAssets.length + batchNeed <= packageAssetLimit;
+
+  const visibleAssets = useMemo(() => {
+    if (showRejected) return taskAssets;
+    const completed = taskAssets.filter((a) => a.status === "COMPLETED");
+    const legacySurface =
+      completed.length > 0 &&
+      !completed.some((a) => a.isPreferred || a.isSecondary) &&
+      !completed.some((a) => a.autoRejected);
+    return taskAssets.filter((a) => {
+      if (a.status === "GENERATING" || a.status === "PENDING") return true;
+      if (a.status === "FAILED") return true;
+      if (a.status !== "COMPLETED") return true;
+      if (legacySurface) return !a.founderRejected;
+      if (a.founderRejected) return false;
+      if (a.autoRejected) return false;
+      return a.isPreferred || a.isSecondary;
+    });
+  }, [taskAssets, showRejected]);
 
   const runGenerate = (critiqueText: string | null) => {
     setError(null);
@@ -131,8 +164,19 @@ export function VisualAssetsPanel({
         {panelTitle}
       </p>
       <p className="mt-1 text-sm text-zinc-500">
-        {taskAssets.length}/{packageAssetLimit} variants · compare and pick one
+        {taskAssets.length}/{packageAssetLimit} stored · each{" "}
+        <strong className="font-medium text-zinc-300">Generate</strong> run produces a batch
+        (default {VISUAL_VARIANTS_PER_RUN_MIN}+ variants), filters slop, surfaces top 2
       </p>
+      <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-zinc-400">
+        <input
+          type="checkbox"
+          checked={showRejected}
+          onChange={(e) => setShowRejected(e.target.checked)}
+          className="rounded border-zinc-600"
+        />
+        Show rejected / filtered variants
+      </label>
 
       <div className="mt-5 flex flex-wrap items-end gap-4">
         <div>
@@ -144,7 +188,7 @@ export function VisualAssetsPanel({
             onChange={(e) => setTarget(e.target.value)}
             className="mt-1 rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-2 text-sm text-zinc-100"
           >
-            <option value="GENERIC">Auto (first available)</option>
+            <option value="GENERIC">Auto (Gemini first, then OpenAI)</option>
             <option value="GPT_IMAGE">OpenAI</option>
             <option value="GEMINI_IMAGE">Google Imagen</option>
           </select>
@@ -177,7 +221,11 @@ export function VisualAssetsPanel({
           }}
           className="rounded-lg bg-zinc-100 px-4 py-2.5 text-sm font-medium text-zinc-950 hover:bg-white disabled:opacity-50"
         >
-          {pending ? "Working…" : critique.trim() ? "Regenerate" : "Generate"}
+          {pending
+            ? "Working…"
+            : critique.trim()
+              ? "Regenerate (1)"
+              : `Generate batch (${VISUAL_VARIANTS_PER_RUN_MIN}+)`}
         </button>
       </div>
       {error ? (
@@ -191,16 +239,22 @@ export function VisualAssetsPanel({
           <li className="col-span-full text-sm text-zinc-500">
             No variants yet — generate to compare side by side.
           </li>
+        ) : visibleAssets.length === 0 ? (
+          <li className="col-span-full text-sm text-zinc-500">
+            All variants are hidden as rejected — enable &quot;Show rejected&quot; to audit.
+          </li>
         ) : (
-          taskAssets.map((a) => (
+          visibleAssets.map((a) => (
             <li
               key={a.id}
               className={`rounded-xl border p-4 ${
                 a.isPreferred
                   ? "border-emerald-500/40 bg-emerald-950/25 ring-1 ring-emerald-500/20"
-                  : a.founderRejected
-                    ? "border-zinc-800 opacity-60"
-                    : "border-zinc-700/80 bg-zinc-900/30"
+                  : a.isSecondary
+                    ? "border-sky-600/35 bg-sky-950/20"
+                    : a.autoRejected || a.founderRejected
+                      ? "border-zinc-800 opacity-60"
+                      : "border-zinc-700/80 bg-zinc-900/30"
               }`}
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
@@ -219,6 +273,14 @@ export function VisualAssetsPanel({
                     {a.isPreferred ? (
                       <span className="text-xs font-medium text-emerald-300">
                         Selected
+                      </span>
+                    ) : null}
+                    {a.isSecondary ? (
+                      <span className="text-xs font-medium text-sky-300">Runner-up</span>
+                    ) : null}
+                    {a.autoRejected ? (
+                      <span className="text-xs font-medium text-amber-600/90">
+                        Auto-filtered
                       </span>
                     ) : null}
                     {a.founderRejected ? (

@@ -138,6 +138,8 @@ export default async function BriefStudioPage({
     generationNotes: va.generationNotes,
     createdAt: va.createdAt,
     isPreferred: va.isPreferred,
+    isSecondary: va.isSecondary,
+    autoRejected: va.autoRejected,
     founderRejected: va.founderRejected,
     regenerationAttempt: va.regenerationAttempt,
     review: va.review

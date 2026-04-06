@@ -17,6 +17,26 @@ export const visualAssetEvaluationSchema = z.object({
   regenerationRecommended: z.boolean(),
   deterministicIssues: z.array(z.string()),
   llmNotes: z.string().optional(),
+  /** 0–1 higher = more photographic / less plastic */
+  realismScore: z.number().min(0).max(1),
+  /** 0–1 higher = stronger layout / breathing room */
+  compositionScore: z.number().min(0).max(1),
+  /** 0–1 higher = better fit to spec / prompt intent */
+  brandFitScore: z.number().min(0).max(1),
+  /** 0–1 higher = more AI-slop risk */
+  slopScore: z.number().min(0).max(1),
+  slopDetection: z
+    .object({
+      overSaturationScore: z.number(),
+      specularGlossScore: z.number(),
+      unnaturalSymmetryScore: z.number(),
+      cgiLookScore: z.number(),
+      lackOfNegativeSpaceScore: z.number(),
+      clutteredCompositionScore: z.number(),
+      aggregateSlopScore: z.number(),
+      notes: z.array(z.string()),
+    })
+    .optional(),
 });
 
 export type VisualAssetEvaluation = z.infer<typeof visualAssetEvaluationSchema>;

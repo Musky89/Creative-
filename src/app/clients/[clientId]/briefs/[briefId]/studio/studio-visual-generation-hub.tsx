@@ -18,6 +18,8 @@ type AssetRow = {
   generationNotes: string | null;
   createdAt: Date;
   isPreferred: boolean;
+  isSecondary: boolean;
+  autoRejected: boolean;
   founderRejected: boolean;
   regenerationAttempt: number;
   review: {
@@ -161,9 +163,9 @@ export function StudioVisualGenerationHub({
             Generate visual assets
           </p>
           <p className="mt-1 text-xs text-zinc-500">
-            Provider keys: <code className="text-zinc-400">OPENAI_API_KEY</code> and/or{" "}
-            <code className="text-zinc-400">GEMINI_API_KEY</code> /{" "}
-            <code className="text-zinc-400">GOOGLE_API_KEY</code>. Same controls appear under
+            Provider keys: prefer <code className="text-zinc-400">GEMINI_API_KEY</code> /{" "}
+            <code className="text-zinc-400">GOOGLE_API_KEY</code>, fallback{" "}
+            <code className="text-zinc-400">OPENAI_API_KEY</code>. Same controls appear under
             Visual direction in Outputs.
           </p>
           {canGenerate ? (
@@ -194,6 +196,8 @@ export function StudioVisualGenerationHub({
               generationNotes: va.generationNotes,
               createdAt: va.createdAt.toISOString(),
               isPreferred: va.isPreferred,
+              isSecondary: va.isSecondary,
+              autoRejected: va.autoRejected,
               founderRejected: va.founderRejected,
               regenerationAttempt: va.regenerationAttempt,
               review: va.review

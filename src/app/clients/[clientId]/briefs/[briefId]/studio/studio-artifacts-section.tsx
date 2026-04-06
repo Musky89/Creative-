@@ -37,6 +37,8 @@ type VisualAssetRow = {
   generationNotes: string | null;
   createdAt: Date;
   isPreferred: boolean;
+  isSecondary: boolean;
+  autoRejected: boolean;
   founderRejected: boolean;
   regenerationAttempt: number;
   review: {
@@ -69,6 +71,8 @@ const assetRowsForPanel = (visualAssets: VisualAssetRow[]) =>
     generationNotes: va.generationNotes,
     createdAt: va.createdAt.toISOString(),
     isPreferred: va.isPreferred,
+    isSecondary: va.isSecondary,
+    autoRejected: va.autoRejected,
     founderRejected: va.founderRejected,
     regenerationAttempt: va.regenerationAttempt,
     review: va.review

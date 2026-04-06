@@ -20,7 +20,7 @@ import {
 import { getPrisma } from "../src/server/db/prisma";
 import { orchestrator } from "../src/server/orchestrator/orchestrator-service";
 import { stageOrderIndex } from "../src/server/orchestrator/v1-pipeline";
-import { generateVisualAssetFromPromptPackageDefaultDb } from "../src/server/visual-generation/generate-visual-asset-from-prompt-package";
+import { generateVisualVariantsFromPromptPackageDefaultDb } from "../src/server/visual-generation/generate-visual-asset-from-prompt-package";
 
 const RETAIL_CLIENT = {
   name: "Loom & Lumen Atelier",
@@ -458,13 +458,15 @@ async function main() {
   if (pkg) {
     visualGen.attempted = true;
     try {
-      const r = await generateVisualAssetFromPromptPackageDefaultDb({
+      const batch = await generateVisualVariantsFromPromptPackageDefaultDb({
         promptPackageArtifactId: pkg.id,
         clientId: retail.id,
         briefId: campaignBrief.id,
         providerTarget: "GENERIC",
-        variantLabel: "qa-bootstrap",
+        variantCount: 1,
       });
+      const r =
+        batch.results.find((x) => x.status === "COMPLETED") ?? batch.results[0]!;
       visualGen.result = `${r.status}${r.error ? `: ${r.error}` : ""}`;
     } catch (e) {
       visualGen.error = e instanceof Error ? e.message : String(e);
