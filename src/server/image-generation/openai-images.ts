@@ -1,6 +1,23 @@
 import { logProviderCall } from "@/server/observability/provider-observability";
 import type { ImageGenerationInput, ImageGenerationResult } from "./types";
 
+/** OpenAI Images API hard limit (dall-e-2 / dall-e-3). Longer strings return 400 errors. */
+export const OPENAI_IMAGE_PROMPT_MAX_CHARS = 4000;
+
+const TRUNCATION_NOTE = "\n\n[Truncated to fit OpenAI Images 4000-character prompt limit.]";
+
+function clampOpenAiPrompt(full: string): { text: string; truncated: boolean } {
+  if (full.length <= OPENAI_IMAGE_PROMPT_MAX_CHARS) {
+    return { text: full, truncated: false };
+  }
+  const budget = OPENAI_IMAGE_PROMPT_MAX_CHARS - TRUNCATION_NOTE.length;
+  const safeBudget = Math.max(500, budget);
+  return {
+    text: full.slice(0, safeBudget) + TRUNCATION_NOTE,
+    truncated: true,
+  };
+}
+
 type OpenAiImageResponse = {
   data?: { b64_json?: string; url?: string; revised_prompt?: string }[];
   error?: { message?: string };
@@ -24,17 +41,20 @@ export async function generateOpenAiImage(
     (process.env.OPENAI_IMAGE_SIZE?.trim() as "1024x1024" | "1792x1024" | "1024x1792") ||
     "1024x1024";
 
+  let combinedPrompt = input.prompt;
+  if (model.startsWith("dall-e-3") && input.negativePrompt?.trim()) {
+    combinedPrompt = `${input.prompt}\n\nAvoid: ${input.negativePrompt.trim()}`;
+  }
+
+  const { text: promptForApi, truncated } = clampOpenAiPrompt(combinedPrompt);
+
   const body: Record<string, unknown> = {
     model,
-    prompt: input.prompt,
+    prompt: promptForApi,
     n: 1,
     size,
     response_format: "b64_json",
   };
-
-  if (model.startsWith("dall-e-3") && input.negativePrompt?.trim()) {
-    body.prompt = `${input.prompt}\n\nAvoid: ${input.negativePrompt.trim()}`;
-  }
 
   const t0 = Date.now();
   const res = await fetch("https://api.openai.com/v1/images/generations", {
@@ -120,6 +140,12 @@ export async function generateOpenAiImage(
     mimeType: "image/png",
     metadata: {
       revised_prompt: data.data?.[0]?.revised_prompt,
+      ...(truncated
+        ? {
+            promptTruncatedForOpenAiLimit: true,
+            originalPromptChars: combinedPrompt.length,
+          }
+        : {}),
     },
   };
 }

@@ -64,6 +64,12 @@ export function getVisualGenerationReadiness(args: {
       level: "ok",
       text: `Image provider keys present (${openai ? "OpenAI" : ""}${openai && gemini ? " + " : ""}${gemini ? "Gemini/Google" : ""}).`,
     });
+    if (openai) {
+      lines.push({
+        level: "ok",
+        text: "OpenAI Images accepts max 4000 characters per prompt; long Brand OS + prompt packages are truncated automatically before the API call.",
+      });
+    }
   }
 
   const root = process.env.STORAGE_ROOT?.trim() || path.join(process.cwd(), "storage");
