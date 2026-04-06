@@ -49,8 +49,28 @@ export type BrandBibleFormInput = {
   visualCompositionTendencies: string;
   visualMaterialTextureDirection: string;
   visualLightingTendencies: string;
+  voicePrinciples: Prisma.InputJsonValue;
+  rhythmRules: Prisma.InputJsonValue;
+  signatureDevices: Prisma.InputJsonValue;
+  culturalCodes: Prisma.InputJsonValue;
+  emotionalRange: string;
+  metaphorStyle: string;
+  visualPhilosophy: string;
+  brandTension: string;
   onboardingSource?: string;
   aiOnboardingNeedsReview?: boolean;
+};
+
+/** Empty Creative DNA fields for seeds and tests (DB defaults match). */
+export const brandBibleCreativeDnaEmpty = {
+  voicePrinciples: [] as Prisma.InputJsonValue,
+  rhythmRules: [] as Prisma.InputJsonValue,
+  signatureDevices: [] as Prisma.InputJsonValue,
+  culturalCodes: [] as Prisma.InputJsonValue,
+  emotionalRange: "",
+  metaphorStyle: "",
+  visualPhilosophy: "",
+  brandTension: "",
 };
 
 export async function upsertBrandBible(

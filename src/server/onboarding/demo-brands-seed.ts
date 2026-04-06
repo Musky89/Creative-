@@ -2,7 +2,10 @@
  * Demo-only seed data: Coca-Cola & McDonald's (South Africa campaign briefs).
  * Based on public brand positioning — not confidential materials.
  */
-import type { BrandBibleFormInput } from "@/server/domain/brand-bible";
+import {
+  brandBibleCreativeDnaEmpty,
+  type BrandBibleFormInput,
+} from "@/server/domain/brand-bible";
 import type { ServiceBlueprintFormInput } from "@/server/domain/service-blueprint";
 import type { BriefFormInput } from "@/server/domain/briefs";
 
@@ -10,6 +13,7 @@ export const DEMO_DISCLAIMER =
   "Demo client — public-brand-style data for internal testing only. Not affiliated with or endorsed by the brand.";
 
 export const cocaColaBrandBible = (): BrandBibleFormInput => ({
+  ...brandBibleCreativeDnaEmpty,
   positioning:
     "Coca-Cola is the world’s most recognized soft-drink brand, built on optimism, togetherness, and the simple pleasure of refreshment. In market, it competes on emotional connection and occasion (meals, celebrations, summer) as much as on product.",
   targetAudience:
@@ -83,6 +87,30 @@ export const cocaColaBrandBible = (): BrandBibleFormInput => ({
   visualCompositionTendencies: "Foreground product or human gesture; background context readable",
   visualMaterialTextureDirection: "Real glass, real sweat, real food textures",
   visualLightingTendencies: "Hard sun + soft fill for skin; avoid flat fluorescent",
+  voicePrinciples: [
+    "Speak in invitations, not commands",
+    "Never explain the obvious — show the moment",
+    "Optimism without corporate cheerleading",
+  ],
+  rhythmRules: [
+    "Short punchy headline beats; one longer warm line allowed per message",
+    "Contrast staccato lines with a flowing subline",
+  ],
+  signatureDevices: [
+    "Repetition for emphasis on one ownable word",
+    "Unexpected juxtaposition: heat + chill in the same thought",
+  ],
+  culturalCodes: [
+    "Shared summer tables",
+    "Music and street energy",
+    "Youth-led spontaneity",
+  ],
+  emotionalRange:
+    "From sparkling joy to soft nostalgia — never bleak, never clinical.",
+  metaphorStyle: "Concrete and sensory — liquid, light, skin temperature, laughter.",
+  visualPhilosophy:
+    "Always grounded in real-world physics; believable condensation and daylight; avoid hyper-polished CGI liquid.",
+  brandTension: "Global icon vs. local summer truth — huge and personal at once.",
   onboardingSource: "demo_seed",
   aiOnboardingNeedsReview: true,
 });
@@ -127,6 +155,7 @@ export const cocaColaBrief = (): BriefFormInput => {
 };
 
 export const mcdonaldsBrandBible = (): BrandBibleFormInput => ({
+  ...brandBibleCreativeDnaEmpty,
   positioning:
     "McDonald’s is a global QSR leader known for consistency, speed, value, and family-friendly meals. In South Africa it competes on affordability, familiarity, and craveable classics (burgers, fries, breakfast) plus local relevance.",
   targetAudience:
@@ -201,6 +230,7 @@ export const mcdonaldsBlueprint = (): ServiceBlueprintFormInput => ({
 
 /** Fictional demo only — public QSR tropes, not official KFC materials. */
 export const kfcBrandBible = (): BrandBibleFormInput => ({
+  ...brandBibleCreativeDnaEmpty,
   positioning:
     "A bold fried-chicken QSR known for spice-forward flavour, bucket sharing, and “treat yourself” energy. In South Africa it competes on crave, heat, and weekend indulgence — less family-meal utility, more flavour swagger. (Internal demo — not affiliated with any brand.)",
   targetAudience:

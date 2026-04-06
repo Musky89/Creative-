@@ -7,6 +7,50 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+function BrandDnaComplianceStrip({ content }: { content: unknown }) {
+  if (!isRecord(content)) return null;
+
+  const td = content.toneDistinctiveness;
+  const rc = content.rhythmCompliance;
+  const sd = content.signatureDeviceUsage;
+  const ca = content.culturalAlignment;
+  if (
+    typeof td === "string" &&
+    typeof rc === "string" &&
+    typeof sd === "string" &&
+    typeof ca === "string"
+  ) {
+    return (
+      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-indigo-500/25 bg-indigo-950/30 px-3 py-2 text-[11px] text-indigo-100/90">
+        <span className="font-semibold text-indigo-200/95">Brand DNA compliance</span>
+        <span>· Tone {td}</span>
+        <span>· Rhythm {rc}</span>
+        <span>· Devices {sd}</span>
+        <span>· Culture {ca}</span>
+      </div>
+    );
+  }
+
+  const q = content._agenticforceQuality;
+  if (!isRecord(q)) return null;
+  const issues = q.deterministicIssues;
+  if (!Array.isArray(issues) || issues.length === 0) return null;
+  const joined = issues.map((x) => String(x).toLowerCase()).join(" ");
+  const hints: string[] = [];
+  if (joined.includes("flat rhythm")) hints.push("flat rhythm");
+  if (joined.includes("generic tone")) hints.push("generic tone");
+  if (joined.includes("no signature device")) hints.push("no device");
+  if (joined.includes("repeated generic phrasing")) hints.push("repeated phrasing");
+  if (hints.length === 0) return null;
+
+  return (
+    <div className="mb-3 rounded-lg border border-indigo-500/20 bg-indigo-950/25 px-3 py-2 text-[11px] text-indigo-100/85">
+      <span className="font-semibold text-indigo-200/90">Brand DNA signals</span>
+      <span className="ml-2">{hints.join(" · ")}</span>
+    </div>
+  );
+}
+
 function QualityStrip({ content }: { content: unknown }) {
   if (!isRecord(content)) return null;
   const q = content._agenticforceQuality;
@@ -470,6 +514,7 @@ export function StrategyArtifactCard({
   return (
     <Card>
       <SectionTitle>Strategy</SectionTitle>
+      <BrandDnaComplianceStrip content={content} />
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <Field label="Objective" value={asString(content.objective) || "—"} />
         <Field label="Audience" value={asString(content.audience) || "—"} />
@@ -530,6 +575,7 @@ export function ConceptArtifactCard({
     return (
       <Card>
         <SectionTitle>Concept pack</SectionTitle>
+        <BrandDnaComplianceStrip content={content} />
         {summary ? (
           <p className="mt-2 text-sm text-zinc-400">{summary}</p>
         ) : null}
@@ -716,6 +762,7 @@ export function ConceptArtifactCard({
   return (
     <Card>
       <SectionTitle>Concept</SectionTitle>
+      <BrandDnaComplianceStrip content={content} />
       <div className="mt-4 space-y-4">
         <Field
           label="Concept name"
@@ -901,6 +948,7 @@ export function VisualSpecArtifactCard({
   return (
     <Card>
       <SectionTitle>Visual spec</SectionTitle>
+      <BrandDnaComplianceStrip content={content} />
       <p className="mt-1 text-xs text-zinc-500">
         Art direction system — use for design execution or future generative pipelines.
       </p>
@@ -997,6 +1045,7 @@ export function CopyArtifactCard({
   return (
     <Card>
       <SectionTitle>Copy</SectionTitle>
+      <BrandDnaComplianceStrip content={content} />
       {fw ? (
         <div className="mt-3">
           <FrameworkStrip
@@ -1036,6 +1085,7 @@ export function ReviewReportArtifactCard({ content }: { content: unknown }) {
   return (
     <Card>
       <SectionTitle>Review report</SectionTitle>
+      <BrandDnaComplianceStrip content={content} />
       <div className="mt-4 space-y-4">
         <Field
           label="Score summary"

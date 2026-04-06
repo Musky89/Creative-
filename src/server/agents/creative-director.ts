@@ -23,6 +23,7 @@ export const creativeDirectorAgent: AgentDefinition<typeof conceptArtifactSchema
         "**pairwiseDifferentiation:** include EXACTLY `n*(n-1)/2` entries in `pairComparisons` for n concepts (e.g. 6 concepts → 15 pairs). Each pair: leftIndex, rightIndex (0-based, i<j convention in data), overlapNotes, howTheyDiffer, strongerConceptThisPair (left | right | tie). Also aggregateOverlap, strongestConceptIndex, differentiationSummary.",
         BRAND_OS_MANDATORY_RULES,
         BRAND_OS_CREATIVE_DIRECTOR_EXTRA,
+        "**Do not produce generic advertising language** in hooks or rationale. **Apply voice principles and rhythm rules explicitly** so routes feel authored, not templated.",
         "Output a single JSON object only — no markdown fences, no commentary.",
         "Keys: frameworkUsed, concepts[], pairwiseDifferentiation.",
       ].join("\n"),
@@ -30,7 +31,7 @@ export const creativeDirectorAgent: AgentDefinition<typeof conceptArtifactSchema
       [
         options.canonUserSection,
         "",
-        "Read the brief, Brand Bible, Brand Operating System, STRATEGY artifact (including strategicAngles), and upstream work.",
+        "Read the brief, Brand Bible, **Brand Creative DNA**, STRATEGY artifact (including strategicAngles), and upstream work.",
         "",
         "Output **exactly one concept per framework** in the SELECTED Creative Canon section — the list length is 6–10; your `concepts` array length must equal that count. Each `frameworkId` appears **once**.",
         "Each concept:",

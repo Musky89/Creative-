@@ -8,7 +8,10 @@ import type {
   VocabularyStyle,
 } from "@/generated/prisma/client";
 import { upsertBrandBible } from "@/server/domain/brand-bible";
-import { brandOsTasteEngineSchema } from "@/lib/brand/brand-os-taste";
+import {
+  brandCreativeDnaSchema,
+  brandOsTasteEngineSchema,
+} from "@/lib/brand/brand-os-taste";
 
 export type FormState = { error?: string } | { ok: true } | null;
 
@@ -110,6 +113,15 @@ export async function saveBrandBibleAction(clientId: string, formData: FormData)
     formData.get("visualLightingTendencies") ?? "",
   ).trim();
 
+  const voicePrinciplesRaw = String(formData.get("voicePrinciples") ?? "");
+  const rhythmRulesRaw = String(formData.get("rhythmRules") ?? "");
+  const signatureDevicesRaw = String(formData.get("signatureDevices") ?? "");
+  const culturalCodesRaw = String(formData.get("culturalCodes") ?? "");
+  const emotionalRange = String(formData.get("emotionalRange") ?? "").trim();
+  const metaphorStyle = String(formData.get("metaphorStyle") ?? "").trim();
+  const visualPhilosophy = String(formData.get("visualPhilosophy") ?? "").trim();
+  const brandTension = String(formData.get("brandTension") ?? "").trim();
+
   if (!positioning || !targetAudience || !toneOfVoice) {
     return { error: "Positioning, target audience, and tone of voice are required." };
   }
@@ -145,6 +157,23 @@ export async function saveBrandBibleAction(clientId: string, formData: FormData)
     };
   }
   const t = tasteParsed.data;
+
+  const dnaParsed = brandCreativeDnaSchema.safeParse({
+    voicePrinciples: lines(voicePrinciplesRaw),
+    rhythmRules: lines(rhythmRulesRaw),
+    signatureDevices: lines(signatureDevicesRaw),
+    culturalCodes: lines(culturalCodesRaw),
+    emotionalRange,
+    metaphorStyle,
+    visualPhilosophy,
+    brandTension,
+  });
+  if (!dnaParsed.success) {
+    return {
+      error: `Creative DNA validation: ${dnaParsed.error.issues.map((i) => i.message).join("; ")}`,
+    };
+  }
+  const dna = dnaParsed.data;
 
   await upsertBrandBible(clientId, {
     positioning,
@@ -188,6 +217,14 @@ export async function saveBrandBibleAction(clientId: string, formData: FormData)
     visualCompositionTendencies: t.visualCompositionTendencies,
     visualMaterialTextureDirection: t.visualMaterialTextureDirection,
     visualLightingTendencies: t.visualLightingTendencies,
+    voicePrinciples: dna.voicePrinciples,
+    rhythmRules: dna.rhythmRules,
+    signatureDevices: dna.signatureDevices,
+    culturalCodes: dna.culturalCodes,
+    emotionalRange: dna.emotionalRange,
+    metaphorStyle: dna.metaphorStyle,
+    visualPhilosophy: dna.visualPhilosophy,
+    brandTension: dna.brandTension,
     onboardingSource: "manual",
     aiOnboardingNeedsReview: false,
   });

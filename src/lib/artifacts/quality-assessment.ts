@@ -8,6 +8,10 @@ import {
   findGenericMarketingHits,
   findVagueMarketingAdjectives,
 } from "@/lib/brand/anti-generic";
+import {
+  mergeCreativeDnaToneIssues,
+  type BrandCreativeDnaForChecks,
+} from "@/lib/brand/creative-dna-tone-checks";
 import { mergeBadOutputBlacklistIssues } from "@/lib/brand/bad-output-blacklist";
 import { z } from "zod";
 
@@ -109,6 +113,7 @@ export function mergeAntiGenericIssues(
     | "IDENTITY_ROUTING",
   content: Record<string, unknown>,
   bannedPhrases: string[],
+  creativeDna?: BrandCreativeDnaForChecks | null,
 ): DeterministicQualityResult {
   const blob = collectArtifactTextForQuality(stage, content);
   const issues: string[] = [];
@@ -151,6 +156,18 @@ export function mergeAntiGenericIssues(
   const bl = mergeBadOutputBlacklistIssues(stage, content);
   issues.push(...bl.issues);
   recommendRegeneration = recommendRegeneration || bl.recommendRegeneration;
+
+  if (
+    creativeDna &&
+    (stage === "STRATEGY" ||
+      stage === "CONCEPTING" ||
+      stage === "VISUAL_DIRECTION" ||
+      stage === "COPY_DEVELOPMENT")
+  ) {
+    const dnaTone = mergeCreativeDnaToneIssues(blob, creativeDna, stage);
+    issues.push(...dnaTone.issues);
+    recommendRegeneration = recommendRegeneration || dnaTone.recommendRegeneration;
+  }
 
   return { issues, recommendRegeneration };
 }

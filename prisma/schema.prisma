@@ -233,6 +233,17 @@ model BrandBible {
   tensionCoreContradiction  String @default("") @db.Text
   tensionEmotionalBalance   String @default("") @db.Text
 
+  /// Creative DNA — voice, rhythm, devices (creative-director level)
+  voicePrinciples    Json   @default("[]")
+  rhythmRules        Json   @default("[]")
+  signatureDevices   Json   @default("[]")
+  culturalCodes      Json   @default("[]")
+  emotionalRange     String @default("") @db.Text
+  metaphorStyle      String @default("") @db.Text
+  visualPhilosophy   String @default("") @db.Text
+  /// Productive tension as a single creative line (e.g. "Premium vs accessible")
+  brandTension       String @default("") @db.Text
+
   /// Taste engine — references & feel
   tasteCloserThan       Json    @default("[]")
   tasteShouldFeelLike   String  @default("") @db.Text

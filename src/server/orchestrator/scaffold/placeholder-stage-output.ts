@@ -374,6 +374,10 @@ export function buildPlaceholderArtifactContent(
         toneAlignment: "[Placeholder] Brand OS tone vs draft — not evaluated in scaffold.",
         languageCompliance: "WARN" as const,
         bannedPhraseViolations: [],
+        toneDistinctiveness: "MIXED" as const,
+        rhythmCompliance: "WARN" as const,
+        signatureDeviceUsage: "ABSENT" as const,
+        culturalAlignment: "MIXED" as const,
         regenerationRecommended: false,
         regenerationReasons: [],
         technicallyCorrectButCreativelySafe:

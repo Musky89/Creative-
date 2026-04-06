@@ -372,6 +372,11 @@ export const reviewReportArtifactSchema = z.object({
   languageCompliance: z.enum(["PASS", "WARN", "FAIL"]),
   /** Brand OS banned phrases or close variants found in evaluated copy (empty if none). */
   bannedPhraseViolations: z.array(z.string()).max(20),
+  /** Brand Creative DNA audit — generic / interchangeable work should be WEAK + FAIL rhythm. */
+  toneDistinctiveness: z.enum(["STRONG", "MIXED", "WEAK"]),
+  rhythmCompliance: z.enum(["PASS", "WARN", "FAIL"]),
+  signatureDeviceUsage: z.enum(["PRESENT", "ABSENT"]),
+  culturalAlignment: z.enum(["STRONG", "MIXED", "WEAK"]),
   regenerationRecommended: z.boolean(),
   regenerationReasons: z.array(z.string()).max(10),
   /** Harsh creative bar — each must be substantive (pass/fail reasoning). */
@@ -478,6 +483,10 @@ export const ARTIFACT_SHAPE_HINTS = {
   "toneAlignment": string (Brand OS: vocabulary, sentence style, emotion),
   "languageCompliance": "PASS" | "WARN" | "FAIL",
   "bannedPhraseViolations": string[] (banned + Language DNA NEVER + category clichés found in copy/concepts, or empty),
+  "toneDistinctiveness": "STRONG" | "MIXED" | "WEAK" — could another brand run this after a name swap?,
+  "rhythmCompliance": "PASS" | "WARN" | "FAIL" — vs Brand Creative DNA rhythmRules / flat cadence,
+  "signatureDeviceUsage": "PRESENT" | "ABSENT" — visible use of signatureDevices / hook patterns,
+  "culturalAlignment": "STRONG" | "MIXED" | "WEAK" — vs culturalCodes / taste,
   "regenerationRecommended": boolean,
   "regenerationReasons": string[],
   "technicallyCorrectButCreativelySafe": string (min ~40 — is it competent but cowardly?),

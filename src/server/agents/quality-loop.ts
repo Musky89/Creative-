@@ -1,4 +1,5 @@
 import type { WorkflowStage } from "@/generated/prisma/client";
+import type { BrandOperatingSystemContext } from "@/server/brand/brand-os-prompt";
 import {
   deterministicConceptChecks,
   deterministicCopyChecks,
@@ -30,7 +31,7 @@ A **specificity engine** also runs deterministically: abstract words ("premium",
 For VISUAL_DIRECTION / VISUAL_SPEC drafts: reject vague "luxury / cinematic / high-end" without concrete composition, color, light, texture, and typography specifics; demand brand-grounded art direction a human team could shoot or design.
 For IDENTITY_STRATEGY: reject interchangeable symbolic fluff, trend-chasing aesthetics, and empty "modern/minimal" without strategic meaning.
 For IDENTITY_ROUTING / IDENTITY_ROUTES_PACK: reject routes that are the same idea reworded; demand divergent mark types and executable typography/geometry logic (not final logo pixels).
-Honor **taste engine** rules: category differentiation, brand tension, Language DNA NEVER lines, and visual NEVER-looks-like where applicable.
+Honor **Brand Creative DNA** and **taste engine** rules: voice principles, rhythm rules, signature devices, category differentiation, brand tension, Language DNA NEVER lines, and visual NEVER-looks-like where applicable.
 For CONCEPTING / IDENTITY_ROUTING: penalize **variation masquerading as differentiation** — routes must differ in tension, visual world, and category edge; CONCEPTING expects **6–10** routes with **unique** frameworkIds and full **pairwiseDifferentiation** across all pairs.`,
   formatBadOutputBlacklistForPrompt(),
   `Fields:
@@ -41,7 +42,7 @@ For CONCEPTING / IDENTITY_ROUTING: penalize **variation masquerading as differen
 - regenerationRecommended: boolean — true if WEAK overall OR framework visibly not applied OR concepts too similar OR copy bland
 - regenerationReasons: string array, max 6 items, concrete actionable bullets for the model to fix on retry
 
-Be strict: generic marketing language, interchangeable hooks, or vague rationale = regenerationRecommended true.`,
+Be strict: generic marketing language, flat rhythm vs Brand OS rhythmRules, missing signature device usage when Creative DNA lists devices, interchangeable hooks, or vague rationale = regenerationRecommended true.`,
 ].join("\n\n");
 
 export type QualityLoopStage =
@@ -114,8 +115,21 @@ export function mergeDeterministicIssues(
   content: Record<string, unknown>,
   brandOsBannedPhrases: string[],
   specificityAnchors: SpecificityAnchorContext | null = null,
+  operatingSystem: BrandOperatingSystemContext | null = null,
 ): { issues: string[]; recommend: boolean } {
-  const anti = mergeAntiGenericIssues(stage, content, brandOsBannedPhrases);
+  const creativeDna = operatingSystem
+    ? {
+        rhythmRules: operatingSystem.rhythmRules,
+        signatureDevices: operatingSystem.signatureDevices,
+        voicePrinciples: operatingSystem.voicePrinciples,
+      }
+    : null;
+  const anti = mergeAntiGenericIssues(
+    stage,
+    content,
+    brandOsBannedPhrases,
+    creativeDna,
+  );
   const spec = mergeSpecificityEngineIssues(stage, content, specificityAnchors);
   if (stage === "CONCEPTING") {
     const r = deterministicConceptChecks(content);

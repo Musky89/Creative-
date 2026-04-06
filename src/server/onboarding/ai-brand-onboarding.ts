@@ -58,6 +58,14 @@ export const onboardingLlmDraftSchema = z.object({
     visualCompositionTendencies: z.string(),
     visualMaterialTextureDirection: z.string(),
     visualLightingTendencies: z.string(),
+    voicePrinciples: lineArray.default([]),
+    rhythmRules: lineArray.default([]),
+    signatureDevices: lineArray.default([]),
+    culturalCodes: lineArray.default([]),
+    emotionalRange: z.string().default(""),
+    metaphorStyle: z.string().default(""),
+    visualPhilosophy: z.string().default(""),
+    brandTension: z.string().default(""),
   }),
   serviceBlueprint: z.object({
     templateType: z.enum(["FULL_PIPELINE", "CAMPAIGN_SPRINT", "RETAINER_MONTHLY", "CUSTOM"]),
@@ -138,7 +146,9 @@ Return JSON with this structure:
     "tasteCloserThan": string[] (each like "Closer to X than Y"),
     "tasteShouldFeelLike", "tasteMustNotFeelLike": string,
     "visualNeverLooksLike": string[],
-    "visualCompositionTendencies", "visualMaterialTextureDirection", "visualLightingTendencies": string
+    "visualCompositionTendencies", "visualMaterialTextureDirection", "visualLightingTendencies": string,
+    "voicePrinciples", "rhythmRules", "signatureDevices", "culturalCodes": string[],
+    "emotionalRange", "metaphorStyle", "visualPhilosophy", "brandTension": string
   },
   "serviceBlueprint": {
     "templateType": "FULL_PIPELINE"|"CAMPAIGN_SPRINT"|"RETAINER_MONTHLY"|"CUSTOM",
@@ -269,6 +279,14 @@ export function mapDraftToBrandBibleInput(
     visualCompositionTendencies: d.visualCompositionTendencies,
     visualMaterialTextureDirection: d.visualMaterialTextureDirection,
     visualLightingTendencies: d.visualLightingTendencies,
+    voicePrinciples: d.voicePrinciples ?? [],
+    rhythmRules: d.rhythmRules ?? [],
+    signatureDevices: d.signatureDevices ?? [],
+    culturalCodes: d.culturalCodes ?? [],
+    emotionalRange: d.emotionalRange ?? "",
+    metaphorStyle: d.metaphorStyle ?? "",
+    visualPhilosophy: d.visualPhilosophy ?? "",
+    brandTension: d.brandTension ?? "",
     onboardingSource: "ai_draft",
     aiOnboardingNeedsReview: true,
   };

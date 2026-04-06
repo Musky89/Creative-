@@ -17,6 +17,20 @@ const closerThanLine = z
   .max(500)
   .describe('e.g. "Closer to Aesop than Sephora"');
 
+/** Creative DNA — optional in forms; empty arrays are valid */
+export const brandCreativeDnaSchema = z.object({
+  voicePrinciples: lineArray(24),
+  rhythmRules: lineArray(24),
+  signatureDevices: lineArray(24),
+  culturalCodes: lineArray(24),
+  emotionalRange: z.string().max(8000).default(""),
+  metaphorStyle: z.string().max(2000).default(""),
+  visualPhilosophy: z.string().max(4000).default(""),
+  brandTension: z.string().max(2000).default(""),
+});
+
+export type BrandCreativeDnaInput = z.infer<typeof brandCreativeDnaSchema>;
+
 export const brandOsTasteEngineSchema = z.object({
   languageDnaPhrasesUse: lineArray(40),
   languageDnaPhrasesNever: lineArray(40),

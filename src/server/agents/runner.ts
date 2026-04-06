@@ -210,6 +210,7 @@ export async function executeAgentForTask(
       stripped,
       brandBanned,
       specificityAnchors,
+      context.brand?.operatingSystem ?? null,
     );
     const llmQ = await assessPrePersistQuality(
       provider,
@@ -241,7 +242,7 @@ export async function executeAgentForTask(
 
     const critique = [...det.issues, ...llmQ.regenerationReasons].join("\n");
     const mustPreserve = [
-      "Output MUST match the same JSON schema as this stage. Honor Brand Bible, Brand Operating System (banned phrases, vocabulary/sentence style, emotional boundaries, taste engine), brief, and upstream artifacts. Apply Creative Canon visibly — no generic marketing filler.",
+      "Output MUST match the same JSON schema as this stage. Honor Brand Bible, **Brand Creative DNA** (voice principles, rhythm rules, signature devices, cultural codes, brand tension, visual philosophy), banned phrases, vocabulary/sentence style, emotional boundaries, taste engine, brief, and upstream artifacts. Apply Creative Canon visibly — no generic marketing filler.",
       "**Specificity:** replace abstraction with concrete execution detail; anchor claims in this client, audience, and brief (use vocabulary from context).",
       "For CONCEPTING: 6–10 concepts with **unique** frameworkIds from the selected Canon list; distinctivenessVsCategory per route; full pairwise differentiation for all pairs.",
       "For VISUAL_DIRECTION: one chosen concept route, concrete art-direction specifics (materials, light, composition, texture), strong avoidList, no vibes-only luxury filler.",
@@ -289,6 +290,7 @@ export async function executeAgentForTask(
       stripped2,
       brandBanned,
       specificityAnchors,
+      context.brand?.operatingSystem ?? null,
     );
     const llmQ2 = await assessPrePersistQuality(
       provider,

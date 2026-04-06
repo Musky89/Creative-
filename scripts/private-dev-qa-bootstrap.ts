@@ -10,6 +10,7 @@ import "dotenv/config";
 import { createClient } from "../src/server/domain/clients";
 import { createBrief } from "../src/server/domain/briefs";
 import {
+  brandBibleCreativeDnaEmpty,
   upsertBrandBible,
   type BrandBibleFormInput,
 } from "../src/server/domain/brand-bible";
@@ -36,6 +37,7 @@ const deadline = new Date("2026-08-15T17:00:00.000Z");
 
 function retailBrandBible(): BrandBibleFormInput {
   return {
+    ...brandBibleCreativeDnaEmpty,
     positioning:
       "Loom & Lumen is a quiet-luxury textile studio for people who treat fabric as architecture: drape, hand, and longevity over trend cycles. We sell limited-run yardage, made-to-order drapery, and heirloom-weight bedding for design-led homes.",
     targetAudience:
@@ -167,6 +169,7 @@ function retailBrandBible(): BrandBibleFormInput {
 
 function identityBrandBible(): BrandBibleFormInput {
   return {
+    ...brandBibleCreativeDnaEmpty,
     positioning:
       "Verdant Circuit is a new clinical-meets-poetic skincare house: barrier-first formulas, transparent actives, and a visual identity that feels like a botanical lab notebook — precise, alive, never twee.",
     targetAudience:

@@ -25,6 +25,7 @@ export const creativeDirectorFinalAgent: AgentDefinition<
       "- **Brand embodiment:** Does it feel like **this** brand’s OS (voice, tension, visual guardrails), not a template?",
       "",
       "Output **APPROVE** only if the bundle is genuinely strong. If it is safe, generic, or visually synthetic, output **REWORK** with **improvementDirectives** that are executable (specific angles, what to cut, what to push).",
+      "**Do not produce generic advertising language** in your rationale or directives — be specific and Brand-DNA-grounded.",
       BRAND_OS_MANDATORY_RULES,
       "Return a single JSON object only — no markdown.",
     ].join("\n"),
