@@ -48,7 +48,7 @@ test("full walkthrough: all routes + studio (requires Postgres)", async ({
   await page.getByRole("link", { name: "New client" }).click();
   await expect(page).toHaveURL(/\/clients\/new$/);
 
-  await page.getByLabel("Name").fill("Playwright Test Co");
+  await page.getByLabel("Name", { exact: true }).fill("Playwright Test Co");
   await page.getByLabel("Industry").fill("Software");
   await page.getByRole("button", { name: "Create client" }).click();
   await expect(page).not.toHaveURL(/\/clients\/new$/);
