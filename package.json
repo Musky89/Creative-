@@ -16,6 +16,7 @@
     "env:check": "npx --yes tsx scripts/check-env.ts",
     "qa:bootstrap": "npx --yes tsx scripts/private-dev-qa-bootstrap.ts",
     "preflight": "npx --yes tsx scripts/preflight-dev.ts",
+    "seed:demo-brands": "npx --yes tsx scripts/seed-demo-brands.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },

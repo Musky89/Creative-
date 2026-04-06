@@ -85,6 +85,7 @@ npm run test:e2e   # Playwright UI walkthrough + video (see docs/E2E_VIDEO_WALKT
 | [docs/agent_roster.md](docs/agent_roster.md) | v1 agent roles and boundaries. |
 | [docs/data_model_overview.md](docs/data_model_overview.md) | Core entities before schema tooling (e.g. Prisma). |
 | [docs/architecture_rules.md](docs/architecture_rules.md) | Non-negotiable engineering rules. |
+| [docs/ONBOARDING_DEMO.md](docs/ONBOARDING_DEMO.md) | AI quick onboard + Coca-Cola / McDonald’s demo seeds (internal). |
 
 ---
 

@@ -188,6 +188,8 @@ export async function saveBrandBibleAction(clientId: string, formData: FormData)
     visualCompositionTendencies: t.visualCompositionTendencies,
     visualMaterialTextureDirection: t.visualMaterialTextureDirection,
     visualLightingTendencies: t.visualLightingTendencies,
+    onboardingSource: "manual",
+    aiOnboardingNeedsReview: false,
   });
 
   revalidatePath(`/clients/${clientId}`);

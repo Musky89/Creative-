@@ -49,6 +49,8 @@ export type BrandBibleFormInput = {
   visualCompositionTendencies: string;
   visualMaterialTextureDirection: string;
   visualLightingTendencies: string;
+  onboardingSource?: string;
+  aiOnboardingNeedsReview?: boolean;
 };
 
 export async function upsertBrandBible(
@@ -56,9 +58,19 @@ export async function upsertBrandBible(
   data: BrandBibleFormInput,
 ) {
   const prisma = getPrisma();
+  const {
+    onboardingSource = "",
+    aiOnboardingNeedsReview = false,
+    ...rest
+  } = data;
   return prisma.brandBible.upsert({
     where: { clientId },
-    create: { clientId, ...data },
-    update: data,
+    create: {
+      clientId,
+      ...rest,
+      onboardingSource,
+      aiOnboardingNeedsReview,
+    },
+    update: { ...rest, onboardingSource, aiOnboardingNeedsReview },
   });
 }

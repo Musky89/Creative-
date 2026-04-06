@@ -164,6 +164,9 @@ model Client {
   industry  String
   createdAt DateTime @default(now())
 
+  /// Seeded or explicitly marked demo (Coca-Cola / McDonald's style harness clients).
+  isDemoClient Boolean @default(false)
+
   brandBible             BrandBible?
   serviceBlueprint       ServiceBlueprint?
   briefs                 Brief[]
@@ -241,6 +244,11 @@ model BrandBible {
   visualMaterialTextureDirection  String @default("") @db.Text
   visualLightingTendencies        String @default("") @db.Text
 
+  /// "" | "ai_draft" | "demo_seed" — how this record was created (never silent overwrite).
+  onboardingSource           String  @default("")
+  /// When true, UI shows "Needs review" until founder saves Brand Bible again.
+  aiOnboardingNeedsReview    Boolean @default(false)
+
   updatedAt DateTime @updatedAt
 }
 
@@ -280,6 +288,9 @@ model Brief {
 
   /// When true, workflow inserts IDENTITY_STRATEGY + IDENTITY_ROUTING after STRATEGY (new brand / identity builds).
   identityWorkflowEnabled Boolean  @default(false)
+
+  onboardingSource           String  @default("")
+  aiOnboardingNeedsReview    Boolean @default(false)
 
   tasks         Task[]
   visualAssets  VisualAsset[]

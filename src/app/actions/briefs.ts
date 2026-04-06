@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { getPrisma } from "@/server/db/prisma";
 import {
   createBrief,
   updateBrief,
@@ -86,6 +87,13 @@ export async function updateBriefFormAction(
   const parsed = parseBriefForm(formData);
   if ("error" in parsed) return { error: parsed.error };
   await updateBrief(briefId, clientId, parsed);
+  await getPrisma().brief.update({
+    where: { id: briefId, clientId },
+    data: {
+      onboardingSource: "manual",
+      aiOnboardingNeedsReview: false,
+    },
+  });
   revalidatePath(`/clients/${clientId}`);
   revalidatePath(`/clients/${clientId}/briefs/${briefId}/edit`);
   revalidatePath(`/clients/${clientId}/briefs/${briefId}/studio`);

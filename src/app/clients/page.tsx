@@ -50,7 +50,14 @@ export default async function ClientsPage() {
                 className="flex items-center justify-between px-4 py-4 transition-colors hover:bg-zinc-800/40"
               >
                 <div>
-                  <p className="font-medium text-zinc-100">{c.name}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium text-zinc-100">{c.name}</p>
+                    {c.isDemoClient ? (
+                      <span className="rounded border border-amber-600/50 bg-amber-950/40 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-200/90">
+                        Demo
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="text-sm text-zinc-500">{c.industry}</p>
                 </div>
                 <span className="text-sm text-zinc-500">

@@ -1,0 +1,306 @@
+import { z } from "zod";
+import { getLlmProvider } from "@/server/llm/get-provider";
+import type { BrandBibleFormInput } from "@/server/domain/brand-bible";
+import type { ServiceBlueprintFormInput } from "@/server/domain/service-blueprint";
+import type { BriefFormInput } from "@/server/domain/briefs";
+
+const lineArray = z.array(z.string()).default([]);
+
+/** LLM output shape — map to Prisma enums and domain types downstream. */
+export const onboardingLlmDraftSchema = z.object({
+  industry: z.string().min(1),
+  brandBible: z.object({
+    positioning: z.string().min(20),
+    targetAudience: z.string().min(20),
+    toneOfVoice: z.string().min(20),
+    messagingPillars: z.array(z.string().min(1)).min(2).max(8),
+    visualIdentity: lineArray,
+    channelGuidelines: lineArray,
+    mandatoryInclusions: lineArray,
+    thingsToAvoid: lineArray,
+    vocabularyStyle: z.enum(["SIMPLE", "ELEVATED", "TECHNICAL", "POETIC", "MIXED"]),
+    sentenceStyle: z.enum(["SHORT", "MEDIUM", "LONG", "VARIED"]),
+    primaryEmotion: z.enum([
+      "ASPIRATION",
+      "TRUST",
+      "DESIRE",
+      "URGENCY",
+      "CALM",
+      "BOLD",
+    ]),
+    persuasionStyle: z.enum(["SUBTLE", "DIRECT", "STORY_LED", "PROOF_LED"]),
+    bannedPhrases: lineArray,
+    preferredPhrases: lineArray,
+    signaturePatterns: lineArray,
+    emotionalToneDescription: z.string(),
+    emotionalBoundaries: lineArray,
+    hookStyles: lineArray,
+    narrativeStyles: lineArray,
+    visualStyle: z.string(),
+    colorPhilosophy: z.string(),
+    compositionStyle: z.string(),
+    textureFocus: z.string(),
+    lightingStyle: z.string(),
+    languageDnaPhrasesUse: lineArray,
+    languageDnaPhrasesNever: lineArray,
+    languageDnaSentenceRhythm: lineArray,
+    languageDnaHeadlinePatterns: lineArray,
+    languageDnaCtaPatterns: lineArray,
+    categoryTypicalBehavior: z.string(),
+    categoryClichesToAvoid: lineArray,
+    categoryDifferentiation: z.string(),
+    tensionCoreContradiction: z.string(),
+    tensionEmotionalBalance: z.string(),
+    tasteCloserThan: lineArray,
+    tasteShouldFeelLike: z.string(),
+    tasteMustNotFeelLike: z.string(),
+    visualNeverLooksLike: lineArray,
+    visualCompositionTendencies: z.string(),
+    visualMaterialTextureDirection: z.string(),
+    visualLightingTendencies: z.string(),
+  }),
+  serviceBlueprint: z.object({
+    templateType: z.enum(["FULL_PIPELINE", "CAMPAIGN_SPRINT", "RETAINER_MONTHLY", "CUSTOM"]),
+    activeServices: z.array(z.string()).min(1),
+    qualityThreshold: z.number().min(0).max(1),
+    approvalRequired: z.boolean(),
+  }),
+  optionalBrief: z
+    .object({
+      title: z.string().min(1),
+      businessObjective: z.string().min(20),
+      communicationObjective: z.string().min(20),
+      targetAudience: z.string().min(10),
+      keyMessage: z.string().min(10),
+      deliverablesRequested: z.array(z.string()).min(1),
+      tone: z.string().min(1),
+      constraints: z.array(z.string()),
+      identityWorkflowEnabled: z.boolean().optional(),
+    })
+    .optional(),
+});
+
+export type OnboardingLlmDraft = z.infer<typeof onboardingLlmDraftSchema>;
+
+export type RoughOnboardingInput = {
+  brandName: string;
+  websiteUrl: string;
+  description: string;
+  market: string;
+  goal: string;
+  notes: string;
+  includeBriefDraft: boolean;
+};
+
+function systemPrompt(): string {
+  return `You are a senior brand strategist helping INTERNAL product testing only.
+Output a single JSON object matching the schema described in the user message.
+Rules:
+- This is a FIRST DRAFT for founder review — be specific, not generic marketing slop.
+- Avoid banned clichés: "best in class", "innovative solution", "premium feel", "elevate your".
+- Use public-brand-level knowledge only; do not claim confidential documents.
+- Arrays of strings: short, actionable lines where appropriate.
+- Enums must be exact uppercase tokens as specified.
+- If includeBrief is false, omit optionalBrief entirely (null) or use key "optionalBrief": null in JSON — actually omit the key optionalBrief.
+`;
+}
+
+function userPrompt(input: RoughOnboardingInput): string {
+  return `Brand name: ${input.brandName}
+Website (may be empty): ${input.websiteUrl || "—"}
+One-line description: ${input.description}
+Market / geography: ${input.market}
+Campaign or project goal: ${input.goal}
+Additional notes: ${input.notes || "—"}
+
+Include a first campaign brief draft in JSON: ${input.includeBriefDraft ? "yes" : "no"}
+
+Return JSON with this structure:
+{
+  "industry": string (concise sector label),
+  "brandBible": {
+    "positioning", "targetAudience", "toneOfVoice" (text),
+    "messagingPillars": string[] (2-8),
+    "visualIdentity", "channelGuidelines", "mandatoryInclusions", "thingsToAvoid": string[],
+    "vocabularyStyle": "SIMPLE"|"ELEVATED"|"TECHNICAL"|"POETIC"|"MIXED",
+    "sentenceStyle": "SHORT"|"MEDIUM"|"LONG"|"VARIED",
+    "primaryEmotion": "ASPIRATION"|"TRUST"|"DESIRE"|"URGENCY"|"CALM"|"BOLD",
+    "persuasionStyle": "SUBTLE"|"DIRECT"|"STORY_LED"|"PROOF_LED",
+    "bannedPhrases", "preferredPhrases", "signaturePatterns": string[],
+    "emotionalToneDescription": string,
+    "emotionalBoundaries", "hookStyles", "narrativeStyles": string[],
+    "visualStyle", "colorPhilosophy", "compositionStyle", "textureFocus", "lightingStyle": string,
+    "languageDnaPhrasesUse", "languageDnaPhrasesNever", "languageDnaSentenceRhythm", "languageDnaHeadlinePatterns", "languageDnaCtaPatterns": string[],
+    "categoryTypicalBehavior": string,
+    "categoryClichesToAvoid": string[],
+    "categoryDifferentiation": string,
+    "tensionCoreContradiction", "tensionEmotionalBalance": string,
+    "tasteCloserThan": string[] (each like "Closer to X than Y"),
+    "tasteShouldFeelLike", "tasteMustNotFeelLike": string,
+    "visualNeverLooksLike": string[],
+    "visualCompositionTendencies", "visualMaterialTextureDirection", "visualLightingTendencies": string
+  },
+  "serviceBlueprint": {
+    "templateType": "FULL_PIPELINE"|"CAMPAIGN_SPRINT"|"RETAINER_MONTHLY"|"CUSTOM",
+    "activeServices": string[],
+    "qualityThreshold": number 0-1,
+    "approvalRequired": boolean
+  }${
+    input.includeBriefDraft
+      ? `,
+  "optionalBrief": {
+    "title": string,
+    "businessObjective", "communicationObjective", "targetAudience", "keyMessage": string,
+    "deliverablesRequested": string[],
+    "tone": string,
+    "constraints": string[],
+    "identityWorkflowEnabled": boolean optional
+  }`
+      : ""
+  }
+}
+
+Only output valid JSON, no markdown fences.`;
+}
+
+export async function generateOnboardingDraftLlm(
+  input: RoughOnboardingInput,
+): Promise<{ ok: true; draft: OnboardingLlmDraft } | { ok: false; error: string }> {
+  const provider = getLlmProvider();
+  if (!provider) {
+    return {
+      ok: false,
+      error:
+        "No LLM configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY in .env to generate an AI draft.",
+    };
+  }
+
+  const messages = [
+    { role: "system" as const, content: systemPrompt() },
+    { role: "user" as const, content: userPrompt(input) },
+  ];
+
+  let text: string;
+  try {
+    const r = await provider.complete(messages, {
+      maxTokens: 8192,
+      jsonMode: provider.id === "openai",
+    });
+    text = r.text.trim();
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: `LLM call failed: ${msg}` };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fence) {
+      try {
+        parsed = JSON.parse(fence[1]!.trim());
+      } catch {
+        return { ok: false, error: "Model returned non-JSON. Try again or shorten inputs." };
+      }
+    } else {
+      return { ok: false, error: "Model returned non-JSON. Try again." };
+    }
+  }
+
+  const refined = onboardingLlmDraftSchema.safeParse(parsed);
+  if (!refined.success) {
+    return {
+      ok: false,
+      error: `Draft validation: ${refined.error.issues.map((i) => i.path.join(".") + ": " + i.message).join("; ")}`,
+    };
+  }
+
+  const data = { ...refined.data };
+  if (!input.includeBriefDraft) {
+    delete data.optionalBrief;
+  }
+
+  return { ok: true, draft: data };
+}
+
+export function mapDraftToBrandBibleInput(
+  d: OnboardingLlmDraft["brandBible"],
+): BrandBibleFormInput {
+  return {
+    positioning: d.positioning,
+    targetAudience: d.targetAudience,
+    toneOfVoice: d.toneOfVoice,
+    messagingPillars: d.messagingPillars,
+    visualIdentity: d.visualIdentity,
+    channelGuidelines: d.channelGuidelines,
+    mandatoryInclusions: d.mandatoryInclusions,
+    thingsToAvoid: d.thingsToAvoid,
+    vocabularyStyle: d.vocabularyStyle,
+    sentenceStyle: d.sentenceStyle,
+    bannedPhrases: d.bannedPhrases,
+    preferredPhrases: d.preferredPhrases,
+    signaturePatterns: d.signaturePatterns,
+    primaryEmotion: d.primaryEmotion,
+    emotionalToneDescription: d.emotionalToneDescription,
+    emotionalBoundaries: d.emotionalBoundaries,
+    hookStyles: d.hookStyles,
+    narrativeStyles: d.narrativeStyles,
+    persuasionStyle: d.persuasionStyle,
+    visualStyle: d.visualStyle,
+    colorPhilosophy: d.colorPhilosophy,
+    compositionStyle: d.compositionStyle,
+    textureFocus: d.textureFocus,
+    lightingStyle: d.lightingStyle,
+    languageDnaPhrasesUse: d.languageDnaPhrasesUse,
+    languageDnaPhrasesNever: d.languageDnaPhrasesNever,
+    languageDnaSentenceRhythm: d.languageDnaSentenceRhythm,
+    languageDnaHeadlinePatterns: d.languageDnaHeadlinePatterns,
+    languageDnaCtaPatterns: d.languageDnaCtaPatterns,
+    categoryTypicalBehavior: d.categoryTypicalBehavior,
+    categoryClichesToAvoid: d.categoryClichesToAvoid,
+    categoryDifferentiation: d.categoryDifferentiation,
+    tensionCoreContradiction: d.tensionCoreContradiction,
+    tensionEmotionalBalance: d.tensionEmotionalBalance,
+    tasteCloserThan: d.tasteCloserThan,
+    tasteShouldFeelLike: d.tasteShouldFeelLike,
+    tasteMustNotFeelLike: d.tasteMustNotFeelLike,
+    visualNeverLooksLike: d.visualNeverLooksLike,
+    visualCompositionTendencies: d.visualCompositionTendencies,
+    visualMaterialTextureDirection: d.visualMaterialTextureDirection,
+    visualLightingTendencies: d.visualLightingTendencies,
+    onboardingSource: "ai_draft",
+    aiOnboardingNeedsReview: true,
+  };
+}
+
+export function mapDraftToServiceBlueprint(
+  d: OnboardingLlmDraft["serviceBlueprint"],
+): ServiceBlueprintFormInput {
+  return {
+    templateType: d.templateType,
+    activeServices: d.activeServices,
+    qualityThreshold: d.qualityThreshold,
+    approvalRequired: d.approvalRequired,
+  };
+}
+
+export function mapOptionalBriefToInput(
+  b: NonNullable<OnboardingLlmDraft["optionalBrief"]>,
+  deadline: Date,
+): BriefFormInput {
+  return {
+    title: b.title,
+    businessObjective: b.businessObjective,
+    communicationObjective: b.communicationObjective,
+    targetAudience: b.targetAudience,
+    keyMessage: b.keyMessage,
+    deliverablesRequested: b.deliverablesRequested,
+    tone: b.tone,
+    constraints: b.constraints,
+    deadline,
+    identityWorkflowEnabled: b.identityWorkflowEnabled ?? false,
+    onboardingSource: "ai_draft",
+    aiOnboardingNeedsReview: true,
+  };
+}
