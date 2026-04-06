@@ -13,12 +13,24 @@ async function main() {
   console.log("Demo seed OK:");
   console.log("  Coca-Cola client:", r.cocaColaClientId, "brief:", r.cocaColaBriefId);
   console.log("  McDonald's client:", r.mcdonaldsClientId, "brief:", r.mcdonaldsBriefId);
+  console.log("  KFC-style client:", r.kfcStyleClientId);
+  console.log("  McDonald's rib LTO brief:", r.mcdonaldsRibBriefId);
+  console.log("  KFC-style rib LTO brief:", r.kfcRibBriefId);
   console.log("\nOpen Studio:");
   console.log(
     `  /clients/${r.cocaColaClientId}/briefs/${r.cocaColaBriefId}/studio`,
   );
   console.log(
     `  /clients/${r.mcdonaldsClientId}/briefs/${r.mcdonaldsBriefId}/studio`,
+  );
+  console.log(
+    `  /clients/${r.mcdonaldsClientId}/briefs/${r.mcdonaldsRibBriefId}/studio#studio-image-generation`,
+  );
+  console.log(
+    `  /clients/${r.kfcStyleClientId}/briefs/${r.kfcRibBriefId}/studio#studio-image-generation`,
+  );
+  console.log(
+    "\nCompare images (CLI, needs LLM + image keys): npx tsx scripts/qa-rib-burger-visual-compare.ts",
   );
 }
 

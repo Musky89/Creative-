@@ -199,6 +199,87 @@ export const mcdonaldsBlueprint = (): ServiceBlueprintFormInput => ({
   approvalRequired: true,
 });
 
+/** Fictional demo only — public QSR tropes, not official KFC materials. */
+export const kfcBrandBible = (): BrandBibleFormInput => ({
+  positioning:
+    "A bold fried-chicken QSR known for spice-forward flavour, bucket sharing, and “treat yourself” energy. In South Africa it competes on crave, heat, and weekend indulgence — less family-meal utility, more flavour swagger. (Internal demo — not affiliated with any brand.)",
+  targetAudience:
+    "Young adults, mates after sport, late-night delivery users, and spice-curious families who want a louder, more indulgent QSR choice.",
+  toneOfVoice:
+    "Bold, cheeky, confident — sensory and spicy. Short lines; playful swagger without insulting competitors by name.",
+  messagingPillars: [
+    "Finger-licking flavour you feel",
+    "Heat, crunch, and shareable wins",
+    "Indulgence without the fine-dining wait",
+  ],
+  visualIdentity: [
+    "Deep reds, black, and warm neutrals; high contrast and appetite macro",
+    "Steam, spice flecks, glossy glaze, char where appropriate",
+    "Urban night energy and share-table spreads — not sterile white QSR",
+  ],
+  channelGuidelines: ["OLV and social first", "Delivery app tiles", "Window and in-store posters"],
+  mandatoryInclusions: ["Accurate offer language where pricing appears", DEMO_DISCLAIMER],
+  thingsToAvoid: ["Naming or imitating real competitor trademarks", "Medical or nutrition claims"],
+  vocabularyStyle: "SIMPLE",
+  sentenceStyle: "SHORT",
+  primaryEmotion: "DESIRE",
+  persuasionStyle: "DIRECT",
+  bannedPhrases: ["best in class", "innovative solution", "premium feel"],
+  preferredPhrases: ["Extra crispy", "That heat hits", "Share the bucket"],
+  signaturePatterns: ["Spice + crunch + mates in one beat", "Night-out hunger hook"],
+  emotionalToneDescription:
+    "Indulgent, slightly rebellious Friday-night energy — flavour-forward and confident.",
+  emotionalBoundaries: ["No cruelty or shock imagery", "No classist put-downs"],
+  hookStyles: ["Late-night crave", "Spice dare", "Share-table victory"],
+  narrativeStyles: ["Snappy product montage", "One-bite reaction"],
+  visualStyle:
+    "High-contrast, warm tungsten + red accents; glossy food macro; gritty-real urban backdrops",
+  colorPhilosophy: "Black and deep red as anchors; warm highlights on food; avoid pastel washout",
+  compositionStyle: "Tight macro + negative space for type; thumb-stopping contrast",
+  textureFocus: "Crunch crumb, glaze sheen, smoke wisps, sesame or char where relevant",
+  lightingStyle: "Warm low-key with rim; night-market glow; avoid flat clinical white",
+  languageDnaPhrasesUse: ["That crunch", "Turn up the heat", "Share the win"],
+  languageDnaPhrasesNever: ["Guaranteed results", "Official partnership unless true"],
+  languageDnaSentenceRhythm: ["Two-word punch + sensory line"],
+  languageDnaHeadlinePatterns: ["Heat-led / crunch-led headlines"],
+  languageDnaCtaPatterns: ["Order now", "Grab a bucket", "Tap for delivery"],
+  categoryTypicalBehavior:
+    "QSR often stacks generic flying ingredients; risk looking like every other red-and-yellow ad.",
+  categoryClichesToAvoid: ["Fake CGI chicken", "Stock 'happy family' with no flavour story"],
+  categoryDifferentiation:
+    "Own spice, crunch, and night-out indulgence — distinct from warm-yellow family QSR cues.",
+  tensionCoreContradiction: "Indulgence vs. everyday affordability.",
+  tensionEmotionalBalance: "Bold without mean-spirited; spicy without gross-out.",
+  tasteCloserThan: [
+    "Closer to a mates-on-the-stoop night than a bank savings message",
+    "Closer to street-food energy than corporate annual report",
+  ],
+  tasteShouldFeelLike: "Immediate mouth-watering heat and crunch — you can almost hear the bite.",
+  tasteMustNotFeelLike: "Muted wellness salad branding or cold fintech minimalism.",
+  visualNeverLooksLike: [
+    "Washed-out pastel lifestyle stock",
+    "Over-CGI meat",
+    "Confusable parody of another chain's exact trade dress",
+  ],
+  visualCompositionTendencies: "Macro hero biased low; high contrast; readable silhouette",
+  visualMaterialTextureDirection: "Real oil sheen, crumb, char — tactile not plastic",
+  visualLightingTendencies: "Warm key + edge light; subtle haze for appetite",
+  onboardingSource: "demo_seed",
+  aiOnboardingNeedsReview: true,
+});
+
+export const kfcBlueprint = (): ServiceBlueprintFormInput => ({
+  templateType: "FULL_PIPELINE",
+  activeServices: [
+    "Seasonal LTO campaign",
+    "Social performance suite",
+    "In-store and window",
+    "Delivery partner tiles",
+  ],
+  qualityThreshold: 0.85,
+  approvalRequired: true,
+});
+
 export const mcdonaldsBrief = (): BriefFormInput => {
   const deadline = new Date();
   deadline.setMonth(deadline.getMonth() + 2);
@@ -219,6 +300,67 @@ export const mcdonaldsBrief = (): BriefFormInput => {
     ],
     tone: "Warm, direct, a little playful — confidence without arrogance.",
     constraints: ["Accurate pricing and offer legal", "No misleading comparative claims"],
+    deadline,
+    identityWorkflowEnabled: false,
+    onboardingSource: "demo_seed",
+    aiOnboardingNeedsReview: true,
+  };
+};
+
+/** Same LTO idea on both chains — compare key art via Brand OS + prompt package. */
+export const mcdonaldsRibBurgerBrief = (): BriefFormInput => {
+  const deadline = new Date();
+  deadline.setMonth(deadline.getMonth() + 2);
+  return {
+    title: "McDonald’s South Africa — Rib burger LTO launch",
+    businessObjective:
+      "Drive trial and repeat on a limited-time rib-style burger during a 6-week window — lift dinner and weekend dayparts.",
+    communicationObjective:
+      "Make the rib burger the craveable, shareable hero — smoky-sweet glaze, messy-in-a-good-way eat, clear LTO urgency without hype lies.",
+    targetAudience:
+      "Burger-forward young adults and families; delivery users; mates after sport; SA metros and large towns.",
+    keyMessage: "Smoky-sweet rib flavour, built for the bite — only here for a short run.",
+    deliverablesRequested: [
+      "Hero key visual (OOH / social)",
+      "6–8s social cutdowns",
+      "In-store poster + window",
+    ],
+    tone: "Warm, appetite-first, lightly playful — mass-market QSR appeal.",
+    constraints: [
+      DEMO_DISCLAIMER,
+      "No false limited-time claims; accurate menu naming",
+      "Generated key art must not include real third-party logos or trademarks",
+    ],
+    deadline,
+    identityWorkflowEnabled: false,
+    onboardingSource: "demo_seed",
+    aiOnboardingNeedsReview: true,
+  };
+};
+
+export const kfcRibBurgerBrief = (): BriefFormInput => {
+  const deadline = new Date();
+  deadline.setMonth(deadline.getMonth() + 2);
+  return {
+    title: "KFC-style demo — Rib burger LTO launch (SA)",
+    businessObjective:
+      "Win rib-burger trial among heat- and crunch-seeking QSR buyers during a sharp LTO window.",
+    communicationObjective:
+      "Own smoky-spicy rib glaze and messy crunch — night-out energy, shareable plates, clear LTO.",
+    targetAudience:
+      "Spice-forward young adults, delivery night owls, and share-bucket occasions in SA cities.",
+    keyMessage: "Rib glaze meets crunch — turn up the flavour before it’s gone.",
+    deliverablesRequested: [
+      "Hero key visual (social + window)",
+      "Spicy social suite",
+      "Delivery hero tile",
+    ],
+    tone: "Bold, sensory, confident — indulgent without bro toxicity.",
+    constraints: [
+      DEMO_DISCLAIMER,
+      "Fictional demo brand only — no official KFC marks or trade dress in generated imagery",
+      "Accurate offer language if price appears",
+    ],
     deadline,
     identityWorkflowEnabled: false,
     onboardingSource: "demo_seed",
