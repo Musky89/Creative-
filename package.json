@@ -15,7 +15,9 @@
     "postinstall": "prisma generate",
     "env:check": "npx --yes tsx scripts/check-env.ts",
     "qa:bootstrap": "npx --yes tsx scripts/private-dev-qa-bootstrap.ts",
-    "preflight": "npx --yes tsx scripts/preflight-dev.ts"
+    "preflight": "npx --yes tsx scripts/preflight-dev.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.6.0",
@@ -36,6 +38,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",

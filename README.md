@@ -67,6 +67,7 @@ Full steps: **[docs/LOCAL_DEV.md](docs/LOCAL_DEV.md)**.
 npm run build      # production build
 npm run lint       # ESLint
 npm run typecheck  # TypeScript (CI-friendly; no stale .next incremental refs)
+npm run test:e2e   # Playwright UI walkthrough + video (see docs/E2E_VIDEO_WALKTHROUGH.md)
 ```
 
 ---
