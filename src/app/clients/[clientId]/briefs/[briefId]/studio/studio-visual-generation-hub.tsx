@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/section";
 import {
   MAX_CRITIQUE_REGENERATIONS_PER_PACKAGE,
   MAX_VISUAL_ASSETS_PER_PACKAGE,
-} from "@/server/visual-generation/generate-visual-asset-from-prompt-package";
+} from "@/lib/visual/visual-generation-limits";
 import type { VisualGenReadinessLine } from "@/lib/studio/visual-generation-readiness";
 import { StudioFirstImageCta } from "./studio-first-image-cta";
 

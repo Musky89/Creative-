@@ -10,9 +10,15 @@ import {
   VISUAL_VARIANTS_PER_RUN_MAX,
   VISUAL_VARIANTS_PER_RUN_MIN,
 } from "@/lib/visual/visual-variant-thresholds";
+import {
+  MAX_CRITIQUE_REGENERATIONS_PER_PACKAGE,
+  MAX_VISUAL_ASSETS_PER_PACKAGE,
+} from "@/lib/visual/visual-generation-limits";
 
-export const MAX_VISUAL_ASSETS_PER_PACKAGE = 16;
-export const MAX_CRITIQUE_REGENERATIONS_PER_PACKAGE = 3;
+export {
+  MAX_CRITIQUE_REGENERATIONS_PER_PACKAGE,
+  MAX_VISUAL_ASSETS_PER_PACKAGE,
+} from "@/lib/visual/visual-generation-limits";
 
 function stripInternalKeys(data: Record<string, unknown>): Record<string, unknown> {
   const out = { ...data };
