@@ -18,6 +18,7 @@ import { StudioArtifactsSection } from "./studio-artifacts-section";
 import { IdentityExportPanel } from "./identity-export-panel";
 import { getVisualGenerationReadiness } from "@/lib/studio/visual-generation-readiness";
 import { StudioVisualGenerationHub } from "./studio-visual-generation-hub";
+import { getDefaultHeadlineForBrief } from "@/server/visual-finishing/headline-from-brief";
 
 function reviewStatusText(status: ReviewStatus) {
   const map: Record<ReviewStatus, string> = {
@@ -149,6 +150,8 @@ export default async function BriefStudioPage({
         ).trim() || null
       : null;
 
+  const composeDefaultHeadline = await getDefaultHeadlineForBrief(briefId);
+
   const visualAssetsForStudio = brief.visualAssets.map((va) => ({
     id: va.id,
     status: va.status,
@@ -164,6 +167,12 @@ export default async function BriefStudioPage({
     autoRejected: va.autoRejected,
     founderRejected: va.founderRejected,
     regenerationAttempt: va.regenerationAttempt,
+    variantLabel: va.variantLabel,
+    composed:
+      va.variantLabel === "COMPOSED" ||
+      (typeof va.metadata === "object" &&
+        va.metadata !== null &&
+        (va.metadata as { composed?: boolean }).composed === true),
     review: va.review
       ? {
           qualityVerdict: va.review.qualityVerdict,
@@ -304,6 +313,7 @@ export default async function BriefStudioPage({
             visualAssets={visualAssetsForStudio}
             readinessLines={visualGenReadiness}
             creativeDirectorDecision={cdDecision}
+            composeDefaultHeadline={composeDefaultHeadline}
           />
 
           <DisclosureSection
@@ -356,6 +366,7 @@ export default async function BriefStudioPage({
             taskByStage={taskByStage}
             preferredFrameworkIds={preferredFrameworkIds}
             visualAssets={visualAssetsForStudio}
+            composeDefaultHeadline={composeDefaultHeadline}
           />
         </div>
       </div>

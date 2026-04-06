@@ -42,6 +42,8 @@ type VisualAssetRow = {
   founderRejected: boolean;
   cdDirectorPick?: boolean;
   regenerationAttempt: number;
+  variantLabel: string | null;
+  composed: boolean;
   review: {
     qualityVerdict: string;
     regenerationRecommended: boolean;
@@ -77,6 +79,8 @@ const assetRowsForPanel = (visualAssets: VisualAssetRow[]) =>
     founderRejected: va.founderRejected,
     cdDirectorPick: va.cdDirectorPick,
     regenerationAttempt: va.regenerationAttempt,
+    variantLabel: va.variantLabel,
+    composed: va.composed,
     review: va.review
       ? {
           qualityVerdict: va.review.qualityVerdict,
@@ -94,6 +98,7 @@ export function StudioArtifactsSection({
   taskByStage,
   preferredFrameworkIds,
   visualAssets,
+  composeDefaultHeadline,
 }: {
   clientId: string;
   briefId: string;
@@ -101,6 +106,7 @@ export function StudioArtifactsSection({
   taskByStage: Map<WorkflowStage, TaskRow>;
   preferredFrameworkIds: string[];
   visualAssets: VisualAssetRow[];
+  composeDefaultHeadline: string | null;
 }) {
   return (
     <section className="space-y-3">
@@ -201,6 +207,7 @@ export function StudioArtifactsSection({
                       promptPackageArtifactId={promptPkg.id}
                       critiqueRegenLimit={MAX_CRITIQUE_REGENERATIONS_PER_PACKAGE}
                       packageAssetLimit={MAX_VISUAL_ASSETS_PER_PACKAGE}
+                      composeDefaultHeadline={composeDefaultHeadline}
                       assets={assetRowsForPanel(visualAssets)}
                       compact
                       panelTitle="Visual variants (same as hub)"

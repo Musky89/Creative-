@@ -8,6 +8,8 @@ import {
   generateVisualVariantsFromPromptPackage,
 } from "@/server/visual-generation/generate-visual-asset-from-prompt-package";
 import { recordVisualMemoryFromSpecArtifact } from "@/server/visual-review/visual-memory-hook";
+import { composeCampaignAsset } from "@/server/visual-finishing/compose-campaign-asset";
+import { getDefaultHeadlineForBrief } from "@/server/visual-finishing/headline-from-brief";
 
 function studioPath(clientId: string, briefId: string) {
   return `/clients/${clientId}/briefs/${briefId}/studio`;
@@ -165,6 +167,75 @@ export async function selectPreferredVisualAssetAction(
 
   revalidatePath(studioPath(clientId, briefId));
   return { ok: true as const };
+}
+
+export async function composeCampaignAssetAction(
+  clientId: string,
+  briefId: string,
+  promptPackageArtifactId: string,
+  sourceVisualAssetId?: string | null,
+  headline?: string | null,
+) {
+  const prisma = getPrisma();
+  const brief = await prisma.brief.findFirst({
+    where: { id: briefId, clientId },
+    include: { client: { include: { brandBible: true } } },
+  });
+  if (!brief) {
+    return { error: "Brief not found." };
+  }
+
+  let sourceId = sourceVisualAssetId?.trim() || null;
+  if (!sourceId) {
+    const pref = await prisma.visualAsset.findFirst({
+      where: {
+        briefId,
+        clientId,
+        sourceArtifactId: promptPackageArtifactId,
+        status: "COMPLETED",
+        isPreferred: true,
+      },
+    });
+    sourceId = pref?.id ?? null;
+  }
+  if (!sourceId) {
+    return {
+      error: "Select a preferred visual first, or pass sourceVisualAssetId.",
+    };
+  }
+
+  let hl = headline?.trim() || null;
+  if (!hl) {
+    hl = await getDefaultHeadlineForBrief(briefId);
+  }
+  if (!hl) {
+    return {
+      error: "No headline — add copy in COPY stage or pass headline to compose.",
+    };
+  }
+
+  const bb = brief.client.brandBible;
+
+  try {
+    const { id } = await composeCampaignAsset({
+      sourceVisualAssetId: sourceId,
+      clientId,
+      briefId,
+      headline: hl,
+      brandBible: bb
+        ? {
+            colorPhilosophy: bb.colorPhilosophy,
+            visualStyle: bb.visualStyle,
+            compositionStyle: bb.compositionStyle,
+          }
+        : null,
+    });
+    revalidatePath(studioPath(clientId, briefId));
+    return { ok: true as const, assetId: id };
+  } catch (e) {
+    revalidatePath(studioPath(clientId, briefId));
+    return { error: e instanceof Error ? e.message : "Compose failed." };
+  }
 }
 
 export async function rejectVisualAssetAction(

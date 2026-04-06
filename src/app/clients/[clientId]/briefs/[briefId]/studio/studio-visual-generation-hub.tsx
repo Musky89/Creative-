@@ -23,6 +23,8 @@ type AssetRow = {
   founderRejected: boolean;
   cdDirectorPick?: boolean;
   regenerationAttempt: number;
+  variantLabel: string | null;
+  composed: boolean;
   review: {
     qualityVerdict: string;
     regenerationRecommended: boolean;
@@ -45,6 +47,7 @@ export function StudioVisualGenerationHub({
   visualAssets,
   readinessLines,
   creativeDirectorDecision,
+  composeDefaultHeadline,
 }: {
   clientId: string;
   briefId: string;
@@ -55,6 +58,7 @@ export function StudioVisualGenerationHub({
   visualAssets: AssetRow[];
   readinessLines: VisualGenReadinessLine[];
   creativeDirectorDecision: Record<string, unknown> | null;
+  composeDefaultHeadline: string | null;
 }) {
   const canGenerate =
     hasPromptPackage &&
@@ -214,6 +218,7 @@ export function StudioVisualGenerationHub({
             promptPackageArtifactId={promptPackageArtifactId}
             critiqueRegenLimit={MAX_CRITIQUE_REGENERATIONS_PER_PACKAGE}
             packageAssetLimit={MAX_VISUAL_ASSETS_PER_PACKAGE}
+            composeDefaultHeadline={composeDefaultHeadline}
             assets={visualAssets.map((va) => ({
               id: va.id,
               status: va.status,
@@ -230,6 +235,8 @@ export function StudioVisualGenerationHub({
               founderRejected: va.founderRejected,
               cdDirectorPick: va.cdDirectorPick,
               regenerationAttempt: va.regenerationAttempt,
+              variantLabel: va.variantLabel,
+              composed: va.composed,
               review: va.review
                 ? {
                     qualityVerdict: va.review.qualityVerdict,
