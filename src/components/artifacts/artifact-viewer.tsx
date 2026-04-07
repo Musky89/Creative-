@@ -556,33 +556,64 @@ export function IdentityRoutesPackArtifactCard({ content }: { content: unknown }
 export function StrategyArtifactCard({
   content,
   preferredFrameworkIds,
+  presentation = "default",
 }: {
   content: unknown;
   preferredFrameworkIds?: string[];
+  presentation?: "default" | "studio";
 }) {
   if (!isRecord(content)) return <JsonFallback content={content} />;
   const pillars =
     content.messagePillars ?? content.pillars ?? content.messagingPillars;
   const angles = content.strategicAngles;
+  const studio = presentation === "studio";
+  const shell = studio
+    ? "border-0 bg-transparent p-0 shadow-none"
+    : "";
   return (
-    <Card>
-      <SectionTitle>Strategy</SectionTitle>
-      <BrandDnaComplianceStrip content={content} />
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <Field label="Objective" value={asString(content.objective) || "—"} />
-        <Field label="Audience" value={asString(content.audience) || "—"} />
-        <Field label="Insight" value={asString(content.insight) || "—"} />
-        <Field
-          label="Proposition"
-          value={asString(content.proposition) || "—"}
-        />
-      </div>
-      <div className="mt-4">
-        <p className="text-xs font-medium text-zinc-500">Message pillars</p>
-        <div className="mt-1">
-          <StringList items={pillars} empty="No pillars listed." />
+    <Card className={shell}>
+      <SectionTitle>{studio ? "Strategic foundation" : "Strategy"}</SectionTitle>
+      {!studio ? <BrandDnaComplianceStrip content={content} /> : null}
+      {studio ? (
+        <div className="mt-6 space-y-6 text-base leading-relaxed text-zinc-200">
+          {asString(content.insight) ? (
+            <p>
+              <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+                Insight
+              </span>
+              <br />
+              {asString(content.insight)}
+            </p>
+          ) : null}
+          {asString(content.proposition) ? (
+            <p>
+              <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+                Proposition
+              </span>
+              <br />
+              {asString(content.proposition)}
+            </p>
+          ) : null}
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label="Objective" value={asString(content.objective) || "—"} />
+            <Field label="Audience" value={asString(content.audience) || "—"} />
+            <Field label="Insight" value={asString(content.insight) || "—"} />
+            <Field
+              label="Proposition"
+              value={asString(content.proposition) || "—"}
+            />
+          </div>
+          <div className="mt-4">
+            <p className="text-xs font-medium text-zinc-500">Message pillars</p>
+            <div className="mt-1">
+              <StringList items={pillars} empty="No pillars listed." />
+            </div>
+          </div>
+        </>
+      )}
       {isRecord(content.campaignCore) ? (
         <div className="mt-6 rounded-xl border border-amber-900/35 bg-amber-950/15 p-4">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-200/90">
@@ -610,9 +641,10 @@ export function StrategyArtifactCard({
       {Array.isArray(angles) && angles.length > 0 ? (
         <div className="mt-6 space-y-3">
           <p className="text-xs font-medium text-zinc-500">
-            Strategic angles (Creative Canon)
+            {studio ? "Angles we're pursuing" : "Strategic angles (Creative Canon)"}
           </p>
-          {isRecord(content._agenticforceSelection) &&
+          {!studio &&
+          isRecord(content._agenticforceSelection) &&
           asString(
             (content._agenticforceSelection as Record<string, unknown>).stage,
           ) === "STRATEGY" ? (
@@ -628,7 +660,8 @@ export function StrategyArtifactCard({
               </p>
             </div>
           ) : null}
-          {isRecord(content._agenticforceSelection) &&
+          {!studio &&
+          isRecord(content._agenticforceSelection) &&
           asString(
             (content._agenticforceSelection as Record<string, unknown>).stage,
           ) === "STRATEGY" ? (
@@ -640,6 +673,33 @@ export function StrategyArtifactCard({
               title="Strategic angle matchups"
             />
           ) : null}
+          {studio &&
+          isRecord(content._agenticforceSelection) &&
+          asString(
+            (content._agenticforceSelection as Record<string, unknown>).stage,
+          ) === "STRATEGY" ? (
+            <DisclosureSection
+              title="View full analysis"
+              subtitle="Selection rationale, comparisons, and technical detail"
+              defaultOpen={false}
+            >
+              <p className="text-sm leading-relaxed text-zinc-300">
+                {asString(
+                  (content._agenticforceSelection as Record<string, unknown>)
+                    .selectionRationale,
+                ) || "—"}
+              </p>
+              <div className="mt-4">
+                <PairwiseTournamentDisclosure
+                  comparisons={
+                    (content._agenticforceSelection as Record<string, unknown>)
+                      .pairwiseComparisons
+                  }
+                  title="Angle comparisons"
+                />
+              </div>
+            </DisclosureSection>
+          ) : null}
           {angles.map((a, i) => {
             if (!isRecord(a)) return null;
             const fid = asString(a.frameworkId);
@@ -647,12 +707,15 @@ export function StrategyArtifactCard({
             if (!fid) return null;
             const primary = a.isSelectedPrimary === true;
             const alt = a.isAlternate === true;
+            if (studio && !primary && !alt) return null;
+            const fwMeta = getFrameworkById(fid);
+            const fwLabel = fwMeta?.name ?? fid.replace(/-/g, " ");
             return (
               <div key={i} className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   {primary ? (
                     <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200 ring-1 ring-emerald-500/30">
-                      Primary
+                      Lead
                     </span>
                   ) : null}
                   {alt ? (
@@ -661,12 +724,18 @@ export function StrategyArtifactCard({
                     </span>
                   ) : null}
                 </div>
-                <FrameworkStrip
-                  frameworkId={fid}
-                  title="Framework"
-                  isPreferredForClient={preferredFrameworkIds?.includes(fid)}
-                />
-                <p className="text-sm text-zinc-200">{ang || "—"}</p>
+                {studio ? (
+                  <p className="text-xs text-zinc-500">{fwLabel}</p>
+                ) : (
+                  <FrameworkStrip
+                    frameworkId={fid}
+                    title="Framework"
+                    isPreferredForClient={preferredFrameworkIds?.includes(fid)}
+                  />
+                )}
+                <p className={studio ? "text-lg leading-snug text-zinc-100" : "text-sm text-zinc-200"}>
+                  {ang || "—"}
+                </p>
               </div>
             );
           })}
@@ -679,26 +748,54 @@ export function StrategyArtifactCard({
 export function ConceptArtifactCard({
   content,
   preferredFrameworkIds,
+  presentation = "default",
 }: {
   content: unknown;
   preferredFrameworkIds?: string[];
+  presentation?: "default" | "studio";
 }) {
   if (!isRecord(content)) return <JsonFallback content={content} />;
   const concepts = content.concepts;
   const summary = asString(content.frameworkUsed);
+  const studio = presentation === "studio";
 
   if (Array.isArray(concepts) && concepts.length > 0) {
     const selection = isRecord(content._agenticforceSelection)
       ? (content._agenticforceSelection as Record<string, unknown>)
       : null;
     return (
-      <Card>
-        <SectionTitle>Concept pack</SectionTitle>
-        <BrandDnaComplianceStrip content={content} />
-        {summary ? (
+      <Card className={studio ? "border-0 bg-transparent p-0 shadow-none" : ""}>
+        <SectionTitle>{studio ? "Creative routes" : "Concept pack"}</SectionTitle>
+        {!studio ? <BrandDnaComplianceStrip content={content} /> : null}
+        {!studio && summary ? (
           <p className="mt-2 text-sm text-zinc-400">{summary}</p>
         ) : null}
         {selection ? (
+          studio ? (
+            <DisclosureSection
+              title="View full analysis"
+              subtitle="How routes were compared and ranked"
+              defaultOpen={false}
+            >
+              <div className="rounded-lg border border-teal-800/40 bg-teal-950/20 p-3 text-sm text-teal-100/90">
+                <p className="text-xs font-semibold uppercase tracking-wide text-teal-300/90">
+                  Selection notes
+                </p>
+                {typeof selection.judgeSummary === "string" &&
+                selection.judgeSummary.trim() ? (
+                  <p className="mt-2 text-xs leading-relaxed text-teal-100/85">
+                    {selection.judgeSummary.trim()}
+                  </p>
+                ) : null}
+                <div className="mt-3">
+                  <PairwiseTournamentDisclosure
+                    comparisons={selection.pairwiseComparisons}
+                    title="Route comparisons"
+                  />
+                </div>
+              </div>
+            </DisclosureSection>
+          ) : (
           <div className="mt-3 rounded-lg border border-teal-700/40 bg-teal-950/25 p-3 text-sm text-teal-100/90">
             <p className="text-xs font-semibold uppercase tracking-wide text-teal-300/90">
               Creative Director Judge
@@ -742,8 +839,9 @@ export function ConceptArtifactCard({
               />
             </div>
           </div>
+          )
         ) : null}
-        {isRecord(content.pairwiseDifferentiation) ? (
+        {!studio && isRecord(content.pairwiseDifferentiation) ? (
           <div className="mt-4">
             <DisclosureSection
               title="Concept comparison"
@@ -806,12 +904,30 @@ export function ConceptArtifactCard({
             </DisclosureSection>
           </div>
         ) : null}
+        {studio && isRecord(content.pairwiseDifferentiation) ? (
+          <DisclosureSection
+            title="View full analysis"
+            subtitle="Detailed route comparison"
+            defaultOpen={false}
+          >
+            <div className="mt-2 text-sm text-zinc-300">
+              {asString(
+                (content.pairwiseDifferentiation as Record<string, unknown>)
+                  .differentiationSummary,
+              ) || "—"}
+            </div>
+          </DisclosureSection>
+        ) : null}
         <div className="mt-6 space-y-3">
           {concepts
             .map((raw, i) => ({ raw, i }))
             .filter(({ raw }) => {
               if (!isRecord(raw)) return false;
-              return raw.isRejected !== true;
+              if (raw.isRejected === true) return false;
+              if (studio) {
+                return raw.isSelected === true || raw.isAlternate === true;
+              }
+              return true;
             })
             .map(({ raw, i }) => {
             const fid = asString(raw.frameworkId);
@@ -820,6 +936,46 @@ export function ConceptArtifactCard({
             const cid = asString(raw.conceptId);
             const sel = raw.isSelected === true;
             const alt = raw.isAlternate === true;
+            if (studio) {
+              return (
+                <div
+                  key={cid || i}
+                  className="border-b border-white/5 pb-8 last:border-0 last:pb-0"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    {sel ? (
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400/90">
+                        Lead route
+                      </span>
+                    ) : null}
+                    {alt ? (
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400/80">
+                        Alternate
+                      </span>
+                    ) : null}
+                  </div>
+                  <h3 className="mt-3 text-xl font-semibold tracking-tight text-zinc-50">
+                    {conceptTitle}
+                  </h3>
+                  {asString(raw.hook) ? (
+                    <p className="mt-3 text-lg leading-snug text-zinc-200">
+                      {asString(raw.hook)}
+                    </p>
+                  ) : null}
+                  {asString(raw.rationale) ? (
+                    <p className="mt-4 text-base leading-relaxed text-zinc-400">
+                      {asString(raw.rationale)}
+                    </p>
+                  ) : null}
+                  {asString(raw.whyItWorksForBrand) ? (
+                    <p className="mt-4 text-sm leading-relaxed text-zinc-500">
+                      <span className="text-zinc-600">Why it works · </span>
+                      {asString(raw.whyItWorksForBrand)}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            }
             return (
               <DisclosureSection
                 key={cid || i}
@@ -1109,12 +1265,93 @@ export function VisualPromptPackageArtifactCard({ content }: { content: unknown 
 export function VisualSpecArtifactCard({
   content,
   preferredFrameworkIds,
+  presentation = "default",
 }: {
   content: unknown;
   preferredFrameworkIds?: string[];
+  presentation?: "default" | "studio";
 }) {
   if (!isRecord(content)) return <JsonFallback content={content} />;
   const fw = asString(content.frameworkUsed);
+  const studio = presentation === "studio";
+  const fwMeta = fw ? getFrameworkById(fw.trim()) : null;
+  const fwLabel = fwMeta?.name ?? fw.replace(/-/g, " ");
+
+  if (studio) {
+    return (
+      <Card className="border-0 bg-transparent p-0 shadow-none">
+        <SectionTitle>Visual world</SectionTitle>
+        {asString(content.conceptName) ? (
+          <p className="mt-4 text-xs uppercase tracking-wider text-zinc-500">
+            {asString(content.conceptName)}
+          </p>
+        ) : null}
+        {asString(content.visualObjective) ? (
+          <p className="mt-3 text-xl font-medium leading-snug text-zinc-100 sm:text-2xl">
+            {asString(content.visualObjective)}
+          </p>
+        ) : null}
+        <div className="mt-8 space-y-4 text-base leading-relaxed text-zinc-400">
+          {[content.mood, content.emotionalTone].filter(Boolean).length ? (
+            <p>
+              <span className="text-zinc-600">Feeling · </span>
+              {[asString(content.mood), asString(content.emotionalTone)]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          ) : null}
+          {[content.composition, content.imageStyle].filter(Boolean).length ? (
+            <p>
+              <span className="text-zinc-600">Look · </span>
+              {[asString(content.composition), asString(content.imageStyle)]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          ) : null}
+          {asString(content.whyItWorksForBrand) ? (
+            <p>
+              <span className="text-zinc-600">Why it fits · </span>
+              {asString(content.whyItWorksForBrand)}
+            </p>
+          ) : null}
+        </div>
+        <DisclosureSection
+          title="See full direction"
+          subtitle="Lighting, color, texture, and guardrails"
+          defaultOpen={false}
+        >
+          {fw ? (
+            <p className="text-xs text-zinc-500">Framework: {fwLabel}</p>
+          ) : null}
+          <BrandDnaComplianceStrip content={content} />
+          <div className="mt-4 space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Color" value={asString(content.colorDirection) || "—"} />
+              <Field label="Lighting" value={asString(content.lightingDirection) || "—"} />
+              <Field label="Texture" value={asString(content.textureDirection) || "—"} />
+              <Field label="Typography" value={asString(content.typographyDirection) || "—"} />
+            </div>
+            <Field label="Reference logic" value={asString(content.referenceLogic) || "—"} />
+            <Field
+              label="Distinctiveness"
+              value={asString(content.distinctivenessNotes) || "—"}
+            />
+            <div>
+              <p className="text-xs font-medium text-zinc-500">Steer clear of</p>
+              <StringList items={content.avoidList} empty="Nothing listed." />
+            </div>
+            {typeof content.optionalPromptSeed === "string" &&
+            content.optionalPromptSeed.trim() ? (
+              <DisclosureSection title="Technical seed" subtitle="Internal" defaultOpen={false}>
+                <p className="font-mono text-xs text-zinc-500">{content.optionalPromptSeed}</p>
+              </DisclosureSection>
+            ) : null}
+          </div>
+        </DisclosureSection>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <SectionTitle>Visual spec</SectionTitle>
@@ -1206,11 +1443,14 @@ export function VisualSpecArtifactCard({
 export function CopyArtifactCard({
   content,
   preferredFrameworkIds,
+  presentation = "default",
 }: {
   content: unknown;
   preferredFrameworkIds?: string[];
+  presentation?: "default" | "studio";
 }) {
   if (!isRecord(content)) return <JsonFallback content={content} />;
+  const studio = presentation === "studio";
   const fw = asString(content.frameworkUsed);
   const headlineSel = isRecord(content._agenticforceSelection)
     ? (content._agenticforceSelection as Record<string, unknown>)
@@ -1240,10 +1480,10 @@ export function CopyArtifactCard({
     .map((_, i) => i)
     .filter((i) => !surfacedHeadlineIdxs.has(i));
   return (
-    <Card>
-      <SectionTitle>Copy</SectionTitle>
-      <BrandDnaComplianceStrip content={content} />
-      {fw ? (
+    <Card className={studio ? "border-0 bg-transparent p-0 shadow-none" : ""}>
+      <SectionTitle>{studio ? "Messaging" : "Copy"}</SectionTitle>
+      {!studio ? <BrandDnaComplianceStrip content={content} /> : null}
+      {!studio && fw ? (
         <div className="mt-3">
           <FrameworkStrip
             frameworkId={fw}
@@ -1253,7 +1493,8 @@ export function CopyArtifactCard({
         </div>
       ) : null}
       {copyHeadlineSelection &&
-      typeof copyHeadlineSelection.selectionRationale === "string" ? (
+      typeof copyHeadlineSelection.selectionRationale === "string" &&
+      !studio ? (
         <div className="mt-4 rounded-lg border border-violet-800/40 bg-violet-950/25 p-3 text-xs text-violet-100/90">
           <p className="font-semibold uppercase tracking-wide text-violet-300/90">
             Headline selection
@@ -1263,7 +1504,26 @@ export function CopyArtifactCard({
           </p>
         </div>
       ) : null}
-      {copyHeadlineSelection ? (
+      {copyHeadlineSelection && studio ? (
+        <DisclosureSection
+          title="View full analysis"
+          subtitle="How lines were compared"
+          defaultOpen={false}
+        >
+          {typeof copyHeadlineSelection.selectionRationale === "string" ? (
+            <p className="text-sm leading-relaxed text-zinc-400">
+              {copyHeadlineSelection.selectionRationale}
+            </p>
+          ) : null}
+          <div className="mt-3">
+            <PairwiseTournamentDisclosure
+              comparisons={copyHeadlineSelection.pairwiseComparisons}
+              title="Line comparisons"
+            />
+          </div>
+        </DisclosureSection>
+      ) : null}
+      {!studio && copyHeadlineSelection ? (
         <div className="mt-3">
           <PairwiseTournamentDisclosure
             comparisons={copyHeadlineSelection.pairwiseComparisons}
@@ -1273,34 +1533,66 @@ export function CopyArtifactCard({
       ) : null}
       <div className="mt-4 space-y-4">
         <div>
-          <p className="text-xs font-medium text-zinc-500">Headlines (selected)</p>
+          <p className="text-xs font-medium text-zinc-500">
+            {studio ? "Lines we're leading with" : "Headlines (selected)"}
+          </p>
           <ul className="mt-2 space-y-3">
             {headlines[primaryIdx] ? (
-              <li className="rounded-lg border border-emerald-900/40 bg-emerald-950/20 p-3">
+              <li
+                className={
+                  studio
+                    ? "border-b border-white/5 pb-6"
+                    : "rounded-lg border border-emerald-900/40 bg-emerald-950/20 p-3"
+                }
+              >
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-300/90">
-                  Primary
+                  Lead
                 </p>
-                <p className="mt-1 text-sm text-zinc-200">{headlines[primaryIdx]}</p>
+                <p
+                  className={
+                    studio
+                      ? "mt-2 text-xl font-medium leading-snug text-zinc-100"
+                      : "mt-1 text-sm text-zinc-200"
+                  }
+                >
+                  {headlines[primaryIdx]}
+                </p>
               </li>
             ) : null}
             {altIdxs.map((idx) =>
               headlines[idx] ? (
                 <li
                   key={idx}
-                  className="rounded-lg border border-amber-900/35 bg-amber-950/15 p-3"
+                  className={
+                    studio
+                      ? "border-b border-white/5 pb-6"
+                      : "rounded-lg border border-amber-900/35 bg-amber-950/15 p-3"
+                  }
                 >
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-300/90">
                     Alternate
                   </p>
-                  <p className="mt-1 text-sm text-zinc-200">{headlines[idx]}</p>
+                  <p
+                    className={
+                      studio
+                        ? "mt-2 text-lg leading-snug text-zinc-200"
+                        : "mt-1 text-sm text-zinc-200"
+                    }
+                  >
+                    {headlines[idx]}
+                  </p>
                 </li>
               ) : null,
             )}
           </ul>
           {otherHeadlineIdxs.length > 0 ? (
             <DisclosureSection
-              title="Other headline candidates"
-              subtitle={`${otherHeadlineIdxs.length} not surfaced by default`}
+              title={studio ? "More lines on file" : "Other headline candidates"}
+              subtitle={
+                studio
+                  ? `${otherHeadlineIdxs.length} additional options`
+                  : `${otherHeadlineIdxs.length} not surfaced by default`
+              }
               defaultOpen={false}
             >
               <ul className="mt-2 space-y-2 text-sm text-zinc-500">
@@ -1314,14 +1606,18 @@ export function CopyArtifactCard({
           ) : null}
         </div>
         <div>
-          <p className="text-xs font-medium text-zinc-500">Body copy options</p>
+          <p className="text-xs font-medium text-zinc-500">
+            {studio ? "Supporting copy" : "Body copy options"}
+          </p>
           <StringList
             items={content.bodyCopyOptions}
             empty="No body variants."
           />
         </div>
         <div>
-          <p className="text-xs font-medium text-zinc-500">CTA options</p>
+          <p className="text-xs font-medium text-zinc-500">
+            {studio ? "Calls to action" : "CTA options"}
+          </p>
           <StringList items={content.ctaOptions} empty="No CTAs." />
         </div>
       </div>
@@ -1329,9 +1625,199 @@ export function CopyArtifactCard({
   );
 }
 
-export function ReviewReportArtifactCard({ content }: { content: unknown }) {
+export function ReviewReportArtifactCard({
+  content,
+  presentation = "default",
+}: {
+  content: unknown;
+  presentation?: "default" | "studio";
+}) {
   if (!isRecord(content)) return <JsonFallback content={content} />;
   const fe = asString(content.frameworkExecution);
+  const studio = presentation === "studio";
+
+  if (studio) {
+    return (
+      <Card className="border-0 bg-transparent p-0 shadow-none">
+        <SectionTitle>Brand read</SectionTitle>
+        <p className="mt-6 text-lg leading-relaxed text-zinc-200">
+          {asString(content.scoreSummary) || "—"}
+        </p>
+        {asString(content.verdict) ? (
+          <p className="mt-4 text-sm text-zinc-500">
+            {asString(content.verdict)}
+          </p>
+        ) : null}
+        <DisclosureSection
+          title="See detailed review"
+          subtitle="Performance detail, language notes, and suggestions"
+          defaultOpen={false}
+        >
+          <BrandDnaComplianceStrip content={content} />
+          <div className="mt-4 space-y-4">
+            <Field
+              label="Performance overview"
+              value={asString(content.scoreSummary) || "—"}
+            />
+            <Field label="Read" value={asString(content.verdict) || "—"} />
+            {typeof content.narrativeCoherence === "string" ? (
+              <div className="rounded-lg border border-cyan-900/40 bg-cyan-950/20 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-300/90">
+                  How it hangs together
+                </p>
+                <div className="mt-2 grid gap-2 text-sm text-cyan-100/90 sm:grid-cols-3">
+                  <div>
+                    <span className="text-xs text-cyan-200/70">Story</span>
+                    <p className="font-medium">{content.narrativeCoherence}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-cyan-200/70">Tone</span>
+                    <p className="font-medium">{asString(content.toneCoherence)}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-cyan-200/70">Visual</span>
+                    <p className="font-medium">{asString(content.visualCoherence)}</p>
+                  </div>
+                </div>
+                <Field
+                  label="Notes"
+                  value={asString(content.campaignCoreAlignmentNotes) || "—"}
+                />
+              </div>
+            ) : null}
+            {fe ? (
+              <div>
+                <p className="text-xs font-medium text-zinc-500">Framework read</p>
+                <p className="mt-1 text-sm font-medium text-zinc-100">{fe}</p>
+                <Field
+                  label="Assessment"
+                  value={asString(content.frameworkAssessment) || "—"}
+                />
+              </div>
+            ) : null}
+            <Field
+              label="Quality read"
+              value={asString(content.qualityVerdict) || "—"}
+            />
+            {typeof content.creativeBarVerdict === "string" ? (
+              <div
+                className={`rounded-lg border px-3 py-2 text-sm ${
+                  content.creativeBarVerdict === "FAILS_BAR"
+                    ? "border-red-300 bg-red-50 text-red-950"
+                    : content.creativeBarVerdict === "MARGINAL"
+                      ? "border-amber-300 bg-amber-50 text-amber-950"
+                      : "border-emerald-200 bg-emerald-50/80 text-emerald-950"
+                }`}
+              >
+                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                  Creative bar
+                </span>
+                <p className="mt-1 font-medium">{content.creativeBarVerdict}</p>
+              </div>
+            ) : null}
+            {isRecord(content.comparisonRankings) ? (
+              <div className="rounded-lg border border-violet-200/80 bg-violet-50/50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-violet-900">
+                  Comparison
+                </p>
+                <ul className="mt-2 space-y-1.5 text-sm text-violet-950">
+                  <li>
+                    <span className="font-medium">Strongest:</span>{" "}
+                    {asString(content.comparisonRankings.strongestOutput) || "—"}
+                  </li>
+                  <li>
+                    <span className="font-medium">Weakest:</span>{" "}
+                    {asString(content.comparisonRankings.weakestOutput) || "—"}
+                  </li>
+                  <li>
+                    <span className="font-medium">Most generic:</span>{" "}
+                    {asString(content.comparisonRankings.mostGeneric) || "—"}
+                  </li>
+                  <li>
+                    <span className="font-medium">Most on-brand:</span>{" "}
+                    {asString(content.comparisonRankings.mostOnBrand) || "—"}
+                  </li>
+                </ul>
+              </div>
+            ) : null}
+            <div className="space-y-3 rounded-lg border border-zinc-700/80 bg-zinc-950/50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                What needs improvement
+              </p>
+              <Field
+                label="Safe but flat"
+                value={asString(content.technicallyCorrectButCreativelySafe) || "—"}
+              />
+              <Field
+                label="Framework not showing up in the work"
+                value={asString(content.frameworkNamedButNotExpressed) || "—"}
+              />
+              <Field
+                label="Category cliché risk"
+                value={asString(content.categoryClicheRisk) || "—"}
+              />
+              <Field
+                label="Polished but forgettable"
+                value={asString(content.polishedButNotMemorable) || "—"}
+              />
+              <Field
+                label="Visual distinctiveness"
+                value={asString(content.visualDistinctivenessAudit) || "—"}
+              />
+              <Field
+                label="Identity ownability"
+                value={asString(content.identityOwnabilityAudit) || "—"}
+              />
+            </div>
+            <Field
+              label="Distinctiveness"
+              value={asString(content.distinctivenessAssessment) || "—"}
+            />
+            <Field
+              label="Brand alignment"
+              value={asString(content.brandAlignmentAssessment) || "—"}
+            />
+            <Field
+              label="Tone (Brand OS)"
+              value={asString(content.toneAlignment) || "—"}
+            />
+            <Field
+              label="Language"
+              value={asString(content.languageCompliance) || "—"}
+            />
+            <div>
+              <p className="text-xs font-medium text-zinc-500">Language issues</p>
+              <StringList
+                items={content.bannedPhraseViolations}
+                empty="None listed."
+              />
+            </div>
+            {content.regenerationRecommended === true ? (
+              <div className="text-xs text-amber-800">
+                <p className="font-medium">Suggested next move</p>
+                <StringList
+                  items={content.regenerationReasons}
+                  empty="(no reasons listed)"
+                />
+              </div>
+            ) : null}
+            <div>
+              <p className="text-xs font-medium text-zinc-500">Issues</p>
+              <StringList items={content.issues} empty="None listed." />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-zinc-500">Recommendations</p>
+              <StringList
+                items={content.recommendations}
+                empty="None listed."
+              />
+            </div>
+          </div>
+        </DisclosureSection>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <SectionTitle>Review report</SectionTitle>
@@ -1503,12 +1989,56 @@ export function ReviewReportArtifactCard({ content }: { content: unknown }) {
   );
 }
 
-export function ExportArtifactCard({ content }: { content: unknown }) {
+export function ExportArtifactCard({
+  content,
+  presentation = "default",
+}: {
+  content: unknown;
+  presentation?: "default" | "studio";
+}) {
   if (!isRecord(content)) return <JsonFallback content={content} />;
   const meta = content.metadata;
   const cd = isRecord(content._creativeDirectorDecision)
     ? (content._creativeDirectorDecision as Record<string, unknown>)
     : null;
+  const studio = presentation === "studio";
+
+  if (studio) {
+    return (
+      <Card className="border-0 bg-transparent p-0 shadow-none">
+        <SectionTitle>Final sign-off</SectionTitle>
+        {cd ? (
+          <div className="mt-6 space-y-3">
+            <p className="text-2xl font-medium tracking-tight text-zinc-50">
+              {asString(cd.verdict) || "—"}
+            </p>
+            {asString(cd.rationale) ? (
+              <p className="text-base leading-relaxed text-zinc-400">
+                {asString(cd.rationale)}
+              </p>
+            ) : null}
+            {Array.isArray(cd.improvementDirectives) &&
+            cd.improvementDirectives.length > 0 ? (
+              <DisclosureSection
+                title="What to push next"
+                subtitle="Notes from the final read"
+                defaultOpen={false}
+              >
+                <ul className="list-inside list-disc text-sm text-zinc-300">
+                  {(cd.improvementDirectives as unknown[]).map((x, i) => (
+                    <li key={i}>{String(x)}</li>
+                  ))}
+                </ul>
+              </DisclosureSection>
+            ) : null}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-zinc-500">No final read recorded yet.</p>
+        )}
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <SectionTitle>Export</SectionTitle>
@@ -1585,10 +2115,13 @@ export function ArtifactByType({
   type,
   content,
   preferredFrameworkIds,
+  presentation = "default",
 }: {
   type: ArtifactType;
   content: unknown;
   preferredFrameworkIds?: string[];
+  /** `studio` = narrative-only surface; diagnostics live in full-report mode */
+  presentation?: "default" | "studio";
 }) {
   const inner = (() => {
     switch (type) {
@@ -1599,6 +2132,7 @@ export function ArtifactByType({
           <StrategyArtifactCard
             content={content}
             preferredFrameworkIds={preferredFrameworkIds}
+            presentation={presentation}
           />
         );
       case "IDENTITY_STRATEGY":
@@ -1610,6 +2144,7 @@ export function ArtifactByType({
           <ConceptArtifactCard
             content={content}
             preferredFrameworkIds={preferredFrameworkIds}
+            presentation={presentation}
           />
         );
       case "VISUAL_SPEC":
@@ -1617,6 +2152,7 @@ export function ArtifactByType({
           <VisualSpecArtifactCard
             content={content}
             preferredFrameworkIds={preferredFrameworkIds}
+            presentation={presentation}
           />
         );
       case "VISUAL_PROMPT_PACKAGE":
@@ -1626,12 +2162,23 @@ export function ArtifactByType({
           <CopyArtifactCard
             content={content}
             preferredFrameworkIds={preferredFrameworkIds}
+            presentation={presentation}
           />
         );
       case "REVIEW_REPORT":
-        return <ReviewReportArtifactCard content={content} />;
+        return (
+          <ReviewReportArtifactCard
+            content={content}
+            presentation={presentation}
+          />
+        );
       case "EXPORT":
-        return <ExportArtifactCard content={content} />;
+        return (
+          <ExportArtifactCard
+            content={content}
+            presentation={presentation}
+          />
+        );
       default:
         return <JsonFallback content={content} />;
     }
@@ -1639,8 +2186,12 @@ export function ArtifactByType({
 
   return (
     <div>
-      <ArtifactProvenance content={content} />
-      <QualityStrip content={content} />
+      {presentation === "default" ? (
+        <>
+          <ArtifactProvenance content={content} />
+          <QualityStrip content={content} />
+        </>
+      ) : null}
       {inner}
     </div>
   );
