@@ -22,6 +22,7 @@ import { StudioCreativeRouteSections } from "./studio-creative-routes";
 import { StudioExploreAlternatives } from "./studio-explore-alternatives";
 import { parseConceptPack } from "./studio-concept-summary";
 import { getDefaultHeadlineForBrief } from "@/server/visual-finishing/headline-from-brief";
+import { StudioBrandLearningPanel } from "./studio-brand-learning";
 
 function reviewStatusText(status: ReviewStatus) {
   const map: Record<ReviewStatus, string> = {
@@ -289,6 +290,8 @@ export default async function BriefStudioPage({
             brandReadiness={brandReadiness}
             timelineTasks={timelineTasks}
           />
+
+          <StudioBrandLearningPanel clientId={clientId} />
 
           <Card className="border-zinc-800/90 bg-zinc-900/40">
             <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">

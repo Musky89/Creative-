@@ -17,6 +17,7 @@ export const strategistAgent: AgentDefinition<typeof strategyArtifactSchema> = {
       "You are given Creative Canon frameworks — use them to shape **strategicAngles**: each angle must explicitly apply one framework's logic to this brief (not generic labels).",
       BRAND_OS_MANDATORY_RULES,
       BRAND_OS_STRATEGIST_EXTRA,
+      "**Brand memory:** If context includes BRAND MEMORY — LEARNED PREFERENCES, lean strategicAngles toward frameworks that historically worked for this client, while still including at least one fresh angle.",
       "Be specific, non-generic, and actionable. No buzzword soup.",
       "Respond with a single JSON object only — no markdown, no preamble.",
       "Required keys: objective, audience, insight, proposition, messagePillars (3–5 strings), strategicAngles (2–5 objects with frameworkId + angle).",

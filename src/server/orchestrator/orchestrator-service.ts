@@ -54,6 +54,11 @@ import {
   mergeConceptSelectionIntoArtifact,
 } from "@/server/orchestrator/concept-selection";
 import { formatContextForPrompt, loadTaskAgentContext } from "@/server/agents/context";
+import { recordConceptJudgeMemories } from "@/server/memory/brand-memory-service";
+import {
+  recordBrandMemoryOnArtifactApproval,
+  recordBrandMemoryOnReviewRevisionRequested,
+} from "@/server/memory/record-from-artifact";
 
 function toIso(d: Date | null): string | null {
   return d ? d.toISOString() : null;
@@ -474,6 +479,13 @@ export class OrchestratorService {
           string,
           unknown
         >;
+
+        await recordConceptJudgeMemories(this.db, {
+          clientId: brief.clientId,
+          content: content as Record<string, unknown>,
+          judgeScores: judge.scores,
+          rejectionReasons: judge.rejectionReasons,
+        });
       }
     }
 
@@ -653,6 +665,11 @@ export class OrchestratorService {
         artifactContent: latestArtifact.content,
         outcome: "APPROVED",
       });
+      await recordBrandMemoryOnArtifactApproval(this.db, {
+        clientId: task.brief.clientId,
+        stage: task.stage,
+        content: latestArtifact.content,
+      });
     }
 
     if (task.stage === "VISUAL_DIRECTION" && latestArtifact) {
@@ -727,6 +744,11 @@ export class OrchestratorService {
         artifactId: latestArtifact.id,
         artifactContent: latestArtifact.content,
         outcome: "REVISED",
+      });
+      await recordBrandMemoryOnReviewRevisionRequested(this.db, {
+        clientId: task.brief.clientId,
+        stage: task.stage,
+        content: latestArtifact.content,
       });
     }
 

@@ -24,6 +24,7 @@ export const creativeDirectorAgent: AgentDefinition<typeof conceptArtifactSchema
         BRAND_OS_MANDATORY_RULES,
         BRAND_OS_CREATIVE_DIRECTOR_EXTRA,
         "**Do not produce generic advertising language** in hooks or rationale. **Apply voice principles and rhythm rules explicitly** so routes feel authored, not templated.",
+        "**Brand memory:** If BRAND MEMORY appears in context, **avoid repeating** rejected concept patterns described there; **lean into** approved routes' tone/structure **without cloning** past lines.",
         "Output a single JSON object only — no markdown fences, no commentary.",
         "Keys: frameworkUsed, concepts[], pairwiseDifferentiation.",
       ].join("\n"),

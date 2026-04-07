@@ -207,12 +207,16 @@ export async function selectFrameworksForTask(
 
   const pool = [...new Set([...heuristicIds, ...CANON_FRAMEWORKS.map((f) => f.id)])];
   const perfMap = await loadClientPerformanceMap(context.clientId);
+  const memPref = context.brandMemoryPromptSlice?.preferredFrameworks ?? [];
+  const memAvoid = context.brandMemoryPromptSlice?.avoidFrameworkIds ?? [];
 
   const scored = pool.map((id) => {
     const hIdx = heuristicIds.indexOf(id);
     const heuristicRank = hIdx >= 0 ? hIdx : null;
     const row = perfMap.get(id);
-    const score = scoreFrameworkPerformance(row, heuristicRank);
+    let score = scoreFrameworkPerformance(row, heuristicRank);
+    if (memPref.includes(id)) score += 1.35;
+    if (memAvoid.includes(id)) score -= 1.85;
     return { id, score };
   });
 

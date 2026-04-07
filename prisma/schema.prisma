@@ -146,6 +146,18 @@ enum PrivateEvaluationVerdict {
   NEEDS_WORK
 }
 
+enum BrandMemoryType {
+  CONCEPT
+  COPY
+  VISUAL
+  TONE
+}
+
+enum BrandMemoryOutcome {
+  APPROVED
+  REJECTED
+}
+
 /// Class of engagement / template used to instantiate work from a Brief.
 enum ServiceBlueprintTemplateType {
   FULL_PIPELINE
@@ -175,6 +187,8 @@ model Client {
   visualAssets           VisualAsset[]
   visualAssetReviews     VisualAssetReview[]
   privateEvalRecords     PrivateEvaluationRecord[]
+  brandMemories          BrandMemory[]
+  brandMemoryAggregate   BrandMemoryAggregate?
 }
 
 /// One canonical Brand Bible per client (1:1).
@@ -409,6 +423,32 @@ model FrameworkPerformance {
   @@unique([clientId, frameworkId])
   @@index([clientId])
   @@index([frameworkId])
+}
+
+/// Founder / system learning signals for future prompt bias (not hard constraints).
+model BrandMemory {
+  id          String             @id @default(cuid())
+  clientId    String
+  client      Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  type        BrandMemoryType
+  frameworkId String?
+  summary     String             @db.Text
+  attributes  Json
+  outcome     BrandMemoryOutcome
+  /// 0–1 — confidence / strength of signal (e.g. judge composite, review verdict).
+  strengthScore Float
+  createdAt   DateTime           @default(now())
+
+  @@index([clientId, createdAt(sort: Desc)])
+  @@index([clientId, type])
+}
+
+/// Cached rollups for fast prompt injection (optional optimization).
+model BrandMemoryAggregate {
+  clientId           String   @id
+  client             Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  aggregatedPatterns Json
+  updatedAt          DateTime @updatedAt
 }
 
 model ArtifactOutcome {

@@ -17,6 +17,7 @@ export const copywriterAgent: AgentDefinition<typeof copyArtifactSchema> = {
       BRAND_OS_MANDATORY_RULES,
       BRAND_OS_COPYWRITER_EXTRA,
       "**Do not produce generic advertising language.** **Apply voice principles and rhythm rules explicitly** in every headline and body variant.",
+      "**Brand memory:** Reinforce copy patterns that scored well for this client (see BRAND MEMORY in context); steer away from phrasing/styles listed as rejected.",
       "Return a single JSON object only.",
       "Keys: frameworkUsed (preferred: the primary frameworkId from the chosen concept route you are executing — string), headlineOptions (3–5), bodyCopyOptions (2–4), ctaOptions (2–4).",
       "If multiple routes appear, execute **only** the winner: `isSelected: true` or `_agenticforceSelection.winnerConceptId` — ignore `isRejected` routes.",

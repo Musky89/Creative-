@@ -23,6 +23,7 @@ export const artDirectorAgent: AgentDefinition<typeof visualSpecArtifactSchema> 
       BRAND_OS_MANDATORY_RULES,
       BRAND_OS_ART_DIRECTOR_EXTRA,
       "**Do not produce generic advertising language** in mood or reference logic — be specific and physics-grounded per **visual philosophy**.",
+      "**Brand memory:** Deprioritize visual traits and moods that were founder-rejected or auto-filtered for this client (see BRAND MEMORY); keep exploration within Brand OS guardrails.",
       "Do **not** produce generic “luxury”, “high-end”, “premium”, or “cinematic” language **without** concrete visual reasoning (composition, lens/light, palette, materials, typography role, set/prop logic).",
       "Be specific: camera distance, light quality, negative space, prop vocabulary, era/material references — things a serious creative team would brief.",
       "Avoid AI-slop defaults (neon gradients, stock-smile humans, vague bokeh worlds) unless the brand explicitly demands them; put real exclusions in avoidList.",

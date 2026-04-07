@@ -6,6 +6,9 @@ import {
   formatBrandOperatingSystemSection,
   type BrandOperatingSystemContext,
 } from "@/server/brand/brand-os-prompt";
+import type { BrandMemoryPromptSlice } from "@/server/memory/brand-memory-service";
+import { loadBrandMemoryForPrompt } from "@/server/memory/brand-memory-service";
+import { formatBrandMemorySection } from "@/server/memory/format-brand-memory-prompt";
 import { filterUpstreamToWinningConcept } from "./concept-context-filter";
 
 export type { BrandOperatingSystemContext };
@@ -56,6 +59,8 @@ export type TaskAgentContext = {
     activeServicesLines: string[];
   } | null;
   upstreamArtifacts: UpstreamArtifactSummary[];
+  /** Soft bias from BrandMemory — injected below Brand Bible in prompts. */
+  brandMemoryPromptSlice: BrandMemoryPromptSlice | null;
 };
 
 function asStringArray(json: unknown, maxItems: number): string[] {
@@ -226,7 +231,17 @@ export async function loadTaskAgentContext(taskId: string): Promise<{
         }
       : null,
     upstreamArtifacts,
+    brandMemoryPromptSlice: null,
   };
+
+  const memorySlice = await loadBrandMemoryForPrompt(prisma, client.id, 10);
+  const hasMemory =
+    memorySlice.approvedLines.length > 0 ||
+    memorySlice.rejectedLines.length > 0 ||
+    memorySlice.preferredFrameworks.length > 0 ||
+    memorySlice.avoidFrameworkIds.length > 0 ||
+    memorySlice.avoidPatterns.length > 0;
+  context.brandMemoryPromptSlice = hasMemory ? memorySlice : null;
 
   return {
     task: {
@@ -245,7 +260,7 @@ export function formatContextForPrompt(
 ): string {
   const work =
     options?.conceptWinnerOnly === true
-      ? filterUpstreamToWinningConcept(ctx)
+      ? { ...filterUpstreamToWinningConcept(ctx), brandMemoryPromptSlice: ctx.brandMemoryPromptSlice }
       : ctx;
   const lines: string[] = [
     "## Client",
@@ -290,6 +305,11 @@ export function formatContextForPrompt(
     );
   } else {
     lines.push("", "## Brand Bible", "(Not configured — infer carefully from brief.)");
+  }
+
+  const memBlock = formatBrandMemorySection(work.brandMemoryPromptSlice);
+  if (memBlock) {
+    lines.push("", memBlock);
   }
 
   if (work.blueprint) {

@@ -10,6 +10,8 @@ import {
 import { recordVisualMemoryFromSpecArtifact } from "@/server/visual-review/visual-memory-hook";
 import { composeCampaignAsset } from "@/server/visual-finishing/compose-campaign-asset";
 import { getDefaultHeadlineForBrief } from "@/server/visual-finishing/headline-from-brief";
+import { recordBrandMemoryEvent } from "@/server/memory/brand-memory-service";
+import { extractVisualMemory } from "@/server/memory/extract-memory";
 
 function studioPath(clientId: string, briefId: string) {
   return `/clients/${clientId}/briefs/${briefId}/studio`;
@@ -163,6 +165,38 @@ export async function selectPreferredVisualAssetAction(
       outcome: "APPROVED",
       stillWeakAfterRegen: stillWeak,
     });
+
+    const specArt = await prisma.artifact.findUnique({ where: { id: specId } });
+    const specRaw =
+      specArt?.content && typeof specArt.content === "object"
+        ? (specArt.content as Record<string, unknown>)
+        : null;
+    if (specRaw) {
+      const reviewFull = await prisma.visualAssetReview.findUnique({
+        where: { visualAssetId: assetId },
+      });
+      const ev = reviewFull?.evaluation;
+      const ext = extractVisualMemory({
+        spec: specRaw,
+        asset: {
+          promptUsed: a.promptUsed,
+          autoRejected: a.autoRejected,
+          founderRejected: a.founderRejected,
+          evaluation:
+            ev && typeof ev === "object" ? (ev as Record<string, unknown>) : null,
+        },
+        outcome: "APPROVED",
+      });
+      await recordBrandMemoryEvent(prisma, {
+        clientId,
+        type: "VISUAL",
+        frameworkId: String(specRaw.frameworkUsed ?? "").trim() || null,
+        summary: ext.summary,
+        attributes: ext.attributes,
+        outcome: "APPROVED",
+        strengthScore: stillWeak ? 0.55 : 0.88,
+      });
+    }
   }
 
   revalidatePath(studioPath(clientId, briefId));
@@ -270,6 +304,38 @@ export async function rejectVisualAssetAction(
       specArtifactId: specId,
       outcome: "REJECTED",
     });
+
+    const specArt = await prisma.artifact.findUnique({ where: { id: specId } });
+    const specRaw =
+      specArt?.content && typeof specArt.content === "object"
+        ? (specArt.content as Record<string, unknown>)
+        : null;
+    if (specRaw) {
+      const reviewFull = await prisma.visualAssetReview.findUnique({
+        where: { visualAssetId: assetId },
+      });
+      const ev = reviewFull?.evaluation;
+      const ext = extractVisualMemory({
+        spec: specRaw,
+        asset: {
+          promptUsed: a.promptUsed,
+          autoRejected: a.autoRejected,
+          founderRejected: true,
+          evaluation:
+            ev && typeof ev === "object" ? (ev as Record<string, unknown>) : null,
+        },
+        outcome: "REJECTED",
+      });
+      await recordBrandMemoryEvent(prisma, {
+        clientId,
+        type: "VISUAL",
+        frameworkId: String(specRaw.frameworkUsed ?? "").trim() || null,
+        summary: ext.summary,
+        attributes: ext.attributes,
+        outcome: "REJECTED",
+        strengthScore: a.autoRejected ? 0.62 : 0.48,
+      });
+    }
   }
 
   revalidatePath(studioPath(clientId, briefId));
