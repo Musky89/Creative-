@@ -4,11 +4,13 @@
  * Progressive disclosure for dense artifact / studio sections.
  */
 export function DisclosureSection({
+  id,
   title,
   subtitle,
   defaultOpen = false,
   children,
 }: {
+  id?: string;
   title: string;
   subtitle?: string;
   defaultOpen?: boolean;
@@ -16,6 +18,7 @@ export function DisclosureSection({
 }) {
   return (
     <details
+      id={id}
       open={defaultOpen}
       className="group rounded-xl border border-zinc-800/90 bg-zinc-900/40 shadow-sm"
     >

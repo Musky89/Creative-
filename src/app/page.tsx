@@ -14,6 +14,7 @@ import {
   briefWorkflowHeadline,
   headlineLabel,
 } from "@/lib/brief-workflow-summary";
+import { briefRecordToWorkPlan } from "@/lib/workflow/brief-work-plan";
 
 export default async function DashboardPage() {
   let clients: Awaited<ReturnType<typeof listClients>>;
@@ -127,10 +128,7 @@ export default async function DashboardPage() {
               </Card>
             ) : (
               briefRows.map((b) => {
-                const h = briefWorkflowHeadline(
-                  b.identityWorkflowEnabled,
-                  b.tasks,
-                );
+                const h = briefWorkflowHeadline(briefRecordToWorkPlan(b), b.tasks);
                 const statusLine = headlineLabel(h);
                 const needsYou = h.kind === "review";
                 return (

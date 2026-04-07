@@ -1,4 +1,4 @@
-import type { Prisma } from "@/generated/prisma/client";
+import type { BriefEngagementType, Prisma } from "@/generated/prisma/client";
 import { getPrisma } from "@/server/db/prisma";
 
 export type BriefFormInput = {
@@ -8,6 +8,8 @@ export type BriefFormInput = {
   targetAudience: string;
   keyMessage: string;
   deliverablesRequested: Prisma.InputJsonValue;
+  engagementType: BriefEngagementType;
+  workstreams: Prisma.InputJsonValue;
   tone: string;
   constraints: Prisma.InputJsonValue;
   deadline: Date;

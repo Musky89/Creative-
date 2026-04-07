@@ -9,7 +9,18 @@ export function getVisualGenerationReadiness(args: {
   brandBible: BrandBible | null;
   hasPromptPackage: boolean;
   visualDirectionTaskStatus: TaskStatus | null;
+  /** When false, this brief’s plan does not include image/visual variant deliverables. */
+  imageGenerationRelevant?: boolean;
 }): VisualGenReadinessLine[] {
+  if (args.imageGenerationRelevant === false) {
+    return [
+      {
+        level: "ok",
+        text: "This engagement does not include image-variant deliverables — frame generation is not part of this job.",
+      },
+    ];
+  }
+
   const lines: VisualGenReadinessLine[] = [];
   const bb = assessBrandBibleReadiness(args.brandBible);
   if (!bb.ok) {

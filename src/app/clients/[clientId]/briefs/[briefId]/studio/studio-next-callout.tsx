@@ -1,5 +1,9 @@
 import Link from "next/link";
 import type { WorkflowStage } from "@/generated/prisma/client";
+import {
+  resolveBriefWorkPlan,
+  type BriefForWorkPlan,
+} from "@/lib/workflow/brief-work-plan";
 import { STAGE_LABELS } from "@/lib/workflow-display";
 import {
   briefWorkflowHeadline,
@@ -10,7 +14,7 @@ import {
 export function StudioNextCallout({
   clientId,
   briefId,
-  identityWorkflowEnabled,
+  briefPlan,
   hasWorkflow,
   reviewTaskId,
   reviseTaskId,
@@ -21,7 +25,7 @@ export function StudioNextCallout({
 }: {
   clientId: string;
   briefId: string;
-  identityWorkflowEnabled: boolean;
+  briefPlan: BriefForWorkPlan;
   hasWorkflow: boolean;
   reviewTaskId: string | null;
   reviseTaskId: string | null;
@@ -42,8 +46,10 @@ export function StudioNextCallout({
     );
   }
 
-  const h = briefWorkflowHeadline(identityWorkflowEnabled, tasks);
+  const h = briefWorkflowHeadline(briefPlan, tasks);
   const primary = headlineLabel(h);
+  const resolved = resolveBriefWorkPlan(briefPlan);
+  const visualJob = resolved.showImageGeneration;
 
   let detail: string | null = null;
   if (h.kind === "ready" && nextExecutableStage) {
@@ -68,7 +74,7 @@ export function StudioNextCallout({
         {primary}
       </p>
       {detail ? <p className="mt-1 text-sm text-zinc-400">{detail}</p> : null}
-      {vdReview && !imagesReady ? (
+      {visualJob && vdReview && !imagesReady ? (
         <p className="mt-2 text-sm text-zinc-400">
           Approving <span className="text-zinc-300">Visual direction</span> in{" "}
           <a href="#review" className="text-emerald-300 underline decoration-emerald-700">
@@ -79,14 +85,14 @@ export function StudioNextCallout({
             href="#studio-image-generation"
             className="text-emerald-300 underline decoration-emerald-700"
           >
-            campaign images
+            visual generation
           </a>
           .
         </p>
       ) : null}
-      {imagesReady ? (
+      {visualJob && imagesReady ? (
         <p className="mt-2 text-sm text-emerald-200/90">
-          Campaign image generation is ready — open the hub to generate variants.
+          Visual generation is ready — open the module below to run frames.
         </p>
       ) : null}
       <div className="mt-4 flex flex-wrap gap-2">
@@ -106,12 +112,12 @@ export function StudioNextCallout({
             Reset revision
           </a>
         ) : null}
-        {imagesReady ? (
+        {visualJob && imagesReady ? (
           <a
             href="#studio-image-generation"
             className="inline-flex rounded-lg bg-sky-500/15 px-3 py-2 text-sm font-medium text-sky-100 ring-1 ring-sky-500/35 hover:bg-sky-500/25"
           >
-            Campaign images
+            Visual generation
           </a>
         ) : null}
         <Link

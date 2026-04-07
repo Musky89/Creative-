@@ -426,6 +426,8 @@ export function mapOptionalBriefToInput(
     targetAudience: b.targetAudience,
     keyMessage: b.keyMessage,
     deliverablesRequested: b.deliverablesRequested,
+    engagementType: "CUSTOM",
+    workstreams: [],
     tone: b.tone,
     constraints: b.constraints,
     deadline,

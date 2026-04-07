@@ -373,6 +373,8 @@ async function main() {
   await upsertBrandBible(retail.id, retailBrandBible());
   await upsertServiceBlueprint(retail.id, serviceBlueprint());
   const campaignBrief = await createBrief(retail.id, {
+    engagementType: "CAMPAIGN",
+    workstreams: [],
     title: "Spring 2026 — Light & Drape campaign",
     businessObjective:
       "Grow qualified designer trade leads by 18% and increase AOV on drapery yardage during the spring season.",
@@ -400,6 +402,8 @@ async function main() {
   await upsertBrandBible(identity.id, identityBrandBible());
   await upsertServiceBlueprint(identity.id, serviceBlueprint());
   const identityBrief = await createBrief(identity.id, {
+    engagementType: "BRAND_IDENTITY",
+    workstreams: ["BRAND_IDENTITY", "LOGO_EXPLORATION", "FINAL_EXPORTS"],
     title: "New brand launch — Verdant Circuit identity system",
     businessObjective:
       "Establish a distinctive, scalable identity system before DTC launch — mark, type logic, and packaging rhythm that signal lab-grade clarity with botanical warmth.",

@@ -131,6 +131,8 @@ export const cocaColaBrief = (): BriefFormInput => {
   const deadline = new Date();
   deadline.setMonth(deadline.getMonth() + 3);
   return {
+    engagementType: "CAMPAIGN",
+    workstreams: [],
     title: "Coca-Cola South Africa — Summer refreshment campaign",
     businessObjective:
       "Grow brand love and volume during peak summer by owning refreshment occasions (outdoor, meals, social) in key metros.",
@@ -314,6 +316,8 @@ export const mcdonaldsBrief = (): BriefFormInput => {
   const deadline = new Date();
   deadline.setMonth(deadline.getMonth() + 2);
   return {
+    engagementType: "CAMPAIGN",
+    workstreams: [],
     title: "McDonald’s South Africa — Value & family seasonal push",
     businessObjective:
       "Drive visits and basket size during a seasonal window by reinforcing value bundles and family meal solutions.",
@@ -342,6 +346,8 @@ export const mcdonaldsRibBurgerBrief = (): BriefFormInput => {
   const deadline = new Date();
   deadline.setMonth(deadline.getMonth() + 2);
   return {
+    engagementType: "PRODUCT_LAUNCH",
+    workstreams: [],
     title: "McDonald’s South Africa — Rib burger LTO launch",
     businessObjective:
       "Drive trial and repeat on a limited-time rib-style burger during a 6-week window — lift dinner and weekend dayparts.",
@@ -372,6 +378,8 @@ export const kfcRibBurgerBrief = (): BriefFormInput => {
   const deadline = new Date();
   deadline.setMonth(deadline.getMonth() + 2);
   return {
+    engagementType: "PRODUCT_LAUNCH",
+    workstreams: [],
     title: "KFC-style demo — Rib burger LTO launch (SA)",
     businessObjective:
       "Win rib-burger trial among heat- and crunch-seeking QSR buyers during a sharp LTO window.",

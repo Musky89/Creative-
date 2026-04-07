@@ -58,6 +58,7 @@ export function StudioExploreAlternatives({
   composeDefaultHeadline,
   defaultOpen,
   hasBrandVisualStyle,
+  showVisualGenerationModule,
 }: {
   clientId: string;
   briefId: string;
@@ -73,6 +74,7 @@ export function StudioExploreAlternatives({
   composeDefaultHeadline: string | null;
   defaultOpen: boolean;
   hasBrandVisualStyle: boolean;
+  showVisualGenerationModule: boolean;
 }) {
   const canGenerate =
     hasPromptPackage &&
@@ -88,8 +90,12 @@ export function StudioExploreAlternatives({
   return (
     <div id="studio-image-generation">
       <DisclosureSection
-        title="Explore alternatives"
-        subtitle="Original frames, finishing pass, routing checks — open when you want to dig deeper"
+        title={showVisualGenerationModule ? "Visual generation & alternatives" : "Additional outputs"}
+        subtitle={
+          showVisualGenerationModule
+            ? "Frames, finishing pass, references — when this engagement includes visuals"
+            : "Decisions and extras when not running a full visual pipeline"
+        }
         defaultOpen={defaultOpen}
       >
         <div className="space-y-6 rounded-2xl border border-zinc-800/80 bg-zinc-950/40 p-5">
@@ -115,6 +121,16 @@ export function StudioExploreAlternatives({
           </div>
         ) : null}
 
+        {!showVisualGenerationModule ? (
+          <p className="text-sm text-zinc-400">
+            This engagement is not configured for image-variant output. Focus on strategy, copy, or
+            export above — add workstreams like{" "}
+            <span className="text-zinc-300">STATIC_VISUALS</span> or deliverables like{" "}
+            <span className="text-zinc-300">IMAGE_VARIANTS</span> on the brief if you need frames.
+          </p>
+        ) : null}
+
+        {showVisualGenerationModule ? (
         <div>
           <p className="text-sm text-zinc-400">
             After you approve <strong className="text-zinc-200">Visual direction</strong> in{" "}
@@ -124,7 +140,9 @@ export function StudioExploreAlternatives({
             , the system builds the prompt package so you can generate frames here.
           </p>
         </div>
+        ) : null}
 
+        {showVisualGenerationModule ? (
         <div className="space-y-2">
           {readinessLines.map((line, i) => (
             <p
@@ -142,12 +160,13 @@ export function StudioExploreAlternatives({
             </p>
           ))}
         </div>
+        ) : null}
 
-        {!hasVisualSpec && visualDirectionStatus == null ? (
+        {showVisualGenerationModule && !hasVisualSpec && visualDirectionStatus == null ? (
           <p className="text-sm text-zinc-500">Run the workflow until Visual direction exists.</p>
         ) : null}
 
-        {hasVisualSpec && !hasPromptPackage ? (
+        {showVisualGenerationModule && hasVisualSpec && !hasPromptPackage ? (
           <div className="rounded-lg border border-amber-600/30 bg-amber-950/25 px-3 py-3 text-sm text-amber-100/90">
             {visualDirectionStatus === "AWAITING_REVIEW" ? (
               <>
@@ -169,7 +188,7 @@ export function StudioExploreAlternatives({
           </div>
         ) : null}
 
-        {hasPromptPackage && promptPackageArtifactId ? (
+        {showVisualGenerationModule && hasPromptPackage && promptPackageArtifactId ? (
           <div className="border-t border-zinc-800/80 pt-6 space-y-6">
             <StudioVisualReferencesPanel
               clientId={clientId}
@@ -236,7 +255,7 @@ export function StudioExploreAlternatives({
           </div>
         ) : null}
 
-        {blockedReasons.length > 0 && hasPromptPackage ? (
+        {showVisualGenerationModule && blockedReasons.length > 0 && hasPromptPackage ? (
           <p className="text-xs text-zinc-500">
             Resolve blocks above, then refresh. See <code className="text-zinc-400">.env.example</code>.
           </p>

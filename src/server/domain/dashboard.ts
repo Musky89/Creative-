@@ -4,7 +4,14 @@ export async function listDashboardBriefRows(limit = 12) {
   return getPrisma().brief.findMany({
     take: limit,
     orderBy: { createdAt: "desc" },
-    include: {
+    select: {
+      id: true,
+      clientId: true,
+      title: true,
+      engagementType: true,
+      workstreams: true,
+      deliverablesRequested: true,
+      identityWorkflowEnabled: true,
       client: { select: { id: true, name: true } },
       tasks: { select: { status: true, stage: true, requiresReview: true } },
     },

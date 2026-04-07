@@ -6,6 +6,7 @@ import { ArtifactByType } from "@/components/artifacts/artifact-viewer";
 import { DisclosureSection } from "@/components/ui/collapse";
 import { Card } from "@/components/ui/section";
 import { STAGE_LABELS, type WorkflowStageOrder } from "@/lib/workflow-display";
+import type { BriefForWorkPlan } from "@/lib/workflow/brief-work-plan";
 import { getArtifactTypeForStudioStage } from "@/server/orchestrator/v1-pipeline";
 import { IdentityRouteSelectionWrapper } from "./identity-route-selection-wrapper";
 
@@ -35,12 +36,14 @@ export function StudioArtifactsSection({
   clientId,
   briefId,
   stageOrder,
+  briefPlan,
   taskByStage,
   preferredFrameworkIds,
 }: {
   clientId: string;
   briefId: string;
   stageOrder: WorkflowStageOrder;
+  briefPlan: BriefForWorkPlan;
   taskByStage: Map<WorkflowStage, TaskRow>;
   preferredFrameworkIds: string[];
 }) {
@@ -56,7 +59,7 @@ export function StudioArtifactsSection({
         {stageOrder.map((stage) => {
           const task = taskByStage.get(stage);
           if (!task) return null;
-          const at = getArtifactTypeForStudioStage(stage);
+          const at = getArtifactTypeForStudioStage(stage, briefPlan);
           if (!at) return null;
           const art = latestArtifact(task, at);
           const promptPkg =
@@ -148,9 +151,16 @@ export function StudioArtifactsSection({
 
           const hasAny = art;
           const label = STAGE_LABELS[stage];
+          const sectionId =
+            stage === "IDENTITY_STRATEGY"
+              ? "studio-identity-strategy"
+              : stage === "IDENTITY_ROUTING"
+                ? "studio-identity-routes"
+                : undefined;
           return (
             <DisclosureSection
               key={stage}
+              id={sectionId}
               title={label}
               subtitle={hasAny ? "Tap to expand" : "Nothing generated yet"}
               defaultOpen={!!hasAny}

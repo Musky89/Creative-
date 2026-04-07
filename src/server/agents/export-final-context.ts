@@ -112,6 +112,8 @@ export async function loadExportFinalContext(taskId: string): Promise<{
   const packet = {
     brief: {
       title: brief.title,
+      engagementType: brief.engagementType,
+      workstreams: brief.workstreams,
       businessObjective: brief.businessObjective,
       communicationObjective: brief.communicationObjective,
       targetAudience: brief.targetAudience,
