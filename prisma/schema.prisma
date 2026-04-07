@@ -175,6 +175,21 @@ enum ServiceBlueprintTemplateType {
   CUSTOM
 }
 
+/// High-level assignment type — drives default workstreams and Studio framing.
+enum BriefEngagementType {
+  CAMPAIGN
+  BRAND_IDENTITY
+  CONTENT_SYSTEM
+  PRODUCT_LAUNCH
+  ALWAYS_ON_SOCIAL
+  RETAIL_PROMOTION
+  EDITORIAL_PRINT
+  OOH
+  TVC_FILM
+  CREATIVE_STRATEGY_ONLY
+  CUSTOM
+}
+
 // ---------------------------------------------------------------------------
 // Client & brand
 // ---------------------------------------------------------------------------
@@ -381,7 +396,12 @@ model Brief {
   communicationObjective  String   @db.Text
   targetAudience          String   @db.Text
   keyMessage              String   @db.Text
+  /// Agency-style deliverable keys (string[]); unknown values preserved for extension.
   deliverablesRequested   Json
+  /// Assignment type — orchestration + Studio overview.
+  engagementType          BriefEngagementType @default(CAMPAIGN)
+  /// Active creative workstreams (string[] slugs, e.g. STATIC_VISUALS, BRAND_IDENTITY).
+  workstreams             Json                 @default("[]")
   tone                    String
   constraints             Json
   deadline                DateTime
