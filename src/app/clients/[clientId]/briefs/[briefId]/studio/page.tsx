@@ -20,6 +20,7 @@ import { getVisualGenerationReadiness } from "@/lib/studio/visual-generation-rea
 import { StudioCreativeHero } from "./studio-creative-hero";
 import { StudioCreativeRouteSections } from "./studio-creative-routes";
 import { StudioExploreAlternatives } from "./studio-explore-alternatives";
+import type { PromptPackageRef } from "./studio-visual-references";
 import { parseConceptPack } from "./studio-concept-summary";
 import { getDefaultHeadlineForBrief } from "@/server/visual-finishing/headline-from-brief";
 import { StudioBrandLearningPanel } from "./studio-brand-learning";
@@ -118,6 +119,38 @@ export default async function BriefStudioPage({
     .sort((a, b) => b.version - a.version)[0];
   const hasPromptPackage = !!promptPkgArtifact;
   const promptPackageArtifactId = promptPkgArtifact?.id ?? null;
+
+  function parsePromptPackageRefs(content: unknown): PromptPackageRef[] {
+    if (!content || typeof content !== "object") return [];
+    const raw = (content as Record<string, unknown>)._visualReferencesUsed;
+    if (!Array.isArray(raw)) return [];
+    const out: PromptPackageRef[] = [];
+    for (const x of raw) {
+      if (x && typeof x === "object" && "id" in x) {
+        const o = x as Record<string, unknown>;
+        out.push({
+          id: String(o.id),
+          label: String(o.label ?? ""),
+          imageUrl:
+            typeof o.imageUrl === "string" && o.imageUrl.trim()
+              ? o.imageUrl.trim()
+              : undefined,
+        });
+      }
+    }
+    return out;
+  }
+
+  const promptPackageRefs = promptPkgArtifact
+    ? parsePromptPackageRefs(promptPkgArtifact.content)
+    : [];
+
+  const overrideRaw = brief.visualReferenceOverrides;
+  const savedReferenceUrls = Array.isArray(overrideRaw)
+    ? overrideRaw
+        .map((x) => String(x).trim())
+        .filter((u) => u.startsWith("http://") || u.startsWith("https://"))
+    : [];
   const hasVisualSpec =
     vdTask?.artifacts.some((a) => a.type === "VISUAL_SPEC") ?? false;
   const visualGenReadiness = getVisualGenerationReadiness({
@@ -384,6 +417,8 @@ export default async function BriefStudioPage({
             hasVisualSpec={hasVisualSpec}
             hasPromptPackage={hasPromptPackage}
             promptPackageArtifactId={promptPackageArtifactId}
+            promptPackageRefs={promptPackageRefs}
+            savedReferenceUrls={savedReferenceUrls}
             visualAssets={visualAssetsForStudio}
             readinessLines={visualGenReadiness}
             creativeDirectorDecision={cdDecision}

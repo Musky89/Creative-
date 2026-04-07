@@ -38,6 +38,17 @@ export const visualPromptPackageArtifactSchema = z.object({
   brandAlignmentNotes: z.string().min(1),
   optionalShotVariants: z.array(z.string().min(1)).max(12).optional(),
   optionalPromptMetadata: z.record(z.string(), z.unknown()).optional(),
+  /** Reference library rows used to ground this package (deterministic selection). */
+  _visualReferencesUsed: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        label: z.string().min(1),
+        imageUrl: z.string().optional(),
+      }),
+    )
+    .max(8)
+    .optional(),
   providerVariants: z
     .object({
       GENERIC: providerReadyBundleSchema.optional(),
@@ -345,6 +356,10 @@ export const visualSpecArtifactSchema = z.object({
   avoidList: z.array(z.string().min(1)).min(2).max(24),
   /** Optional seed for a future image model; concrete visual nouns, not vibes-only. */
   optionalPromptSeed: z.string().max(2000).optional(),
+  /** What real-world campaign / photography genre to emulate (e.g. "QSR appetite macro, handheld daylight"). */
+  referenceIntent: z.string().max(2000).optional(),
+  /** Short hints for reference matching and prompts (e.g. "shallow DOF", "practicals only"). */
+  referenceStyleHints: z.array(z.string().min(1)).max(16).optional(),
 });
 
 export const copyArtifactSchema = z.object({
@@ -455,7 +470,9 @@ export const ARTIFACT_SHAPE_HINTS = {
   "whyItWorksForBrand": string (min ~40 — brand/OS-grounded, not generic praise),
   "mood", "emotionalTone", "composition", "colorDirection", "textureDirection", "lightingDirection", "typographyDirection", "imageStyle", "referenceLogic", "distinctivenessNotes": strings with substance; no empty "luxury" without concrete cues,
   "avoidList": string[] (min 2) — clichés, AI slop, off-brand tropes to exclude,
-  "optionalPromptSeed": optional string — future image pipeline hook
+  "optionalPromptSeed": optional string — future image pipeline hook,
+  "referenceIntent": optional string — real-world campaign / photography genre to emulate,
+  "referenceStyleHints": optional string[] — e.g. shallow DOF, practicals-only, handheld
 }`,
   COPY: `{
   "frameworkUsed": string,

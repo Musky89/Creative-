@@ -12,6 +12,7 @@ import type {
   BuildVisualPromptPackageInput,
   VisualPromptPackagePayload,
 } from "./types";
+import { VISUAL_SLOP_AND_REALISM_BLOCK } from "@/server/visual-reference/slop-grounding-prompt";
 
 function joinLines(title: string, body: string, extra?: string[]): string {
   const parts = [title, body.trim()];
@@ -40,6 +41,58 @@ function mergeAvoid(
  *
  * Future: `generateVisualAssetFromPromptPackage(artifactId, provider)` reads `providerVariants`.
  */
+function formatReferenceGroundingBlock(
+  input: BuildVisualPromptPackageInput,
+): { text: string; used: { id: string; label: string; imageUrl?: string }[] } {
+  const used: { id: string; label: string; imageUrl?: string }[] = [];
+  const lines: string[] = [];
+
+  const refs = input.selectedReferences ?? [];
+  for (const r of refs) {
+    used.push({ id: r.id, label: r.label, imageUrl: r.imageUrl });
+    const meta =
+      r.metadata && typeof r.metadata === "object" && !Array.isArray(r.metadata)
+        ? (r.metadata as Record<string, unknown>)
+        : {};
+    const mood = typeof meta.mood === "string" ? meta.mood.trim() : "";
+    const comp = typeof meta.composition === "string" ? meta.composition.trim() : "";
+    const light = typeof meta.lighting === "string" ? meta.lighting.trim() : "";
+    const tagStr = Array.isArray(meta.tags)
+      ? (meta.tags as unknown[]).map((t) => String(t)).filter(Boolean).join(", ")
+      : "";
+    lines.push(
+      `- **${r.label}** (${r.category})${mood ? ` — mood: ${mood}` : ""}${comp ? `; composition: ${comp}` : ""}${light ? `; lighting: ${light}` : ""}${tagStr ? `; tags: ${tagStr}` : ""}`,
+    );
+    if (r.imageUrl?.trim()) {
+      lines.push(`  Reference still URL (style anchor — emulate feel, do not copy IP): ${r.imageUrl.trim()}`);
+    }
+  }
+
+  const founderUrls = (input.founderReferenceUrls ?? [])
+    .map((u) => u.trim())
+    .filter((u) => u.length > 4)
+    .slice(0, 5);
+  for (let i = 0; i < founderUrls.length; i++) {
+    lines.push(
+      `- **Founder reference ${i + 1}:** ${founderUrls[i]} — match lighting scale, lens character, and campaign realism; do not reproduce logos or trademarks from the reference unless they are the client's own marks and the brief requires it.`,
+    );
+  }
+
+  if (lines.length === 0) {
+    return { text: "", used: [] };
+  }
+
+  return {
+    text: [
+      "REFERENCE GROUNDING (campaign-realism anchors):",
+      "Inspired by the following real-world photography / campaign cues — **emulate lighting, lensing, and art-direction discipline**, not subject-for-subject copying:",
+      ...lines,
+      "Composition constraints from references: favor believable camera height, natural depth separation, and motivated negative space consistent with the cues above.",
+    ].join("\n"),
+    used,
+  };
+}
+
 export function buildVisualPromptPackage(
   input: BuildVisualPromptPackageInput,
   defaultTarget: VisualPromptProviderTarget = "GENERIC",
@@ -105,6 +158,16 @@ export function buildVisualPromptPackage(
       ? `Founder direction (must respect): ${founderDirection.trim()}`
       : "";
 
+  const refIntent =
+    spec.referenceIntent?.trim() &&
+    `Reference intent (real-world genre to emulate): ${spec.referenceIntent.trim()}`;
+  const refHints =
+    spec.referenceStyleHints?.length &&
+    `Reference style hints: ${spec.referenceStyleHints.join(" · ")}`;
+
+  const { text: referenceGroundingBlock, used: visualRefsUsed } =
+    formatReferenceGroundingBlock(input);
+
   const seed =
     spec.optionalPromptSeed?.trim() &&
     `Supporting seed (do not override spec specifics): ${spec.optionalPromptSeed.trim()}`;
@@ -125,6 +188,8 @@ export function buildVisualPromptPackage(
       : "";
 
   const primaryPrompt = [
+    VISUAL_SLOP_AND_REALISM_BLOCK,
+    "",
     `Objective: ${spec.visualObjective}`,
     `Concept route: ${spec.conceptName}.`,
     frameworkLine,
@@ -132,6 +197,9 @@ export function buildVisualPromptPackage(
     emotionalContext,
     categoryTaste,
     founderBlock,
+    refIntent,
+    refHints,
+    referenceGroundingBlock ? `\n${referenceGroundingBlock}` : "",
     `Distinctiveness: ${spec.distinctivenessNotes}`,
     seed,
   ]
@@ -198,7 +266,16 @@ export function buildVisualPromptPackage(
 
   const referenceInstructions = joinLines(
     "Reference discipline:",
-    spec.referenceLogic,
+    [
+      spec.referenceLogic,
+      refIntent || "",
+      refHints || "",
+      referenceGroundingBlock
+        ? "Ground execution in the REFERENCE GROUNDING block above (campaign photo realism)."
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
   );
 
   const brandAlignmentNotes = joinLines(
@@ -243,7 +320,9 @@ export function buildVisualPromptPackage(
       assembledAt: new Date().toISOString(),
       frameworkId: spec.frameworkUsed,
       conceptName: spec.conceptName,
+      referenceGrounding: referenceGroundingBlock ? true : false,
     },
+    _visualReferencesUsed: visualRefsUsed.length ? visualRefsUsed : undefined,
     providerVariants: {},
   };
 
@@ -266,6 +345,7 @@ export function buildVisualPromptPackage(
     brandAlignmentNotes: payload.brandAlignmentNotes,
     optionalShotVariants: payload.optionalShotVariants,
     optionalPromptMetadata: payload.optionalPromptMetadata,
+    _visualReferencesUsed: payload._visualReferencesUsed,
     providerVariants: payload.providerVariants,
   });
 

@@ -8,6 +8,10 @@ import {
 } from "@/lib/visual/visual-generation-limits";
 import type { VisualGenReadinessLine } from "@/lib/studio/visual-generation-readiness";
 import { StudioFirstImageCta } from "./studio-first-image-cta";
+import {
+  StudioVisualReferencesPanel,
+  type PromptPackageRef,
+} from "./studio-visual-references";
 
 type AssetRow = {
   id: string;
@@ -46,6 +50,8 @@ export function StudioExploreAlternatives({
   hasVisualSpec,
   hasPromptPackage,
   promptPackageArtifactId,
+  promptPackageRefs,
+  savedReferenceUrls,
   visualAssets,
   readinessLines,
   creativeDirectorDecision,
@@ -58,6 +64,8 @@ export function StudioExploreAlternatives({
   hasVisualSpec: boolean;
   hasPromptPackage: boolean;
   promptPackageArtifactId: string | null;
+  promptPackageRefs: PromptPackageRef[];
+  savedReferenceUrls: string[];
   visualAssets: AssetRow[];
   readinessLines: VisualGenReadinessLine[];
   creativeDirectorDecision: Record<string, unknown> | null;
@@ -160,7 +168,13 @@ export function StudioExploreAlternatives({
         ) : null}
 
         {hasPromptPackage && promptPackageArtifactId ? (
-          <div className="border-t border-zinc-800/80 pt-6">
+          <div className="border-t border-zinc-800/80 pt-6 space-y-6">
+            <StudioVisualReferencesPanel
+              clientId={clientId}
+              briefId={briefId}
+              packageRefs={promptPackageRefs}
+              savedUrls={savedReferenceUrls}
+            />
             <p className="text-sm font-semibold text-zinc-100">Generate frames</p>
             <p className="mt-1 text-xs text-zinc-500">
               Keys: GEMINI / Google or OpenAI. Storage under <code className="text-zinc-400">storage/</code>.

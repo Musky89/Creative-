@@ -17,6 +17,7 @@
     "qa:bootstrap": "npx --yes tsx scripts/private-dev-qa-bootstrap.ts",
     "preflight": "npx --yes tsx scripts/preflight-dev.ts",
     "seed:demo-brands": "npx --yes tsx scripts/seed-demo-brands.ts",
+    "seed:visual-references": "npx --yes tsx scripts/seed-visual-references.ts",
     "qa:rib-burger-compare": "npx --yes tsx scripts/qa-rib-burger-visual-compare.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"

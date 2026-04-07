@@ -28,6 +28,24 @@ function stripInternalKeys(data: Record<string, unknown>): Record<string, unknow
   return out;
 }
 
+function visualReferencesUsedFromPackageContent(
+  content: Record<string, unknown>,
+): { id: string; label: string }[] | undefined {
+  const raw = content._visualReferencesUsed;
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const out: { id: string; label: string }[] = [];
+  for (const x of raw) {
+    if (x && typeof x === "object" && "id" in x) {
+      const o = x as Record<string, unknown>;
+      out.push({
+        id: String(o.id),
+        label: String(o.label ?? ""),
+      });
+    }
+  }
+  return out.length ? out : undefined;
+}
+
 type Bundle = { prompt: string; negativeOrAvoid: string };
 
 export function resolveProviderTargetForGeneration(
@@ -234,7 +252,9 @@ export async function generateVisualVariantsFromPromptPackage(
   }
 
   const resolvedTarget = resolveProviderTargetForGeneration(args.providerTarget);
-  const content = stripInternalKeys(art.content as Record<string, unknown>);
+  const rawPkg = art.content as Record<string, unknown>;
+  const refsUsed = visualReferencesUsedFromPackageContent(rawPkg);
+  const content = stripInternalKeys(rawPkg);
   const baseBundle = pickBundle(content, resolvedTarget, critiqueTrim || undefined);
   const suffixes = critiqueTrim ? [""] : variantPromptSuffixes(count);
   const regenAttempt = critiqueTrim ? 1 : 0;
@@ -289,6 +309,7 @@ export async function generateVisualVariantsFromPromptPackage(
             variantIndex: i + 1,
             variantBatchSize: count,
             critiqueAppended: critiqueTrim || undefined,
+            ...(refsUsed ? { _visualReferencesUsed: refsUsed } : {}),
             ...genMeta,
           } as object,
           generationNotes: null,
@@ -378,7 +399,9 @@ export async function generateVisualAssetFromPromptPackage(
   }
 
   const resolvedTarget = resolveProviderTargetForGeneration(args.providerTarget);
-  const content = stripInternalKeys(art.content as Record<string, unknown>);
+  const rawPkg = art.content as Record<string, unknown>;
+  const refsUsed = visualReferencesUsedFromPackageContent(rawPkg);
+  const content = stripInternalKeys(rawPkg);
   const bundle = pickBundle(content, resolvedTarget, critiqueTrim || undefined);
   const regenAttempt = critiqueTrim ? 1 : 0;
 
@@ -420,6 +443,7 @@ export async function generateVisualAssetFromPromptPackage(
         metadata: {
           mimeType: mime,
           critiqueAppended: critiqueTrim || undefined,
+          ...(refsUsed ? { _visualReferencesUsed: refsUsed } : {}),
           ...genMeta,
         } as object,
         generationNotes: null,

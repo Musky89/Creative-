@@ -339,6 +339,12 @@ export function buildPlaceholderArtifactContent(
         ],
         optionalPromptSeed:
           "[Optional] Concrete noun-heavy seed for a future image pipeline — scaffold placeholder.",
+        referenceIntent:
+          "[Placeholder] Real-world genre to emulate — e.g. handheld QSR appetite macro with practical kitchen light.",
+        referenceStyleHints: [
+          "[Placeholder] Shallow depth of field with motivated background",
+          "[Placeholder] Natural skin and food texture — no CGI gloss",
+        ],
       };
     case "COPY":
       return {

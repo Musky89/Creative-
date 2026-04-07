@@ -158,6 +158,13 @@ enum BrandMemoryOutcome {
   REJECTED
 }
 
+enum VisualReferenceCategory {
+  COMPOSITION
+  LIGHTING
+  STYLE
+  BRAND
+}
+
 /// Class of engagement / template used to instantiate work from a Brief.
 enum ServiceBlueprintTemplateType {
   FULL_PIPELINE
@@ -189,6 +196,7 @@ model Client {
   privateEvalRecords     PrivateEvaluationRecord[]
   brandMemories          BrandMemory[]
   brandMemoryAggregate   BrandMemoryAggregate?
+  visualReferences       VisualReference[]
 }
 
 /// One canonical Brand Bible per client (1:1).
@@ -329,6 +337,9 @@ model Brief {
   /// Directives from last CD final REWORK — injected into copy regen; cleared on APPROVE.
   cdLastImprovementDirectives Json @default("[]")
 
+  /// Optional founder URLs for reference-grounded visual generation (max ~5 in app logic).
+  visualReferenceOverrides Json @default("[]")
+
   privateEvalSessions   PrivateEvaluationSession[]
   privateEvalRecords    PrivateEvaluationRecord[]
 
@@ -444,6 +455,21 @@ model BrandMemory {
 }
 
 /// Cached rollups for fast prompt injection (optional optimization).
+/// Campaign-style reference stills for grounding image prompts (global + per-client).
+model VisualReference {
+  id        String                  @id @default(cuid())
+  clientId  String?
+  client    Client?                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  label     String
+  category  VisualReferenceCategory
+  imageUrl  String
+  metadata  Json
+  createdAt DateTime                @default(now())
+
+  @@index([clientId])
+  @@index([category])
+}
+
 model BrandMemoryAggregate {
   clientId           String   @id
   client             Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)

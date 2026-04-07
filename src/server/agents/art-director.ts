@@ -42,6 +42,7 @@ export const artDirectorAgent: AgentDefinition<typeof visualSpecArtifactSchema> 
       "5. `whyItWorksForBrand` must reference Brand OS emotional profile + visual language + positioning — not generic praise.",
       "6. `distinctivenessNotes` must state what makes this **not** interchangeable with category wallpaper.",
       "7. `avoidList`: at least 2 concrete exclusions (tropes, palettes, lighting mistakes, stock cues).",
+      "7b. `referenceIntent` + `referenceStyleHints`: name the **real-world campaign / photography genre** to emulate (e.g. handheld QSR appetite macro, outdoor lifestyle candid) — concrete, not vibes-only.",
       "8. `optionalPromptSeed` (optional): a tight, noun-heavy seed for a **future** image model — never the only substance.",
       "",
       formattedContext,

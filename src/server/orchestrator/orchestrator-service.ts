@@ -17,6 +17,7 @@ import { brandBibleToOperatingSystem } from "@/server/brand/brand-bible-operatin
 import { getPrisma } from "@/server/db/prisma";
 import { visualSpecArtifactSchema } from "@/lib/artifacts/contracts";
 import { buildVisualPromptPackage } from "@/server/visual-prompt/assemble-visual-prompt-package";
+import { selectVisualReferences } from "@/server/visual-reference/select-references";
 import {
   arePrerequisitesSatisfied,
   statusMapFromTasks,
@@ -781,12 +782,42 @@ export class OrchestratorService {
     }
     const brandOs = brandBibleToOperatingSystem(bb);
 
+    const taskRow = await this.db.task.findUnique({
+      where: { id: taskId },
+      select: { briefId: true },
+    });
+    const briefRow = taskRow
+      ? await this.db.brief.findUnique({
+          where: { id: taskRow.briefId },
+          select: { visualReferenceOverrides: true },
+        })
+      : null;
+    const overrideRaw = briefRow?.visualReferenceOverrides;
+    const founderRefUrls: string[] = [];
+    if (Array.isArray(overrideRaw)) {
+      for (const x of overrideRaw) {
+        const s = String(x).trim();
+        if (s.startsWith("http://") || s.startsWith("https://")) {
+          founderRefUrls.push(s);
+        }
+      }
+    }
+
+    const selectedReferences = await selectVisualReferences(this.db, {
+      clientId,
+      spec: parsed.data,
+      brandOs,
+      extraImageUrls: founderRefUrls,
+    });
+
     const pkg = buildVisualPromptPackage({
       sourceVisualSpecId: visualSpecArtifact.id,
       spec: parsed.data,
       brandOs,
       founderDirection: founderFeedback?.trim() || undefined,
       framework: null,
+      selectedReferences,
+      founderReferenceUrls: founderRefUrls.slice(0, 5),
     });
 
     const latestPkg = await this.db.artifact.findFirst({
