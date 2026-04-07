@@ -23,7 +23,10 @@ import { StudioCreativeRouteSections } from "./studio-creative-routes";
 import { StudioExploreAlternatives } from "./studio-explore-alternatives";
 import type { PromptPackageRef } from "./studio-visual-references";
 import { parseConceptPack } from "./studio-concept-summary";
-import { getDefaultHeadlineForBrief } from "@/server/visual-finishing/headline-from-brief";
+import {
+  getDefaultCtaForBrief,
+  getDefaultHeadlineForBrief,
+} from "@/server/visual-finishing/headline-from-brief";
 import { StudioBrandLearningPanel } from "./studio-brand-learning";
 import { StudioBrandVisualIdentityPanel } from "./studio-brand-visual-identity";
 import { StudioBrandVisualStylePanel } from "./studio-brand-visual-style";
@@ -227,6 +230,7 @@ export default async function BriefStudioPage({
       : null;
 
   const composeDefaultHeadline = await getDefaultHeadlineForBrief(briefId);
+  const composeDefaultCta = await getDefaultCtaForBrief(briefId);
 
   const conceptTask = taskByStage.get("CONCEPTING");
   const latestConceptArt = conceptTask?.artifacts
@@ -253,6 +257,8 @@ export default async function BriefStudioPage({
     variantLabel: va.variantLabel,
     composed:
       va.variantLabel === "COMPOSED" ||
+      (typeof va.variantLabel === "string" &&
+        va.variantLabel.startsWith("COMPOSED_")) ||
       (typeof va.metadata === "object" &&
         va.metadata !== null &&
         (va.metadata as { composed?: boolean }).composed === true),
@@ -277,14 +283,21 @@ export default async function BriefStudioPage({
     ? visualAssetsForStudio.find((a) => a.id === cdSelectedVisualId) ?? null
     : null;
 
+  const composedHeroCandidates = pkgAssets.filter(
+    (a) =>
+      a.composed &&
+      a.resultUrl &&
+      a.status === "COMPLETED" &&
+      (a.variantLabel === "COMPOSED" ||
+        (typeof a.variantLabel === "string" && a.variantLabel.startsWith("COMPOSED_"))),
+  );
   const composedHeroAsset =
-    pkgAssets.find(
-      (a) =>
-        a.variantLabel === "COMPOSED" &&
-        a.composed &&
-        a.resultUrl &&
-        a.status === "COMPLETED",
-    ) ?? null;
+    composedHeroCandidates.find((a) => a.variantLabel === "COMPOSED") ??
+    composedHeroCandidates.find((a) => a.variantLabel === "COMPOSED_SOCIAL") ??
+    composedHeroCandidates.find((a) => a.variantLabel === "COMPOSED_PRINT") ??
+    composedHeroCandidates.find((a) => a.variantLabel === "COMPOSED_OOH") ??
+    composedHeroCandidates[0] ??
+    null;
 
   const preferredRawHero =
     pkgAssets.find(
@@ -307,13 +320,7 @@ export default async function BriefStudioPage({
   const exploreAlternativesDefaultOpen =
     workPlan.showImageGeneration &&
     Boolean(promptPackageArtifactId) &&
-    !pkgAssets.some(
-      (a) =>
-        a.variantLabel === "COMPOSED" &&
-        a.composed &&
-        a.status === "COMPLETED" &&
-        a.resultUrl,
-    );
+    composedHeroCandidates.length === 0;
 
   return (
     <>
@@ -561,6 +568,7 @@ export default async function BriefStudioPage({
             readinessLines={visualGenReadiness}
             creativeDirectorDecision={cdDecision}
             composeDefaultHeadline={composeDefaultHeadline}
+            composeDefaultCta={composeDefaultCta}
             defaultOpen={exploreAlternativesDefaultOpen}
             hasBrandVisualStyle={hasBrandVisualStyle}
             showVisualGenerationModule={workPlan.showImageGeneration}

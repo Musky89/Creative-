@@ -9,7 +9,9 @@ import {
 } from "@/server/visual-generation/generate-visual-asset-from-prompt-package";
 import { recordVisualMemoryFromSpecArtifact } from "@/server/visual-review/visual-memory-hook";
 import { composeCampaignAsset } from "@/server/visual-finishing/compose-campaign-asset";
-import { getDefaultHeadlineForBrief } from "@/server/visual-finishing/headline-from-brief";
+import { composeFinalOutput } from "@/server/visual-finishing/final-output-composer";
+import type { FinalOutputFormatId } from "@/lib/visual-finishing/final-output-formats";
+import { getDefaultCtaForBrief, getDefaultHeadlineForBrief } from "@/server/visual-finishing/headline-from-brief";
 import { recordBrandMemoryEvent } from "@/server/memory/brand-memory-service";
 import { extractVisualMemory } from "@/server/memory/extract-memory";
 import { visualSpecArtifactSchema } from "@/lib/artifacts/contracts";
@@ -292,6 +294,88 @@ export async function composeCampaignAssetAction(
     });
     revalidatePath(studioPath(clientId, briefId));
     return { ok: true as const, assetId: id };
+  } catch (e) {
+    revalidatePath(studioPath(clientId, briefId));
+    return { error: e instanceof Error ? e.message : "Compose failed." };
+  }
+}
+
+export async function composeFinalOutputAction(
+  clientId: string,
+  briefId: string,
+  promptPackageArtifactId: string,
+  options: {
+    format: FinalOutputFormatId;
+    sourceVisualAssetId?: string | null;
+    headline?: string | null;
+    ctaText?: string | null;
+    logoUrl?: string | null;
+  },
+) {
+  const prisma = getPrisma();
+  const brief = await prisma.brief.findFirst({
+    where: { id: briefId, clientId },
+    include: { client: { include: { brandBible: true } } },
+  });
+  if (!brief) {
+    return { error: "Brief not found." };
+  }
+
+  let sourceId = options.sourceVisualAssetId?.trim() || null;
+  if (!sourceId) {
+    const pref = await prisma.visualAsset.findFirst({
+      where: {
+        briefId,
+        clientId,
+        sourceArtifactId: promptPackageArtifactId,
+        status: "COMPLETED",
+        isPreferred: true,
+      },
+    });
+    sourceId = pref?.id ?? null;
+  }
+  if (!sourceId) {
+    return {
+      error: "Select a preferred visual first, or pass sourceVisualAssetId.",
+    };
+  }
+
+  let hl = options.headline?.trim() || null;
+  if (!hl) {
+    hl = await getDefaultHeadlineForBrief(briefId);
+  }
+  if (!hl) {
+    return {
+      error: "No headline — add copy in COPY stage or pass headline.",
+    };
+  }
+
+  let cta = options.ctaText?.trim() || null;
+  if (!cta && options.format !== "CAMPAIGN_DEFAULT") {
+    cta = await getDefaultCtaForBrief(briefId);
+  }
+
+  const bb = brief.client.brandBible;
+
+  try {
+    const { id, variantLabel } = await composeFinalOutput({
+      sourceVisualAssetId: sourceId,
+      clientId,
+      briefId,
+      headline: hl,
+      ctaText: cta,
+      logoUrl: options.logoUrl?.trim() || null,
+      format: options.format,
+      brandBible: bb
+        ? {
+            colorPhilosophy: bb.colorPhilosophy,
+            visualStyle: bb.visualStyle,
+            compositionStyle: bb.compositionStyle,
+          }
+        : null,
+    });
+    revalidatePath(studioPath(clientId, briefId));
+    return { ok: true as const, assetId: id, variantLabel };
   } catch (e) {
     revalidatePath(studioPath(clientId, briefId));
     return { error: e instanceof Error ? e.message : "Compose failed." };

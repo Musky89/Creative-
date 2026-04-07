@@ -29,7 +29,12 @@ export async function getClientVisualTrainingCandidates(
 
   const out: TrainingVisualCandidate[] = [];
   for (const r of rows) {
-    if (r.variantLabel === "COMPOSED") continue;
+    if (
+      r.variantLabel === "COMPOSED" ||
+      (typeof r.variantLabel === "string" && r.variantLabel.startsWith("COMPOSED_"))
+    ) {
+      continue;
+    }
     const meta = r.metadata;
     if (meta && typeof meta === "object" && "_brandStyleComparison" in meta) {
       const v = (meta as Record<string, unknown>)._brandStyleComparison;

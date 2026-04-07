@@ -58,6 +58,7 @@ export function StudioExploreAlternatives({
   readinessLines,
   creativeDirectorDecision,
   composeDefaultHeadline,
+  composeDefaultCta,
   defaultOpen,
   hasBrandVisualStyle,
   showVisualGenerationModule,
@@ -75,6 +76,7 @@ export function StudioExploreAlternatives({
   readinessLines: VisualGenReadinessLine[];
   creativeDirectorDecision: Record<string, unknown> | null;
   composeDefaultHeadline: string | null;
+  composeDefaultCta: string | null;
   defaultOpen: boolean;
   hasBrandVisualStyle: boolean;
   showVisualGenerationModule: boolean;
@@ -226,6 +228,7 @@ export function StudioExploreAlternatives({
               critiqueRegenLimit={MAX_CRITIQUE_REGENERATIONS_PER_PACKAGE}
               packageAssetLimit={MAX_VISUAL_ASSETS_PER_PACKAGE}
               composeDefaultHeadline={composeDefaultHeadline}
+              composeDefaultCta={composeDefaultCta}
               assets={visualAssets.map((va) => ({
                 id: va.id,
                 status: va.status,

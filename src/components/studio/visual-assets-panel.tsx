@@ -4,10 +4,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   composeCampaignAssetAction,
+  composeFinalOutputAction,
   generateVisualAssetAction,
   rejectVisualAssetAction,
   selectPreferredVisualAssetAction,
 } from "@/app/actions/visual-assets";
+import { FINAL_OUTPUT_FORMATS } from "@/lib/visual-finishing/final-output-formats";
+import type { FinalOutputFormatId } from "@/lib/visual-finishing/final-output-formats";
 import { VISUAL_VARIANTS_PER_RUN_MIN } from "@/lib/visual/visual-variant-thresholds";
 
 type ReviewRow = {
@@ -88,6 +91,7 @@ export function VisualAssetsPanel({
   critiqueRegenLimit,
   packageAssetLimit,
   composeDefaultHeadline,
+  composeDefaultCta = null,
   panelTitle = "Visual variants",
   compact = false,
 }: {
@@ -101,6 +105,8 @@ export function VisualAssetsPanel({
   packageAssetLimit: number;
   /** First headline from COPY for compose default. */
   composeDefaultHeadline: string | null;
+  /** First CTA from COPY for format composer. */
+  composeDefaultCta?: string | null;
   /** Override section heading (e.g. when embedded in Studio hub). */
   panelTitle?: string;
   /** Less top margin when nested under another card. */
@@ -116,12 +122,22 @@ export function VisualAssetsPanel({
   const [composeHeadline, setComposeHeadline] = useState(
     () => composeDefaultHeadline ?? "",
   );
+  const [composeCta, setComposeCta] = useState(() => composeDefaultCta ?? "");
+  const [composeLogoUrl, setComposeLogoUrl] = useState("");
+  const [composeFormat, setComposeFormat] =
+    useState<FinalOutputFormatId>("SOCIAL");
 
   useEffect(() => {
     if (composeDefaultHeadline) {
       setComposeHeadline(composeDefaultHeadline);
     }
   }, [composeDefaultHeadline]);
+
+  useEffect(() => {
+    if (composeDefaultCta) {
+      setComposeCta(composeDefaultCta);
+    }
+  }, [composeDefaultCta]);
 
   const taskAssets = useMemo(
     () =>
@@ -140,8 +156,15 @@ export function VisualAssetsPanel({
   const batchNeed = critique.trim() ? 1 : VISUAL_VARIANTS_PER_RUN_MIN;
   const canAddMore = rawCount + batchNeed <= packageAssetLimit;
 
-  const composedFinal = useMemo(
-    () => taskAssets.find((a) => a.variantLabel === "COMPOSED" && a.composed),
+  const composedOutputs = useMemo(
+    () =>
+      taskAssets.filter(
+        (a) =>
+          a.composed &&
+          a.variantLabel &&
+          (a.variantLabel === "COMPOSED" ||
+            a.variantLabel.startsWith("COMPOSED_")),
+      ),
     [taskAssets],
   );
 
@@ -214,11 +237,11 @@ export function VisualAssetsPanel({
         Show rejected / filtered variants
       </label>
 
-      {composedFinal && composedFinal.status === "COMPLETED" && composedFinal.resultUrl ? (
+      {composedOutputs.length > 0 ? (
         <div className="mt-5 rounded-xl border border-teal-700/40 bg-teal-950/20 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-teal-200/90">
-              Final (composed)
+              Final outputs (composed)
             </p>
             <label className="flex cursor-pointer items-center gap-2 text-[11px] text-zinc-400">
               <input
@@ -230,58 +253,156 @@ export function VisualAssetsPanel({
               Show raw AI outputs
             </label>
           </div>
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`${composedFinal.resultUrl}?clientId=${encodeURIComponent(clientId)}`}
-              alt="Composed campaign"
-              className="h-44 w-full max-w-[280px] rounded-lg border border-teal-800/50 object-cover"
-            />
-            <p className="text-xs text-zinc-500">
-              Headline, brand tint, grain, and vignette applied locally — minimal layout.
-            </p>
-          </div>
+          <ul className="mt-3 space-y-4">
+            {composedOutputs.map((a) =>
+              a.status === "COMPLETED" && a.resultUrl ? (
+                <li
+                  key={a.id}
+                  className="flex flex-col gap-2 border-b border-teal-900/30 pb-4 last:border-0 last:pb-0 sm:flex-row sm:items-start"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`${a.resultUrl}?clientId=${encodeURIComponent(clientId)}`}
+                    alt={a.variantLabel ?? "Composed"}
+                    className="h-44 w-full max-w-[280px] rounded-lg border border-teal-800/50 object-cover"
+                  />
+                  <div>
+                    <p className="text-[11px] font-medium text-teal-200/90">
+                      {a.variantLabel === "COMPOSED"
+                        ? "Quick finish (legacy layout)"
+                        : a.variantLabel?.replace(/^COMPOSED_/, "").replace(/_/g, " ") ??
+                          "Composed"}
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      High-res PNG; metadata includes{" "}
+                      <code className="text-zinc-400">layerManifest</code> for future PSD/FIG
+                      export.
+                    </p>
+                  </div>
+                </li>
+              ) : null,
+            )}
+          </ul>
         </div>
       ) : null}
 
       <div className="mt-5 rounded-xl border border-zinc-800/90 bg-zinc-950/40 p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
-          Finishing pass
+          Final output composer
         </p>
         <p className="mt-1 text-[11px] text-zinc-500">
-          Uses preferred raw variant + headline (defaults to first line from latest COPY).
+          Campaign-ready layouts: headline hierarchy, optional CTA, optional logo (URL), format
+          canvas, 2× resolution. Quick finish keeps the previous single-canvas behavior.
         </p>
-        <input
-          type="text"
-          value={composeHeadline}
-          onChange={(e) => setComposeHeadline(e.target.value)}
-          placeholder="Headline for overlay"
-          className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600"
-        />
-        <button
-          type="button"
-          disabled={pending || !preferredRaw}
-          onClick={() => {
-            setError(null);
-            start(async () => {
-              const r = await composeCampaignAssetAction(
-                clientId,
-                briefId,
-                promptPackageArtifactId,
-                preferredRaw?.id ?? null,
-                composeHeadline.trim() || null,
-              );
-              if ("error" in r && r.error) {
-                setError(r.error);
-                return;
-              }
-              router.refresh();
-            });
-          }}
-          className="mt-3 rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-600 disabled:opacity-40"
-        >
-          {pending ? "Composing…" : "Build finishing pass"}
-        </button>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="block text-[11px] font-medium text-zinc-500">Headline</label>
+            <input
+              type="text"
+              value={composeHeadline}
+              onChange={(e) => setComposeHeadline(e.target.value)}
+              placeholder="Headline"
+              className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-zinc-500">CTA (formats)</label>
+            <input
+              type="text"
+              value={composeCta}
+              onChange={(e) => setComposeCta(e.target.value)}
+              placeholder="Shop now · Learn more"
+              className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600"
+            />
+          </div>
+        </div>
+        <div className="mt-3">
+          <label className="block text-[11px] font-medium text-zinc-500">
+            Logo image URL (optional, PNG/SVG)
+          </label>
+          <input
+            type="url"
+            value={composeLogoUrl}
+            onChange={(e) => setComposeLogoUrl(e.target.value)}
+            placeholder="https://…"
+            className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600"
+          />
+        </div>
+        <div className="mt-3">
+          <p className="text-[11px] font-medium text-zinc-500">Format</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {(
+              [
+                ["SOCIAL", FINAL_OUTPUT_FORMATS.SOCIAL.label],
+                ["OOH", FINAL_OUTPUT_FORMATS.OOH.label],
+                ["PRINT", FINAL_OUTPUT_FORMATS.PRINT.label],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setComposeFormat(id)}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                  composeFormat === id
+                    ? "border-teal-500 bg-teal-950/50 text-teal-100"
+                    : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-600"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={pending || !preferredRaw}
+            onClick={() => {
+              setError(null);
+              start(async () => {
+                const r = await composeFinalOutputAction(clientId, briefId, promptPackageArtifactId, {
+                  format: composeFormat,
+                  sourceVisualAssetId: preferredRaw?.id ?? null,
+                  headline: composeHeadline.trim() || null,
+                  ctaText: composeCta.trim() || null,
+                  logoUrl: composeLogoUrl.trim() || null,
+                });
+                if ("error" in r && r.error) {
+                  setError(r.error);
+                  return;
+                }
+                router.refresh();
+              });
+            }}
+            className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-600 disabled:opacity-40"
+          >
+            {pending ? "Composing…" : `Build ${composeFormat.toLowerCase()} layout`}
+          </button>
+          <button
+            type="button"
+            disabled={pending || !preferredRaw}
+            onClick={() => {
+              setError(null);
+              start(async () => {
+                const r = await composeCampaignAssetAction(
+                  clientId,
+                  briefId,
+                  promptPackageArtifactId,
+                  preferredRaw?.id ?? null,
+                  composeHeadline.trim() || null,
+                );
+                if ("error" in r && r.error) {
+                  setError(r.error);
+                  return;
+                }
+                router.refresh();
+              });
+            }}
+            className="rounded-lg border border-zinc-600 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-800 disabled:opacity-40"
+          >
+            Quick finish (legacy)
+          </button>
+        </div>
         {!preferredRaw ? (
           <p className="mt-2 text-[11px] text-amber-600/90">
             Select a preferred raw variant first.
@@ -348,7 +469,7 @@ export function VisualAssetsPanel({
         </p>
       ) : null}
 
-      {composedFinal && !showRaw ? (
+      {composedOutputs.length > 0 && !showRaw ? (
         <p className="mt-4 text-xs text-zinc-500">
           Raw variants hidden — enable <strong className="text-zinc-400">Show raw AI outputs</strong>{" "}
           above to compare.
@@ -356,7 +477,7 @@ export function VisualAssetsPanel({
       ) : null}
 
       <ul
-        className={`mt-6 grid gap-4 sm:grid-cols-2 ${composedFinal && !showRaw ? "hidden" : ""}`}
+        className={`mt-6 grid gap-4 sm:grid-cols-2 ${composedOutputs.length > 0 && !showRaw ? "hidden" : ""}`}
       >
         {rawOnlyPool.length === 0 ? (
           <li className="col-span-full text-sm text-zinc-500">
@@ -396,7 +517,11 @@ export function VisualAssetsPanel({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     {a.composed ? (
-                      <span className="text-xs font-medium text-teal-300">COMPOSED</span>
+                      <span className="text-xs font-medium text-teal-300">
+                        {a.variantLabel?.startsWith("COMPOSED_")
+                          ? a.variantLabel.replace(/^COMPOSED_/, "")
+                          : "COMPOSED"}
+                      </span>
                     ) : null}
                     {a.cdDirectorPick ? (
                       <span className="text-xs font-medium text-violet-300">
