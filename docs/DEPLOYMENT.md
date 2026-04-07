@@ -86,6 +86,27 @@ npm run start
 
 ---
 
+## Docker (private dev or staging server)
+
+For a **single host** with Postgres + the app in containers (no local Node install on the machine beyond Docker):
+
+1. Clone the repo and ensure a `.env` at the repo root if you need LLM or image keys (optional for placeholder-only runs). `DATABASE_URL` inside Compose is set for the bundled Postgres; do not override it unless you point at an external database.
+2. From the repo root:
+
+```bash
+docker compose --profile dev-server up -d --build
+```
+
+Or equivalently: `npm run dev:docker` (foreground with logs; add `-d` yourself if you prefer detached).
+
+3. Open **http://localhost:3000** (or the host’s IP on port 3000). The app image runs **`prisma migrate deploy`** on each container start, then **`next start`** (standalone build).
+
+**Volumes:** Postgres data uses `agenticforce_pgdata`; generated visual assets use `agenticforce_storage` at `/data/storage` in the app container (`STORAGE_ROOT`).
+
+**Build-only CI:** `docker build -t agenticforce .` — the Dockerfile sets `AGENTICFORCE_SKIP_ENV_VALIDATION=1` for `next build` so `DATABASE_URL` is not required at image build time.
+
+---
+
 ## Health checks
 
 - `GET /api/health` — env validation summary (no DB).
