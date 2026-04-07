@@ -16,6 +16,7 @@ import {
   mcdonaldsRibBurgerBrief,
 } from "./demo-brands-seed";
 import { getPrisma } from "@/server/db/prisma";
+import { seedBrandVisualReferences } from "@/server/visual-reference/seed-brand-visual-references";
 
 export type SeedDemoResult = {
   cocaColaClientId: string;
@@ -112,6 +113,15 @@ export async function seedDemoBrandsIfMissing(): Promise<SeedDemoResult> {
     "Rib burger LTO",
     kfcRibBurgerBrief,
   );
+
+  try {
+    await seedBrandVisualReferences(prisma);
+  } catch (e) {
+    console.warn(
+      "[seed-demo-brands] Brand visual references skipped:",
+      e instanceof Error ? e.message : e,
+    );
+  }
 
   return {
     cocaColaClientId: coke.id,

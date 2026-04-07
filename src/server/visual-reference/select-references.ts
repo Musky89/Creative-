@@ -32,14 +32,54 @@ function refTags(ref: VisualReference): Set<string> {
     if (Array.isArray(raw)) {
       for (const t of raw) tags.add(String(t).toLowerCase());
     }
-    for (const k of ["mood", "composition", "lighting", "style"] as const) {
+    for (const k of ["mood", "composition", "lighting", "style", "region"] as const) {
       const v = m[k];
       if (typeof v === "string" && v.trim()) {
         for (const w of normTokens(v)) tags.add(w);
       }
     }
+    const brandCues = m.brandCues;
+    if (Array.isArray(brandCues)) {
+      for (const t of brandCues) for (const w of normTokens(String(t))) tags.add(w);
+    }
   }
   return tags;
+}
+
+/** Bias pool toward the correct demo client when name matches SA QSR harnesses. */
+function clientNameAnchorTokens(clientName: string): Set<string> {
+  const n = clientName.toLowerCase();
+  const out = new Set<string>();
+  if (n.includes("mcdonald")) {
+    for (const w of [
+      "mcdonalds_sa_demo",
+      "mcdonald",
+      "mcdonalds",
+      "family",
+      "bright",
+      "playful",
+      "golden",
+      "happy",
+    ]) {
+      out.add(w);
+    }
+  }
+  if (n.includes("kfc")) {
+    for (const w of [
+      "kfc_sa_demo",
+      "kfc",
+      "fried",
+      "chicken",
+      "crispy",
+      "spicy",
+      "moody",
+      "contrast",
+      "indulgent",
+    ]) {
+      out.add(w);
+    }
+  }
+  return out;
 }
 
 function haystackFromSpec(
@@ -134,6 +174,8 @@ export async function selectVisualReferences(
   db: PrismaClient,
   args: {
     clientId: string;
+    /** When set, used to bias toward brand-scoped reference anchors (e.g. demo client names). */
+    clientName?: string | null;
     spec: VisualSpecArtifact;
     brandOs: BrandOperatingSystemContext;
     brandVisualProfile?: BrandVisualProfileForPrompt | null;
@@ -146,7 +188,7 @@ export async function selectVisualReferences(
   const minC = Math.min(5, Math.max(2, args.minCount ?? 2));
   const maxC = Math.min(5, Math.max(minC, args.maxCount ?? 5));
 
-  const [globalRefs, clientRefs, memRows] = await Promise.all([
+  const [globalRefs, clientRefs, memRows, clientRow] = await Promise.all([
     db.visualReference.findMany({ where: { clientId: null } }),
     db.visualReference.findMany({ where: { clientId: args.clientId } }),
     db.brandMemory.findMany({
@@ -154,6 +196,10 @@ export async function selectVisualReferences(
       orderBy: { createdAt: "desc" },
       take: 24,
       select: { outcome: true, summary: true, attributes: true },
+    }),
+    db.client.findUnique({
+      where: { id: args.clientId },
+      select: { name: true },
     }),
   ]);
 
@@ -166,6 +212,9 @@ export async function selectVisualReferences(
   });
 
   const hay = haystackFromSpec(args.spec, args.brandOs);
+  const nameForBias = args.clientName?.trim() || clientRow?.name || "";
+  const nameAnchors = clientNameAnchorTokens(nameForBias);
+  for (const w of nameAnchors) hay.add(w);
   const { approved: memOk, rejected: memBad } = memoryKeywordSets(memRows);
   const prof = profileWordSets(args.brandVisualProfile ?? null);
 
@@ -177,6 +226,13 @@ export async function selectVisualReferences(
     let score = founderBoost;
     for (const w of hay) {
       if (tags.has(w)) score += 1.2;
+    }
+    if (nameAnchors.size && ref.clientId === args.clientId) {
+      const anchor =
+        isRecord(ref.metadata) && typeof ref.metadata.anchor === "string"
+          ? ref.metadata.anchor
+          : "";
+      if (anchor && nameAnchors.has(anchor)) score += 3.5;
     }
     for (const w of tags) {
       if (hay.has(w)) score += 0.35;

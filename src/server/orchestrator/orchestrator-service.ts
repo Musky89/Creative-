@@ -905,7 +905,7 @@ export class OrchestratorService {
       loadBrandVisualProfileForPrompt(this.db, clientId),
       this.db.client.findUnique({
         where: { id: clientId },
-        select: { visualModelRef: true },
+        select: { visualModelRef: true, name: true },
       }),
     ]);
 
@@ -932,6 +932,7 @@ export class OrchestratorService {
 
     const selectedReferences = await selectVisualReferences(this.db, {
       clientId,
+      clientName: clientRow?.name ?? null,
       spec: parsed.data,
       brandOs,
       extraImageUrls: founderRefUrls,

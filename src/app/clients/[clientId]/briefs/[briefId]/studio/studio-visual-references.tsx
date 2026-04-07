@@ -32,12 +32,12 @@ export function StudioVisualReferencesPanel({
   return (
     <div className="rounded-xl border border-teal-900/40 bg-teal-950/20 px-4 py-4">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-teal-200/90">
-        Creative references used
+        Creative references
       </p>
       <p className="mt-1 text-xs text-teal-100/75">
-        Grounding for the current prompt package — emulate lighting and lensing, not subject-for-subject
-        copying. Re-approve <strong className="text-teal-50">Visual direction</strong> to rebuild the package
-        after changing URLs.
+        Library picks for this brand + brief inform the prompt package (lighting, composition, mood). Shown
+        below with labels — re-approve <strong className="text-teal-50">Visual direction</strong> to rebuild
+        after changing custom URLs.
       </p>
 
       {packageRefs.length > 0 ? (

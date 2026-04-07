@@ -32,6 +32,10 @@ async function main() {
   console.log(
     "\nCompare images (CLI, needs LLM + image keys): npx tsx scripts/qa-rib-burger-visual-compare.ts",
   );
+  console.log(
+    "\nBrand-scoped visual references (McDonald's / KFC-style SA demos) are seeded with demo clients.",
+  );
+  console.log("  Re-run only references: npm run seed:brand-visual-references");
 }
 
 main().catch((e) => {
