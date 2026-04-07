@@ -6,6 +6,8 @@ import { generateOpenAiImage } from "@/server/image-generation/openai-images";
 import { saveVisualAssetFile } from "@/server/storage/visual-asset-storage";
 import { evaluateAndPersistVisualAsset } from "@/server/visual-review/evaluate-visual-asset";
 import { applyVisualVariantSelectionForPackage } from "@/server/visual-review/visual-variant-selection";
+import { BRAND_STYLE_TRIGGER_WORD } from "@/server/brand-visual-training/constants";
+import { falSubscribeFluxGeneral, isFalConfigured } from "@/server/brand-visual-training/fal-runtime";
 import {
   VISUAL_VARIANTS_PER_RUN_MAX,
   VISUAL_VARIANTS_PER_RUN_MIN,
@@ -71,7 +73,11 @@ type Bundle = { prompt: string; negativeOrAvoid: string };
 
 export function resolveProviderTargetForGeneration(
   requested: VisualPromptProviderTarget,
+  options?: { visualModelRef?: string | null },
 ): VisualPromptProviderTarget {
+  if (requested === "FAL_IMAGE") return "FAL_IMAGE";
+  const vm = options?.visualModelRef?.trim();
+  if (vm && isFalConfigured()) return "FAL_IMAGE";
   if (requested !== "GENERIC") return requested;
   const gemini =
     !!process.env.GEMINI_API_KEY?.trim() || !!process.env.GOOGLE_API_KEY?.trim();
@@ -142,12 +148,54 @@ export async function runProvider(
 }> {
   const vmRef = options?.visualModelRef?.trim() || null;
   const refMeta = vmRef
-    ? { visualModelRef: vmRef, visualModelRefPending: true as const }
+    ? { visualModelRef: vmRef, usedTrainedBrandStyle: target === "FAL_IMAGE" }
     : {};
-  const prompt = vmRef
-    ? `[Brand visual model ref (reserved for future LoRA / fine-tune): ${vmRef}]\n\n${bundle.prompt}`
-    : bundle.prompt;
   const negative = bundle.negativeOrAvoid;
+
+  if (target === "FAL_IMAGE") {
+    if (!vmRef) {
+      throw new Error("Brand visual style is not available yet — teach the system first.");
+    }
+    if (!isFalConfigured()) {
+      throw new Error("FAL_KEY is not set — cannot use brand visual style generation.");
+    }
+    const styledPrompt = bundle.prompt.toLowerCase().includes(BRAND_STYLE_TRIGGER_WORD)
+      ? bundle.prompt
+      : `${BRAND_STYLE_TRIGGER_WORD} — ${bundle.prompt}`;
+    const fluxResult = await falSubscribeFluxGeneral({
+      prompt: styledPrompt.slice(0, 4000),
+      negative_prompt: negative.slice(0, 1200),
+      image_size: "landscape_4_3",
+      num_images: 1,
+      enable_safety_checker: true,
+      loras: [{ path: vmRef, scale: 1 }],
+    });
+    const url = fluxResult.data?.images?.[0]?.url;
+    if (!url) {
+      throw new Error("Brand style generation returned no image.");
+    }
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`Failed to download brand style image (${res.status}).`);
+    }
+    const mime =
+      res.headers.get("content-type")?.split(";")[0]?.trim() || "image/png";
+    const ab = await res.arrayBuffer();
+    return {
+      providerName: "fal",
+      modelName: "flux-general+brand-style",
+      buffer: Buffer.from(ab),
+      mime,
+      genMeta: {
+        ...refMeta,
+        falRequestId: fluxResult.requestId,
+      },
+    };
+  }
+
+  const prompt = vmRef
+    ? `[Brand visual model ref (reserved for non–fal providers): ${vmRef}]\n\n${bundle.prompt}`
+    : bundle.prompt;
 
   if (target === "GPT_IMAGE") {
     const r = await generateOpenAiImage({ prompt, negativePrompt: negative });
@@ -287,11 +335,23 @@ export async function generateVisualVariantsFromPromptPackage(
     );
   }
 
-  const resolvedTarget = resolveProviderTargetForGeneration(args.providerTarget);
+  const clientRow = await db.client.findUnique({
+    where: { id: args.clientId },
+    select: { visualModelRef: true },
+  });
+  const rawPkgEarly = art.content as Record<string, unknown>;
+  const visualModelRefEarly =
+    visualModelRefFromPackageContent(rawPkgEarly) ??
+    clientRow?.visualModelRef?.trim() ??
+    null;
+  const resolvedTarget = resolveProviderTargetForGeneration(args.providerTarget, {
+    visualModelRef: visualModelRefEarly,
+  });
   const rawPkg = art.content as Record<string, unknown>;
   const refsUsed = visualReferencesUsedFromPackageContent(rawPkg);
   const profileInfl = brandProfileInfluenceFromPackageContent(rawPkg);
-  const visualModelRef = visualModelRefFromPackageContent(rawPkg);
+  const visualModelRef =
+    visualModelRefFromPackageContent(rawPkg) ?? clientRow?.visualModelRef?.trim() ?? null;
   const content = stripInternalKeys(rawPkg);
   const baseBundle = pickBundle(content, resolvedTarget, critiqueTrim || undefined);
   const suffixes = critiqueTrim ? [""] : variantPromptSuffixes(count);
@@ -439,11 +499,23 @@ export async function generateVisualAssetFromPromptPackage(
     }
   }
 
-  const resolvedTarget = resolveProviderTargetForGeneration(args.providerTarget);
+  const clientRow = await db.client.findUnique({
+    where: { id: args.clientId },
+    select: { visualModelRef: true },
+  });
+  const rawPkgEarly = art.content as Record<string, unknown>;
+  const visualModelRefEarly =
+    visualModelRefFromPackageContent(rawPkgEarly) ??
+    clientRow?.visualModelRef?.trim() ??
+    null;
+  const resolvedTarget = resolveProviderTargetForGeneration(args.providerTarget, {
+    visualModelRef: visualModelRefEarly,
+  });
   const rawPkg = art.content as Record<string, unknown>;
   const refsUsed = visualReferencesUsedFromPackageContent(rawPkg);
   const profileInfl = brandProfileInfluenceFromPackageContent(rawPkg);
-  const visualModelRef = visualModelRefFromPackageContent(rawPkg);
+  const visualModelRef =
+    visualModelRefFromPackageContent(rawPkg) ?? clientRow?.visualModelRef?.trim() ?? null;
   const content = stripInternalKeys(rawPkg);
   const bundle = pickBundle(content, resolvedTarget, critiqueTrim || undefined);
   const regenAttempt = critiqueTrim ? 1 : 0;

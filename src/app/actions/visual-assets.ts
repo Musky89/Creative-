@@ -27,6 +27,7 @@ const TARGETS: VisualPromptProviderTarget[] = [
   "GENERIC",
   "GEMINI_IMAGE",
   "GPT_IMAGE",
+  "FAL_IMAGE",
 ];
 
 async function assertAssetInBrief(

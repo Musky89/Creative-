@@ -9,6 +9,7 @@ export const visualPromptProviderTargetSchema = z.enum([
   "GENERIC",
   "GEMINI_IMAGE",
   "GPT_IMAGE",
+  "FAL_IMAGE",
 ]);
 
 const providerReadyBundleSchema = z.object({
