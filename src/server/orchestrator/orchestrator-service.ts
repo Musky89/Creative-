@@ -56,7 +56,13 @@ import {
   mergeConceptSelectionIntoArtifact,
 } from "@/server/orchestrator/concept-selection";
 import { formatContextForPrompt, loadTaskAgentContext } from "@/server/agents/context";
-import { recordConceptJudgeMemories } from "@/server/memory/brand-memory-service";
+import {
+  recordBrandMemoryEvent,
+  recordConceptJudgeMemories,
+  recordCopyJudgeMemories,
+  recordStrategyJudgeMemories,
+} from "@/server/memory/brand-memory-service";
+import { extractPipelineFailureMemory } from "@/server/memory/extract-memory";
 import {
   recordBrandMemoryOnArtifactApproval,
   recordBrandMemoryOnReviewRevisionRequested,
@@ -486,6 +492,10 @@ export class OrchestratorService {
             content as Record<string, unknown>,
             judge,
           ) as Record<string, unknown>;
+          await recordStrategyJudgeMemories(this.db, {
+            clientId: brief.clientId,
+            content: content as Record<string, unknown>,
+          });
         }
       }
     }
@@ -510,6 +520,11 @@ export class OrchestratorService {
             judge,
             headlines,
           ) as Record<string, unknown>;
+          await recordCopyJudgeMemories(this.db, {
+            clientId: brief.clientId,
+            content: content as Record<string, unknown>,
+            headlines,
+          });
         }
       }
     }
@@ -654,6 +669,28 @@ export class OrchestratorService {
         }
         return artifact;
       });
+
+      try {
+        const ext = extractPipelineFailureMemory({
+          stageLabel: String(task.stage).replace(/_/g, " "),
+          failureType: failureType ?? "UNKNOWN",
+          failureReason: failureReason ?? "Pipeline failure",
+        });
+        await recordBrandMemoryEvent(this.db, {
+          clientId: brief.clientId,
+          type: "TONE",
+          frameworkId: null,
+          summary: ext.summary,
+          attributes: ext.attributes,
+          outcome: "FAILED",
+          strengthScore: 0.35,
+        });
+      } catch (memErr) {
+        console.error(
+          "[agenticforce:pipeline] brand memory record failed",
+          memErr,
+        );
+      }
 
       return { artifactId: failedArtifact.id, usedPlaceholder, pipelineFailed: true as const };
     }

@@ -13,7 +13,10 @@ import { composeFinalOutput } from "@/server/visual-finishing/final-output-compo
 import type { FinalOutputFormatId } from "@/lib/visual-finishing/final-output-formats";
 import { getDefaultCtaForBrief, getDefaultHeadlineForBrief } from "@/server/visual-finishing/headline-from-brief";
 import { recordBrandMemoryEvent } from "@/server/memory/brand-memory-service";
-import { extractVisualMemory } from "@/server/memory/extract-memory";
+import {
+  extractCampaignPatternMemory,
+  extractVisualMemory,
+} from "@/server/memory/extract-memory";
 import { visualSpecArtifactSchema } from "@/lib/artifacts/contracts";
 import { extractVisualIdentityFromAsset } from "@/server/visual-identity/extract-visual-identity";
 import {
@@ -292,6 +295,22 @@ export async function composeCampaignAssetAction(
           }
         : null,
     });
+    const campExt = extractCampaignPatternMemory({
+      format: "Campaign (quick finish)",
+      variantLabel: "COMPOSED",
+      headline: hl,
+      ctaText: null,
+      logoUrl: null,
+    });
+    await recordBrandMemoryEvent(prisma, {
+      clientId,
+      type: "CAMPAIGN_PATTERN",
+      frameworkId: null,
+      summary: campExt.summary,
+      attributes: campExt.attributes,
+      outcome: "SELECTED",
+      strengthScore: 0.88,
+    });
     revalidatePath(studioPath(clientId, briefId));
     return { ok: true as const, assetId: id };
   } catch (e) {
@@ -373,6 +392,24 @@ export async function composeFinalOutputAction(
             compositionStyle: bb.compositionStyle,
           }
         : null,
+    });
+    const fmtLabel =
+      options.format === "CAMPAIGN_DEFAULT" ? "Campaign default" : options.format;
+    const campExt = extractCampaignPatternMemory({
+      format: fmtLabel,
+      variantLabel,
+      headline: hl,
+      ctaText: cta,
+      logoUrl: options.logoUrl,
+    });
+    await recordBrandMemoryEvent(prisma, {
+      clientId,
+      type: "CAMPAIGN_PATTERN",
+      frameworkId: null,
+      summary: campExt.summary,
+      attributes: campExt.attributes,
+      outcome: "SELECTED",
+      strengthScore: 0.92,
     });
     revalidatePath(studioPath(clientId, briefId));
     return { ok: true as const, assetId: id, variantLabel };

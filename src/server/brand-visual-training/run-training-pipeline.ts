@@ -12,6 +12,8 @@ import {
 } from "./constants";
 import { falSubscribeFluxGeneral, falSubscribeTraining, getFalClientOrThrow } from "./fal-runtime";
 import { generateTrainingGuidance } from "./training-guidance";
+import { recordBrandMemoryEvent } from "@/server/memory/brand-memory-service";
+import { extractBrandStyleTrainingMemory } from "@/server/memory/extract-memory";
 
 function hoursSince(d: Date | null | undefined): number {
   if (!d) return 1e6;
@@ -65,6 +67,20 @@ export async function runBrandVisualTrainingPipeline(jobId: string) {
         errorMessage: `Select between ${BRAND_STYLE_MIN_IMAGES} and ${BRAND_STYLE_MAX_IMAGES} images.`,
         completedAt: new Date(),
       },
+    });
+    const badExt = extractBrandStyleTrainingMemory({
+      outcome: "FAILED",
+      imageCount: assetIds.length,
+      errorMessage: `Image count out of range.`,
+    });
+    await recordBrandMemoryEvent(prisma, {
+      clientId: job.clientId,
+      type: "BRAND_STYLE",
+      frameworkId: null,
+      summary: badExt.summary,
+      attributes: badExt.attributes,
+      outcome: "FAILED",
+      strengthScore: 0.4,
     });
     return;
   }
@@ -240,6 +256,19 @@ export async function runBrandVisualTrainingPipeline(jobId: string) {
         comparisonNote,
       },
     });
+    const okExt = extractBrandStyleTrainingMemory({
+      outcome: "APPROVED",
+      imageCount: assetIds.length,
+    });
+    await recordBrandMemoryEvent(prisma, {
+      clientId: job.clientId,
+      type: "BRAND_STYLE",
+      frameworkId: null,
+      summary: okExt.summary,
+      attributes: okExt.attributes,
+      outcome: "SELECTED",
+      strengthScore: 0.95,
+    });
     revalidatePath(`/clients/${job.clientId}`, "layout");
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -251,6 +280,20 @@ export async function runBrandVisualTrainingPipeline(jobId: string) {
         errorMessage: msg.slice(0, 2000),
         completedAt: new Date(),
       },
+    });
+    const failExt = extractBrandStyleTrainingMemory({
+      outcome: "FAILED",
+      imageCount: assetIds.length,
+      errorMessage: msg,
+    });
+    await recordBrandMemoryEvent(prisma, {
+      clientId: job.clientId,
+      type: "BRAND_STYLE",
+      frameworkId: null,
+      summary: failExt.summary,
+      attributes: failExt.attributes,
+      outcome: "FAILED",
+      strengthScore: 0.42,
     });
     revalidatePath(`/clients/${job.clientId}`, "layout");
   }

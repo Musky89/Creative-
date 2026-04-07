@@ -43,7 +43,7 @@ export async function recordBrandMemoryOnArtifactApproval(
       Array.isArray(fws) && typeof fws[0] === "string" ? (fws[0] as string) : null;
     await recordBrandMemoryEvent(db, {
       clientId: args.clientId,
-      type: "CONCEPT",
+      type: "STRATEGY",
       frameworkId: fw,
       summary: ext.summary,
       attributes: ext.attributes,
@@ -133,7 +133,7 @@ export async function recordBrandMemoryOnReviewRevisionRequested(
     const ext = extractStrategyMemory({ strategy: args.content, outcome: "REJECTED" });
     await recordBrandMemoryEvent(db, {
       clientId: args.clientId,
-      type: "CONCEPT",
+      type: "STRATEGY",
       frameworkId: null,
       summary: ext.summary,
       attributes: ext.attributes,

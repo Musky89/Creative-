@@ -36,7 +36,7 @@ export type MemoryExtraction = {
 
 export function extractConceptMemory(args: {
   concept: Record<string, unknown>;
-  outcome: "APPROVED" | "REJECTED";
+  outcome: "APPROVED" | "REJECTED" | "SELECTED";
   judgeReason?: string | null;
 }): MemoryExtraction {
   const fw = String(args.concept.frameworkId ?? "").trim() || null;
@@ -47,17 +47,17 @@ export function extractConceptMemory(args: {
   const keywords = tokenizeKeywords(text, 10);
 
   const summary =
-    args.outcome === "APPROVED"
+    args.outcome === "REJECTED"
       ? clip(
           fw
-            ? `${name}: ${fw} framework selected — strong route for this brand.`
-            : `${name}: concept route approved.`,
+            ? `${name} (${fw}) rejected${args.judgeReason ? ` — ${args.judgeReason}` : ""}`
+            : `${name} rejected${args.judgeReason ? ` — ${args.judgeReason}` : ""}`,
           220,
         )
       : clip(
           fw
-            ? `${name} (${fw}) rejected${args.judgeReason ? ` — ${args.judgeReason}` : ""}`
-            : `${name} rejected${args.judgeReason ? ` — ${args.judgeReason}` : ""}`,
+            ? `${name}: ${fw} framework selected — strong route for this brand.`
+            : `${name}: concept route approved.`,
           220,
         );
 
@@ -68,7 +68,10 @@ export function extractConceptMemory(args: {
       frameworkId: fw,
       hookSnippet: clip(hook, 160),
       keywords,
-      structureHints: args.outcome === "APPROVED" ? ["selected_concept_route"] : ["rejected_concept_route"],
+      structureHints:
+        args.outcome === "REJECTED"
+          ? ["rejected_concept_route"]
+          : ["selected_concept_route"],
     },
   };
 }
@@ -176,6 +179,57 @@ export function extractCopyMemory(args: {
   };
 }
 
+/** One strategic angle after judge merge (primary / alternate). */
+export function extractStrategyAngleMemory(args: {
+  strategy: Record<string, unknown>;
+  angle: Record<string, unknown>;
+  isPrimary: boolean;
+}): MemoryExtraction {
+  const fw = String(args.angle.frameworkId ?? "").trim() || null;
+  const angleText = String(args.angle.angle ?? "").trim();
+  const cc = isRecord(args.strategy.campaignCore)
+    ? args.strategy.campaignCore
+    : null;
+  const blob = [
+    angleText,
+    String(args.strategy.insight ?? ""),
+    String(args.strategy.proposition ?? ""),
+    cc ? String(cc.singleLineIdea ?? "") : "",
+    cc ? String(cc.emotionalTension ?? "") : "",
+    cc ? String(cc.visualNarrative ?? "") : "",
+  ].join(" ");
+  const keywords = tokenizeKeywords(blob, 10);
+
+  const summary = args.isPrimary
+    ? clip(
+        fw
+          ? `Primary strategic angle (${fw}) — ${clip(angleText || "selected direction", 100)}`
+          : clip(`Primary strategic angle — ${angleText || "selected"}`, 220),
+        220,
+      )
+    : clip(
+        fw
+          ? `Alternate strategic angle (${fw}) — ${clip(angleText || "backup route", 100)}`
+          : clip(`Alternate strategic angle — ${angleText || "backup"}`, 220),
+        220,
+      );
+
+  return {
+    summary,
+    attributes: {
+      frameworkId: fw,
+      angleSnippet: clip(angleText, 200),
+      keywords,
+      structureHints: args.isPrimary
+        ? ["primary_strategic_angle"]
+        : ["alternate_strategic_angle"],
+      campaignCoreSnippet: cc
+        ? clip(String(cc.singleLineIdea ?? ""), 120)
+        : undefined,
+    },
+  };
+}
+
 export function extractStrategyMemory(args: {
   strategy: Record<string, unknown>;
   outcome: "APPROVED" | "REJECTED";
@@ -215,6 +269,78 @@ export function extractStrategyMemory(args: {
       frameworkIds: fwIds,
       keywords,
       structureHints: ["strategy_angles"],
+    },
+  };
+}
+
+export function extractCampaignPatternMemory(args: {
+  format: string;
+  variantLabel: string;
+  headline: string;
+  ctaText?: string | null;
+  logoUrl?: string | null;
+}): MemoryExtraction {
+  const hasLogo = Boolean(args.logoUrl?.trim());
+  const summary = clip(
+    `Finished campaign layout (${args.format}) — ${clip(args.headline, 80)}${hasLogo ? " · with logo" : ""}`,
+    220,
+  );
+  return {
+    summary,
+    attributes: {
+      outputFormat: args.format,
+      variantLabel: args.variantLabel,
+      headlineSnippet: clip(args.headline, 160),
+      ctaSnippet: args.ctaText?.trim()
+        ? clip(args.ctaText.trim(), 120)
+        : undefined,
+      hasLogo,
+      structureHints: ["composed_final_output"],
+    },
+  };
+}
+
+export function extractPipelineFailureMemory(args: {
+  stageLabel: string;
+  failureType: string;
+  failureReason: string;
+}): MemoryExtraction {
+  const summary = clip(
+    `Weak output filtered (${args.stageLabel}) — ${clip(args.failureReason, 140)}`,
+    220,
+  );
+  return {
+    summary,
+    attributes: {
+      pipelineFailureType: args.failureType,
+      structureHints: ["pipeline_failure"],
+    },
+  };
+}
+
+export function extractBrandStyleTrainingMemory(args: {
+  outcome: "APPROVED" | "FAILED";
+  imageCount: number;
+  errorMessage?: string | null;
+}): MemoryExtraction {
+  const summary =
+    args.outcome === "APPROVED"
+      ? clip(
+          `Brand visual style updated from ${args.imageCount} reference images — future frames can match this look.`,
+          220,
+        )
+      : clip(
+          args.errorMessage?.trim()
+            ? `Brand visual style teaching did not complete — ${clip(args.errorMessage.trim(), 140)}`
+            : "Brand visual style teaching did not complete.",
+          220,
+        );
+
+  return {
+    summary,
+    attributes: {
+      imageCount: args.imageCount,
+      structureHints: ["brand_visual_style_training"],
     },
   };
 }

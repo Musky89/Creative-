@@ -9,7 +9,13 @@ export async function StudioBrandLearningPanel({
 }) {
   const prisma = getPrisma();
   const data = await getBrandLearningPanelData(prisma, clientId);
-  const hasAny = data.preferred.length > 0 || data.rejected.length > 0;
+  const hasAny =
+    data.preferred.length > 0 ||
+    data.rejected.length > 0 ||
+    data.likesVisual.length > 0 ||
+    data.avoidVisual.length > 0 ||
+    data.likesTone.length > 0 ||
+    data.winsLayout.length > 0;
 
   if (!hasAny) {
     return (
@@ -59,6 +65,66 @@ export async function StudioBrandLearningPanel({
           </ul>
         </div>
       </div>
+      {(data.likesVisual.length > 0 || data.avoidVisual.length > 0) && (
+        <div className="mt-4 grid gap-4 border-t border-violet-900/30 pt-4 sm:grid-cols-2">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-sky-300/90">
+              Tends to like (visual)
+            </p>
+            <ul className="mt-2 space-y-1 text-xs text-zinc-300">
+              {data.likesVisual.map((s, i) => (
+                <li key={i} className="leading-snug">
+                  {s}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-300/80">
+              Tends to avoid (visual)
+            </p>
+            <ul className="mt-2 space-y-1 text-xs text-zinc-400">
+              {data.avoidVisual.map((s, i) => (
+                <li key={i} className="leading-snug">
+                  {s}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+      {(data.likesTone.length > 0 || data.winsLayout.length > 0) && (
+        <div className="mt-4 space-y-3 border-t border-violet-900/30 pt-4">
+          {data.likesTone.length > 0 && (
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                Copy / tone signals
+              </p>
+              <ul className="mt-1.5 space-y-1 text-xs text-zinc-300">
+                {data.likesTone.map((s, i) => (
+                  <li key={i} className="leading-snug">
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {data.winsLayout.length > 0 && (
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                Strong finished layouts
+              </p>
+              <ul className="mt-1.5 space-y-1 text-xs text-zinc-300">
+                {data.winsLayout.map((s, i) => (
+                  <li key={i} className="leading-snug">
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </Card>
   );
 }
