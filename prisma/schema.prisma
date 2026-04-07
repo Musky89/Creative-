@@ -451,6 +451,11 @@ model Task {
   startedAt   DateTime?
   completedAt DateTime?
 
+  /// Last pipeline failure (task left in FAILED) — surfaced in Studio.
+  lastFailureReason String? @db.Text
+  /// LLM | VALIDATION | EMPTY | PLACEHOLDER | QUALITY | UNKNOWN
+  lastFailureType   String?
+
   /// Edges where THIS task is the successor: "this task depends on prerequisite(s)".
   dependencies TaskDependency[] @relation("TaskDependencyDependent")
   /// Edges where THIS task is the prerequisite: other tasks wait on this one.
