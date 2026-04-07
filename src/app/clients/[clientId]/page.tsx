@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getClientCached } from "@/server/domain/clients";
 import { Card } from "@/components/ui/section";
 import { ButtonLink } from "@/components/ui/button-link";
+import { StudioTrainingStatusCard } from "./studio-training-status";
 
 export default async function ClientOverviewPage({
   params,
@@ -56,31 +57,34 @@ export default async function ClientOverviewPage({
           </Link>
         </div>
       </Card>
-      <Card>
-        <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-          Next
-        </p>
-        <div className="mt-4 flex flex-col gap-2">
-          <ButtonLink href={`/clients/${clientId}/briefs/new`} className="w-full">
-            New brief
-          </ButtonLink>
-          {client.briefs[0] ? (
-            <ButtonLink
-              href={`/clients/${clientId}/briefs/${client.briefs[0].id}/studio`}
-              variant="secondary"
-              className="w-full"
-            >
-              Latest studio
+      <div className="space-y-6">
+        <StudioTrainingStatusCard clientId={clientId} />
+        <Card>
+          <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+            Next
+          </p>
+          <div className="mt-4 flex flex-col gap-2">
+            <ButtonLink href={`/clients/${clientId}/briefs/new`} className="w-full">
+              New brief
             </ButtonLink>
-          ) : null}
-          <Link
-            href={`/clients/${clientId}/internal-testing`}
-            className="rounded-lg px-1 py-2 text-center text-sm text-zinc-400 underline decoration-zinc-700 hover:text-zinc-200"
-          >
-            Internal testing
-          </Link>
-        </div>
-      </Card>
+            {client.briefs[0] ? (
+              <ButtonLink
+                href={`/clients/${clientId}/briefs/${client.briefs[0].id}/studio`}
+                variant="secondary"
+                className="w-full"
+              >
+                Latest studio
+              </ButtonLink>
+            ) : null}
+            <Link
+              href={`/clients/${clientId}/internal-testing`}
+              className="rounded-lg px-1 py-2 text-center text-sm text-zinc-400 underline decoration-zinc-700 hover:text-zinc-200"
+            >
+              Internal testing
+            </Link>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

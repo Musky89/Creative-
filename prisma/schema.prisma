@@ -120,6 +120,8 @@ enum VisualPromptProviderTarget {
   GENERIC
   GEMINI_IMAGE
   GPT_IMAGE
+  /// fal.ai Flux (brand style weights when `Client.visualModelRef` is set)
+  FAL_IMAGE
 }
 
 enum VisualAssetStatus {
@@ -146,11 +148,50 @@ enum PrivateEvaluationVerdict {
   NEEDS_WORK
 }
 
+enum BrandMemoryType {
+  STRATEGY
+  CONCEPT
+  COPY
+  VISUAL
+  TONE
+  BRAND_STYLE
+  CAMPAIGN_PATTERN
+}
+
+enum BrandMemoryOutcome {
+  APPROVED
+  REJECTED
+  SELECTED
+  FAILED
+}
+
+enum VisualReferenceCategory {
+  COMPOSITION
+  LIGHTING
+  STYLE
+  BRAND
+}
+
 /// Class of engagement / template used to instantiate work from a Brief.
 enum ServiceBlueprintTemplateType {
   FULL_PIPELINE
   CAMPAIGN_SPRINT
   RETAINER_MONTHLY
+  CUSTOM
+}
+
+/// High-level assignment type — drives default workstreams and Studio framing.
+enum BriefEngagementType {
+  CAMPAIGN
+  BRAND_IDENTITY
+  CONTENT_SYSTEM
+  PRODUCT_LAUNCH
+  ALWAYS_ON_SOCIAL
+  RETAIL_PROMOTION
+  EDITORIAL_PRINT
+  OOH
+  TVC_FILM
+  CREATIVE_STRATEGY_ONLY
   CUSTOM
 }
 
@@ -164,6 +205,9 @@ model Client {
   industry  String
   createdAt DateTime @default(now())
 
+  /// Seeded or explicitly marked demo (Coca-Cola / McDonald's style harness clients).
+  isDemoClient Boolean @default(false)
+
   brandBible             BrandBible?
   serviceBlueprint       ServiceBlueprint?
   briefs                 Brief[]
@@ -172,6 +216,75 @@ model Client {
   visualAssets           VisualAsset[]
   visualAssetReviews     VisualAssetReview[]
   privateEvalRecords     PrivateEvaluationRecord[]
+  brandMemories          BrandMemory[]
+  brandMemoryAggregate   BrandMemoryAggregate?
+  visualReferences       VisualReference[]
+  brandVisualProfile     BrandVisualProfile?
+  /// Learned brand visual style (fal output ref / weights id) — applied automatically when set.
+  visualModelRef         String?
+  /// Cooldown: last time founder completed “Train Brand Visual Style”.
+  lastBrandStyleTrainedAt DateTime?
+
+  brandVisualTrainingJobs BrandVisualTrainingJob[]
+}
+
+enum BrandVisualTrainingJobStatus {
+  DRAFT
+  PREPARING
+  QUEUED
+  TRAINING
+  FINALIZING
+  COMPLETE
+  FAILED
+}
+
+/// Founder-facing “teach what good looks like” — one job per training run (internal fal queue).
+model BrandVisualTrainingJob {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  status BrandVisualTrainingJobStatus @default(DRAFT)
+  /// Strong | Medium | Weak — founder-facing training quality.
+  trainingQuality String @default("")
+
+  guidanceLines Json @default("[]")
+
+  falRequestId      String?
+  falStatusPayload  Json?
+  resultPayload     Json?
+  errorMessage      String?
+
+  previousVisualModelRef String?
+  newVisualModelRef      String?
+
+  comparisonBaseAssetId   String?
+  comparisonStyledAssetId   String?
+  comparisonNote            String?
+
+  assets BrandVisualTrainingAsset[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  @@index([clientId, createdAt(sort: Desc)])
+}
+
+model BrandVisualTrainingAsset {
+  id            String @id @default(cuid())
+  jobId         String
+  job           BrandVisualTrainingJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  visualAssetId String
+  visualAsset   VisualAsset            @relation(fields: [visualAssetId], references: [id], onDelete: Cascade)
+
+  caption   String
+  styleTags Json   @default("[]")
+  sortOrder Int    @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([jobId])
 }
 
 /// One canonical Brand Bible per client (1:1).
@@ -230,6 +343,17 @@ model BrandBible {
   tensionCoreContradiction  String @default("") @db.Text
   tensionEmotionalBalance   String @default("") @db.Text
 
+  /// Creative DNA — voice, rhythm, devices (creative-director level)
+  voicePrinciples    Json   @default("[]")
+  rhythmRules        Json   @default("[]")
+  signatureDevices   Json   @default("[]")
+  culturalCodes      Json   @default("[]")
+  emotionalRange     String @default("") @db.Text
+  metaphorStyle      String @default("") @db.Text
+  visualPhilosophy   String @default("") @db.Text
+  /// Productive tension as a single creative line (e.g. "Premium vs accessible")
+  brandTension       String @default("") @db.Text
+
   /// Taste engine — references & feel
   tasteCloserThan       Json    @default("[]")
   tasteShouldFeelLike   String  @default("") @db.Text
@@ -240,6 +364,11 @@ model BrandBible {
   visualCompositionTendencies     String @default("") @db.Text
   visualMaterialTextureDirection  String @default("") @db.Text
   visualLightingTendencies        String @default("") @db.Text
+
+  /// "" | "ai_draft" | "demo_seed" — how this record was created (never silent overwrite).
+  onboardingSource           String  @default("")
+  /// When true, UI shows "Needs review" until founder saves Brand Bible again.
+  aiOnboardingNeedsReview    Boolean @default(false)
 
   updatedAt DateTime @updatedAt
 }
@@ -272,7 +401,12 @@ model Brief {
   communicationObjective  String   @db.Text
   targetAudience          String   @db.Text
   keyMessage              String   @db.Text
+  /// Agency-style deliverable keys (string[]); unknown values preserved for extension.
   deliverablesRequested   Json
+  /// Assignment type — orchestration + Studio overview.
+  engagementType          BriefEngagementType @default(CAMPAIGN)
+  /// Active creative workstreams (string[] slugs, e.g. STATIC_VISUALS, BRAND_IDENTITY).
+  workstreams             Json                 @default("[]")
   tone                    String
   constraints             Json
   deadline                DateTime
@@ -281,12 +415,23 @@ model Brief {
   /// When true, workflow inserts IDENTITY_STRATEGY + IDENTITY_ROUTING after STRATEGY (new brand / identity builds).
   identityWorkflowEnabled Boolean  @default(false)
 
+  onboardingSource           String  @default("")
+  aiOnboardingNeedsReview    Boolean @default(false)
+
   tasks         Task[]
   visualAssets  VisualAsset[]
 
   /// Seeded or harness-created briefs for internal QA (see docs/PRIVATE_TESTING_CHECKLIST.md).
   isTestBrief   Boolean  @default(false)
   testCategory  String?
+
+  /// Creative Director (final) rework budget — max one automatic retry loop.
+  cdReworkCount Int      @default(0)
+  /// Directives from last CD final REWORK — injected into copy regen; cleared on APPROVE.
+  cdLastImprovementDirectives Json @default("[]")
+
+  /// Optional founder URLs for reference-grounded visual generation (max ~5 in app logic).
+  visualReferenceOverrides Json @default("[]")
 
   privateEvalSessions   PrivateEvaluationSession[]
   privateEvalRecords    PrivateEvaluationRecord[]
@@ -310,6 +455,11 @@ model Task {
 
   startedAt   DateTime?
   completedAt DateTime?
+
+  /// Last pipeline failure (task left in FAILED) — surfaced in Studio.
+  lastFailureReason String? @db.Text
+  /// LLM | VALIDATION | EMPTY | PLACEHOLDER | QUALITY | UNKNOWN
+  lastFailureType   String?
 
   /// Edges where THIS task is the successor: "this task depends on prerequisite(s)".
   dependencies TaskDependency[] @relation("TaskDependencyDependent")
@@ -382,6 +532,69 @@ model FrameworkPerformance {
   @@unique([clientId, frameworkId])
   @@index([clientId])
   @@index([frameworkId])
+}
+
+/// Founder / system learning signals for future prompt bias (not hard constraints).
+model BrandMemory {
+  id          String             @id @default(cuid())
+  clientId    String
+  client      Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  type        BrandMemoryType
+  frameworkId String?
+  summary     String             @db.Text
+  attributes  Json
+  outcome     BrandMemoryOutcome
+  /// 0–1 — confidence / strength of signal (e.g. judge composite, review verdict).
+  strengthScore Float
+  createdAt   DateTime           @default(now())
+
+  @@index([clientId, createdAt(sort: Desc)])
+  @@index([clientId, type])
+}
+
+/// Cached rollups for fast prompt injection (optional optimization).
+/// Learned visual DNA from founder-approved frames (soft lock for prompts; LoRA later).
+model BrandVisualProfile {
+  id        String   @id @default(cuid())
+  clientId  String   @unique
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  styleKeywords        Json @default("[]")
+  lightingPatterns     Json @default("[]")
+  compositionPatterns  Json @default("[]")
+  colorSignatures      Json @default("[]")
+  texturePatterns      Json @default("[]")
+  framingRules         Json @default("[]")
+  negativeTraits       Json @default("[]")
+  /// 0–1 — rises slowly with repeated preferred selections (capped; not instant lock-in).
+  confidenceScore      Float  @default(0)
+  confirmationCount    Int    @default(0)
+  rejectionCount       Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Campaign-style reference stills for grounding image prompts (global + per-client).
+model VisualReference {
+  id        String                  @id @default(cuid())
+  clientId  String?
+  client    Client?                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  label     String
+  category  VisualReferenceCategory
+  imageUrl  String
+  metadata  Json
+  createdAt DateTime                @default(now())
+
+  @@index([clientId])
+  @@index([category])
+}
+
+model BrandMemoryAggregate {
+  clientId           String   @id
+  client             Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  aggregatedPatterns Json
+  updatedAt          DateTime @updatedAt
 }
 
 model ArtifactOutcome {
@@ -472,6 +685,10 @@ model VisualAsset {
   generationNotes     String?                  @db.Text
   /// Founder marked this variant as the preferred pick for this prompt package.
   isPreferred         Boolean                  @default(false)
+  /// Second-best auto-selected variant (max two surfaced by default).
+  isSecondary         Boolean                  @default(false)
+  /// Auto-filter rejected (slop / low realism) — still stored for audit.
+  autoRejected        Boolean                  @default(false)
   /// Founder explicitly rejected this variant (weak / off-brief).
   founderRejected     Boolean                  @default(false)
   /// Bounded regeneration: incremented when generation used a critique suffix.
@@ -479,6 +696,7 @@ model VisualAsset {
 
   review VisualAssetReview?
   privateEvaluationRefs PrivateEvaluationRecord[]
+  brandVisualTrainingUses BrandVisualTrainingAsset[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -10,9 +10,11 @@ export function DatabaseUnavailableNotice() {
         Database unreachable
       </h2>
       <p className="mt-2 text-sm text-amber-100/85">
-        AgenticForce could not connect to PostgreSQL. The app needs a running database
-        and a correct <code className="rounded bg-amber-950/40 px-1 font-mono text-xs text-amber-50">DATABASE_URL</code> in{" "}
-        <code className="rounded bg-amber-950/40 px-1 font-mono text-xs text-amber-50">.env</code>.
+        The app could not load data from PostgreSQL — either the database is unreachable,{" "}
+        <code className="rounded bg-amber-950/40 px-1 font-mono text-xs text-amber-50">DATABASE_URL</code> in{" "}
+        <code className="rounded bg-amber-950/40 px-1 font-mono text-xs text-amber-50">.env</code> is wrong, or{" "}
+        <strong className="font-medium text-amber-50">migrations are behind</strong> (common after{" "}
+        <code className="font-mono text-xs text-amber-50/90">git pull</code>).
       </p>
       <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-amber-100/80">
         <li>

@@ -5,7 +5,10 @@ export type OrchestratorErrorCode =
   | "INVALID_STATE_TRANSITION"
   | "PREREQUISITES_NOT_MET"
   | "VALIDATION_ERROR"
-  | "BRAND_BIBLE_INCOMPLETE";
+  | "BRAND_BIBLE_INCOMPLETE"
+  | "PIPELINE_FAILED"
+  | "INVALID_ARTIFACT"
+  | "QUALITY_GATE";
 
 export class OrchestratorError extends Error {
   readonly code: OrchestratorErrorCode;

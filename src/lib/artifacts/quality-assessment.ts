@@ -8,7 +8,12 @@ import {
   findGenericMarketingHits,
   findVagueMarketingAdjectives,
 } from "@/lib/brand/anti-generic";
+import {
+  mergeCreativeDnaToneIssues,
+  type BrandCreativeDnaForChecks,
+} from "@/lib/brand/creative-dna-tone-checks";
 import { mergeBadOutputBlacklistIssues } from "@/lib/brand/bad-output-blacklist";
+import { strategyCampaignCoreCohesionIssues } from "@/lib/campaign/campaign-core";
 import { z } from "zod";
 
 export const prePersistQualitySchema = z.object({
@@ -109,6 +114,7 @@ export function mergeAntiGenericIssues(
     | "IDENTITY_ROUTING",
   content: Record<string, unknown>,
   bannedPhrases: string[],
+  creativeDna?: BrandCreativeDnaForChecks | null,
 ): DeterministicQualityResult {
   const blob = collectArtifactTextForQuality(stage, content);
   const issues: string[] = [];
@@ -151,6 +157,18 @@ export function mergeAntiGenericIssues(
   const bl = mergeBadOutputBlacklistIssues(stage, content);
   issues.push(...bl.issues);
   recommendRegeneration = recommendRegeneration || bl.recommendRegeneration;
+
+  if (
+    creativeDna &&
+    (stage === "STRATEGY" ||
+      stage === "CONCEPTING" ||
+      stage === "VISUAL_DIRECTION" ||
+      stage === "COPY_DEVELOPMENT")
+  ) {
+    const dnaTone = mergeCreativeDnaToneIssues(blob, creativeDna, stage);
+    issues.push(...dnaTone.issues);
+    recommendRegeneration = recommendRegeneration || dnaTone.recommendRegeneration;
+  }
 
   return { issues, recommendRegeneration };
 }
@@ -397,8 +415,20 @@ export function deterministicVisualSpecChecks(
 export function deterministicConceptChecks(content: Record<string, unknown>): DeterministicQualityResult {
   const issues: string[] = [];
   const concepts = content.concepts;
-  if (!Array.isArray(concepts) || concepts.length < 2) {
-    return { issues, recommendRegeneration: false };
+  if (!Array.isArray(concepts) || concepts.length < 6) {
+    if (Array.isArray(concepts) && concepts.length > 0 && concepts.length < 6) {
+      issues.push("Concept pack must include at least 6 distinct routes for competitive selection.");
+    }
+    return { issues, recommendRegeneration: issues.length > 0 };
+  }
+
+  const fwIds = concepts.map((c) =>
+    c && typeof c === "object"
+      ? String((c as Record<string, unknown>).frameworkId ?? "").trim()
+      : "",
+  );
+  if (new Set(fwIds.filter(Boolean)).size !== fwIds.filter(Boolean).length) {
+    issues.push("Each concept must use a unique frameworkId (no duplicates in the pack).");
   }
 
   issues.push(...pairwiseStructureIssues(concepts.length, content.pairwiseDifferentiation, "Concept pack"));
@@ -419,7 +449,7 @@ export function deterministicConceptChecks(content: Record<string, unknown>): De
   const texts = concepts.map((c) => {
     if (!c || typeof c !== "object") return "";
     const o = c as Record<string, unknown>;
-    return `${String(o.hook ?? "")} ${String(o.rationale ?? "")} ${String(o.whyItWorksForBrand ?? "")} ${String(o.distinctVisualWorld ?? "")} ${String(o.coreTension ?? "")} ${String(o.whyBeatsCategoryNorm ?? "")}`;
+    return `${String(o.hook ?? "")} ${String(o.rationale ?? "")} ${String(o.whyItWorksForBrand ?? "")} ${String(o.distinctivenessVsCategory ?? "")} ${String(o.distinctVisualWorld ?? "")} ${String(o.coreTension ?? "")} ${String(o.whyBeatsCategoryNorm ?? "")}`;
   });
 
   for (let i = 0; i < texts.length; i++) {
@@ -450,6 +480,11 @@ export function deterministicConceptChecks(content: Record<string, unknown>): De
     }
     if (String(o.whyBeatsCategoryNorm ?? "").length < 45) {
       issues.push(`Concept ${i + 1}: whyBeatsCategoryNorm must explain edge vs category default.`);
+    }
+    if (String(o.distinctivenessVsCategory ?? "").length < 45) {
+      issues.push(
+        `Concept ${i + 1}: distinctivenessVsCategory must state a sharp category edge (not a hook paraphrase).`,
+      );
     }
   }
 
@@ -490,7 +525,7 @@ export function deterministicConceptChecks(content: Record<string, unknown>): De
 export function deterministicCopyChecks(content: Record<string, unknown>): DeterministicQualityResult {
   const issues: string[] = [];
   const headlines = content.headlineOptions;
-  if (!Array.isArray(headlines) || headlines.length < 2) {
+  if (!Array.isArray(headlines) || headlines.length < 5) {
     return { issues, recommendRegeneration: false };
   }
   const hs = headlines.map((h) => String(h).toLowerCase());
@@ -518,7 +553,7 @@ export function deterministicCopyChecks(content: Record<string, unknown>): Deter
 }
 
 export function deterministicStrategyChecks(content: Record<string, unknown>): DeterministicQualityResult {
-  const issues: string[] = [];
+  const issues: string[] = [...strategyCampaignCoreCohesionIssues(content)];
   const prop = String(content.proposition ?? "");
   if (prop.length < 40) {
     issues.push("Proposition is too short to be single-minded and testable.");
@@ -527,13 +562,19 @@ export function deterministicStrategyChecks(content: Record<string, unknown>): D
     issues.push("Proposition uses generic phrasing.");
   }
   const angles = content.strategicAngles;
-  if (Array.isArray(angles) && angles.length >= 2) {
+  if (Array.isArray(angles) && angles.length >= 3) {
     const texts = angles.map((a) =>
       a && typeof a === "object" ? String((a as { angle?: string }).angle ?? "") : "",
     );
-    const sim = jaccard(tokenize(texts[0]!), tokenize(texts[1]!));
-    if (sim > 0.55) {
-      issues.push("Strategic angles overlap — differentiate framework applications.");
+    for (let i = 0; i < texts.length; i++) {
+      for (let j = i + 1; j < texts.length; j++) {
+        const sim = jaccard(tokenize(texts[i]!), tokenize(texts[j]!));
+        if (sim > 0.55) {
+          issues.push(
+            `Strategic angles ${i + 1} and ${j + 1} overlap — differentiate framework applications.`,
+          );
+        }
+      }
     }
   }
   return {

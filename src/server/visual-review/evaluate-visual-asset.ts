@@ -7,6 +7,12 @@ import {
   visualAssetEvaluationSchema,
   type VisualAssetEvaluation,
 } from "@/lib/visual/visual-asset-evaluation";
+import { referenceCompositionProfileSchema } from "@/lib/visual/reference-composition-profile";
+import { detectVisualSlop } from "@/lib/visual/slop-detection";
+import {
+  VISUAL_REALISM_REJECT_THRESHOLD,
+  VISUAL_SLOP_REJECT_THRESHOLD,
+} from "@/lib/visual/visual-variant-thresholds";
 import { extractJsonObject } from "@/server/llm/extract-json";
 import { resolveVisualAssetAbsolutePath } from "@/server/storage/visual-asset-storage";
 
@@ -16,6 +22,10 @@ Output a single JSON object only. No markdown.
 
 Fields:
 - qualityVerdict: "STRONG" | "ACCEPTABLE" | "WEAK"
+- realismScore: number 0-1 (1 = photographic, believable; 0 = plastic/CGI/stock-slop)
+- compositionScore: number 0-1 (layout, hierarchy, breathing room)
+- brandFitScore: number 0-1 (fits VISUAL_SPEC / brief cues)
+- slopScore: number 0-1 (1 = maximum generic AI / hyper-polish / wrong anatomy)
 - brandAlignment: one short paragraph
 - distinctiveness: one short paragraph (vs generic stock / AI wallpaper)
 - compositionAssessment: one short paragraph
@@ -29,6 +39,10 @@ Be honest: if you cannot see detail, use UNCERTAIN and explain.`;
 
 const visionResponseSchema = z.object({
   qualityVerdict: z.enum(["STRONG", "ACCEPTABLE", "WEAK"]),
+  realismScore: z.number().min(0).max(1),
+  compositionScore: z.number().min(0).max(1),
+  brandFitScore: z.number().min(0).max(1),
+  slopScore: z.number().min(0).max(1),
   brandAlignment: z.string().min(1),
   distinctiveness: z.string().min(1),
   compositionAssessment: z.string().min(1),
@@ -38,6 +52,70 @@ const visionResponseSchema = z.object({
   recommendations: z.array(z.string()).max(8),
   regenerationRecommended: z.boolean(),
 });
+
+function slopRiskToScore(r: "LOW" | "MEDIUM" | "HIGH"): number {
+  if (r === "HIGH") return 0.85;
+  if (r === "MEDIUM") return 0.5;
+  return 0.2;
+}
+
+function heuristicScores(args: {
+  det: ReturnType<typeof deterministicVisualAssetEvaluation>;
+  slopPixels: ReturnType<typeof detectVisualSlop>;
+}): Pick<
+  VisualAssetEvaluation,
+  | "realismScore"
+  | "compositionScore"
+  | "brandFitScore"
+  | "slopScore"
+> {
+  const textSlop = slopRiskToScore(args.det.slopRisk);
+  const slopScore = Math.min(
+    1,
+    args.slopPixels.aggregateSlopScore * 0.72 + textSlop * 0.28,
+  );
+  const realismScore = Math.max(0, Math.min(1, 1 - slopScore * 0.92));
+  const compositionScore = Math.max(
+    0,
+    Math.min(
+      1,
+      1 -
+        args.slopPixels.clutteredCompositionScore * 0.45 -
+        args.slopPixels.lackOfNegativeSpaceScore * 0.35 -
+        args.slopPixels.unnaturalSymmetryScore * 0.12,
+    ),
+  );
+  const weakSpec = args.det.deterministicIssues.length >= 2 ? 0.12 : 0;
+  const brandFitScore = Math.max(
+    0,
+    Math.min(1, 0.55 + (args.det.qualityVerdict === "STRONG" ? 0.25 : 0) - weakSpec),
+  );
+  return { realismScore, compositionScore, brandFitScore, slopScore };
+}
+
+function mergeNumericScores(
+  detScores: Pick<
+    VisualAssetEvaluation,
+    "realismScore" | "compositionScore" | "brandFitScore" | "slopScore"
+  >,
+  vision: Pick<
+    VisualAssetEvaluation,
+    "realismScore" | "compositionScore" | "brandFitScore" | "slopScore"
+  > | null,
+): Pick<
+  VisualAssetEvaluation,
+  "realismScore" | "compositionScore" | "brandFitScore" | "slopScore"
+> {
+  if (!vision) return detScores;
+  const w = 0.55;
+  const blend = (a: number, b: number) => Math.max(0, Math.min(1, a * (1 - w) + b * w));
+  return {
+    realismScore: blend(detScores.realismScore, vision.realismScore),
+    compositionScore: blend(detScores.compositionScore, vision.compositionScore),
+    brandFitScore: blend(detScores.brandFitScore, vision.brandFitScore),
+    slopScore: blend(detScores.slopScore, vision.slopScore),
+  };
+}
 
 function mergeVerdicts(
   det: Pick<VisualAssetEvaluation, "qualityVerdict" | "slopRisk" | "regenerationRecommended">,
@@ -117,11 +195,47 @@ export async function evaluateAndPersistVisualAsset(
     }
   }
 
+  const rawProfile = pkgContent._referenceCompositionProfile;
+  const parsedProfile =
+    rawProfile && typeof rawProfile === "object"
+      ? referenceCompositionProfileSchema.safeParse(rawProfile)
+      : null;
+  const compositionProfile = parsedProfile?.success ? parsedProfile.data : null;
+
   const det = deterministicVisualAssetEvaluation({
     promptUsed: asset.promptUsed,
     negativePromptUsed: asset.negativePromptUsed,
     spec,
+    compositionProfile,
   });
+
+  let imageBuf: Buffer | null = null;
+  let imageMime = "image/png";
+  if (asset.localPath) {
+    try {
+      const abs = resolveVisualAssetAbsolutePath(asset.localPath);
+      imageBuf = await readFile(abs);
+      const meta = asset.metadata as { mimeType?: string } | null;
+      imageMime = meta?.mimeType?.includes("jpeg") ? "image/jpeg" : "image/png";
+    } catch {
+      imageBuf = null;
+    }
+  }
+
+  const slopPixels =
+    imageBuf != null
+      ? detectVisualSlop({
+          imageBuffer: imageBuf,
+          mime: imageMime,
+          promptUsed: asset.promptUsed,
+        })
+      : detectVisualSlop({
+          imageBuffer: Buffer.alloc(0),
+          mime: imageMime,
+          promptUsed: asset.promptUsed,
+        });
+
+  const detScores = heuristicScores({ det, slopPixels });
 
   let visionPart: z.infer<typeof visionResponseSchema> | null = null;
   let evaluator = "deterministic";
@@ -130,15 +244,10 @@ export async function evaluateAndPersistVisualAsset(
   const visionModel =
     process.env.OPENAI_VISION_MODEL?.trim() || "gpt-4o-mini";
 
-  if (openaiKey && asset.localPath) {
+  if (openaiKey && imageBuf) {
     try {
-      const abs = resolveVisualAssetAbsolutePath(asset.localPath);
-      const buf = await readFile(abs);
-      const b64 = buf.toString("base64");
-      const meta = asset.metadata as { mimeType?: string } | null;
-      const mime = meta?.mimeType?.includes("jpeg")
-        ? "image/jpeg"
-        : "image/png";
+      const b64 = imageBuf.toString("base64");
+      const mime = imageMime;
 
       const specExcerpt = spec
         ? [
@@ -170,7 +279,7 @@ export async function evaluateAndPersistVisualAsset(
         },
         body: JSON.stringify({
           model: visionModel,
-          max_tokens: 900,
+          max_tokens: 1200,
           messages: [
             { role: "system", content: VISION_SYSTEM },
             {
@@ -216,10 +325,25 @@ export async function evaluateAndPersistVisualAsset(
 
   const merged = mergeVerdicts(det, visionPart);
 
+  const visionScores = visionPart
+    ? {
+        realismScore: visionPart.realismScore,
+        compositionScore: visionPart.compositionScore,
+        brandFitScore: visionPart.brandFitScore,
+        slopScore: visionPart.slopScore,
+      }
+    : null;
+  const numericMerged = mergeNumericScores(detScores, visionScores);
+
+  const autoRejectQuality =
+    numericMerged.slopScore > VISUAL_SLOP_REJECT_THRESHOLD ||
+    numericMerged.realismScore < VISUAL_REALISM_REJECT_THRESHOLD;
+
   const full: VisualAssetEvaluation = {
     qualityVerdict: merged.qualityVerdict,
     slopRisk: merged.slopRisk,
-    regenerationRecommended: merged.regenerationRecommended,
+    regenerationRecommended:
+      merged.regenerationRecommended || autoRejectQuality,
     brandAlignment: visionPart?.brandAlignment ?? det.brandAlignment,
     distinctiveness: visionPart?.distinctiveness ?? det.distinctiveness,
     compositionAssessment:
@@ -229,6 +353,17 @@ export async function evaluateAndPersistVisualAsset(
     recommendations: [
       ...det.recommendations,
       ...(visionPart?.recommendations ?? []),
+      ...(autoRejectQuality
+        ? [
+            numericMerged.slopScore > VISUAL_SLOP_REJECT_THRESHOLD
+              ? `Auto-reject: slopScore ${numericMerged.slopScore.toFixed(2)} > ${VISUAL_SLOP_REJECT_THRESHOLD}.`
+              : "",
+            numericMerged.realismScore < VISUAL_REALISM_REJECT_THRESHOLD
+              ? `Auto-reject: realismScore ${numericMerged.realismScore.toFixed(2)} < ${VISUAL_REALISM_REJECT_THRESHOLD}.`
+              : "",
+          ].filter(Boolean)
+        : []),
+      ...slopPixels.notes,
     ]
       .filter(Boolean)
       .slice(0, 10),
@@ -239,6 +374,20 @@ export async function evaluateAndPersistVisualAsset(
         : evaluator === "skipped_no_provider"
           ? "Vision skipped: OPENAI_API_KEY not set."
           : undefined,
+    realismScore: numericMerged.realismScore,
+    compositionScore: numericMerged.compositionScore,
+    brandFitScore: numericMerged.brandFitScore,
+    slopScore: numericMerged.slopScore,
+    slopDetection: {
+      overSaturationScore: slopPixels.overSaturationScore,
+      specularGlossScore: slopPixels.specularGlossScore,
+      unnaturalSymmetryScore: slopPixels.unnaturalSymmetryScore,
+      cgiLookScore: slopPixels.cgiLookScore,
+      lackOfNegativeSpaceScore: slopPixels.lackOfNegativeSpaceScore,
+      clutteredCompositionScore: slopPixels.clutteredCompositionScore,
+      aggregateSlopScore: slopPixels.aggregateSlopScore,
+      notes: slopPixels.notes,
+    },
   };
 
   const validated = visualAssetEvaluationSchema.safeParse(full);
@@ -255,6 +404,16 @@ export async function evaluateAndPersistVisualAsset(
       qualityVerdict: validated.data.qualityVerdict,
       regenerationRecommended: validated.data.regenerationRecommended,
       evaluator,
+    },
+  });
+
+  await db.visualAsset.update({
+    where: { id: asset.id },
+    data: {
+      autoRejected: autoRejectQuality,
+      ...(autoRejectQuality
+        ? { isPreferred: false, isSecondary: false }
+        : {}),
     },
   });
 }

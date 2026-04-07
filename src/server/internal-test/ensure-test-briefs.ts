@@ -32,6 +32,8 @@ export async function ensureInternalTestBriefs(clientId: string): Promise<{
         clientId,
         isTestBrief: true,
         testCategory: t.testCategory,
+        engagementType: "CAMPAIGN",
+        workstreams: [],
         title: t.title,
         businessObjective: t.businessObjective,
         communicationObjective: t.communicationObjective,

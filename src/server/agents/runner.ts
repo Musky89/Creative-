@@ -68,10 +68,11 @@ async function runGenerationWithRepair(
   shapeHint: string,
   promptOptions: AgentPromptOptions,
   useJsonMode: boolean,
+  maxTokens = 4096,
 ): Promise<AgentExecutionResult> {
   const first = await provider.complete(
     [{ role: "system", content: system }, { role: "user", content: user }],
-    { maxTokens: 4096, jsonMode: useJsonMode },
+    { maxTokens, jsonMode: useJsonMode },
   );
   const primaryRaw = first.text;
   const firstVal = parseAndValidate(primaryRaw, agent.outputSchema);
@@ -96,6 +97,7 @@ async function runGenerationWithRepair(
     primaryRaw,
     shapeHint,
     summarizeZodError(firstVal.error),
+    maxTokens,
   );
   const secondVal = parseAndValidate(repairResult.text, agent.outputSchema);
   if (secondVal.ok) {
@@ -159,6 +161,7 @@ export async function executeAgentForTask(
   const user = agent.buildUserPrompt(contextBlock, promptOptions);
   const shapeHint = getArtifactShapeHint(stage);
   const useJsonMode = provider.id === "openai";
+  const conceptMaxTokens = stage === "CONCEPTING" ? 16_384 : 4096;
 
   try {
     const gen = await runGenerationWithRepair(
@@ -169,6 +172,7 @@ export async function executeAgentForTask(
       shapeHint,
       promptOptions,
       useJsonMode,
+      conceptMaxTokens,
     );
 
     if (!gen.ok) {
@@ -206,6 +210,7 @@ export async function executeAgentForTask(
       stripped,
       brandBanned,
       specificityAnchors,
+      context.brand?.operatingSystem ?? null,
     );
     const llmQ = await assessPrePersistQuality(
       provider,
@@ -237,9 +242,9 @@ export async function executeAgentForTask(
 
     const critique = [...det.issues, ...llmQ.regenerationReasons].join("\n");
     const mustPreserve = [
-      "Output MUST match the same JSON schema as this stage. Honor Brand Bible, Brand Operating System (banned phrases, vocabulary/sentence style, emotional boundaries, taste engine), brief, and upstream artifacts. Apply Creative Canon visibly — no generic marketing filler.",
+      "Output MUST match the same JSON schema as this stage. Honor Brand Bible, **Brand Creative DNA** (voice principles, rhythm rules, signature devices, cultural codes, brand tension, visual philosophy), banned phrases, vocabulary/sentence style, emotional boundaries, taste engine, brief, and upstream artifacts. Apply Creative Canon visibly — no generic marketing filler.",
       "**Specificity:** replace abstraction with concrete execution detail; anchor claims in this client, audience, and brief (use vocabulary from context).",
-      "For CONCEPTING: concepts must use different frameworkIds, include whyItWorksForBrand per route, and be clearly distinct.",
+      "For CONCEPTING: 3–4 concepts with **unique** frameworkIds from the selected Canon list; distinctivenessVsCategory per route; full pairwise differentiation for all pairs.",
       "For VISUAL_DIRECTION: one chosen concept route, concrete art-direction specifics (materials, light, composition, texture), strong avoidList, no vibes-only luxury filler.",
       formatBadOutputBlacklistForPrompt(),
     ].join("\n\n");
@@ -261,6 +266,7 @@ export async function executeAgentForTask(
       shapeHint,
       promptOptions,
       useJsonMode,
+      conceptMaxTokens,
     );
 
     if (!regen.ok) {
@@ -284,6 +290,7 @@ export async function executeAgentForTask(
       stripped2,
       brandBanned,
       specificityAnchors,
+      context.brand?.operatingSystem ?? null,
     );
     const llmQ2 = await assessPrePersistQuality(
       provider,

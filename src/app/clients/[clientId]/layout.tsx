@@ -26,7 +26,14 @@ export default async function ClientLayout({
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-50">
           {client.name}
         </h1>
-        <p className="text-sm text-zinc-500">{client.industry}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <p className="text-sm text-zinc-500">{client.industry}</p>
+          {client.isDemoClient ? (
+            <span className="rounded border border-amber-600/50 bg-amber-950/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200/90">
+              Demo client
+            </span>
+          ) : null}
+        </div>
       </div>
       <ClientTabsAuto clientId={clientId} />
       <div className="mt-6">{children}</div>

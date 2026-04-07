@@ -19,14 +19,14 @@ export async function saveIdentityRouteSelectionAction(
   const prisma = getPrisma();
   const task = await prisma.task.findFirst({
     where: { id: taskId, briefId, brief: { clientId } },
-    include: { brief: { select: { identityWorkflowEnabled: true } } },
+    include: { brief: true },
   });
   if (!task) return { error: "Task not found." };
   if (task.stage !== "IDENTITY_ROUTING") {
     return { error: "Route selection applies only to the Identity routes stage." };
   }
 
-  const row = getV1PipelineRow(task.stage, task.brief.identityWorkflowEnabled);
+  const row = getV1PipelineRow(task.stage, task.brief);
   const latest = await prisma.artifact.findFirst({
     where: { taskId, type: row.artifactType },
     orderBy: { version: "desc" },

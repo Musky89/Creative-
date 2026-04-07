@@ -45,5 +45,13 @@ export function brandBibleToOperatingSystem(bb: BrandBible): BrandOperatingSyste
     visualCompositionTendencies: bb.visualCompositionTendencies ?? "",
     visualMaterialTextureDirection: bb.visualMaterialTextureDirection ?? "",
     visualLightingTendencies: bb.visualLightingTendencies ?? "",
+    voicePrinciples: asStringArray(bb.voicePrinciples, 24),
+    rhythmRules: asStringArray(bb.rhythmRules, 24),
+    signatureDevices: asStringArray(bb.signatureDevices, 24),
+    culturalCodes: asStringArray(bb.culturalCodes, 24),
+    emotionalRange: bb.emotionalRange ?? "",
+    metaphorStyle: bb.metaphorStyle ?? "",
+    visualPhilosophy: bb.visualPhilosophy ?? "",
+    brandTension: bb.brandTension ?? "",
   };
 }

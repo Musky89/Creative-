@@ -1,4 +1,5 @@
 import type { ArtifactType, WorkflowStage } from "@/generated/prisma/client";
+import { briefRecordToWorkPlan } from "@/lib/workflow/brief-work-plan";
 import { STAGE_LABELS, workflowStageOrderForBrief } from "@/lib/workflow-display";
 import { getBriefForClient } from "@/server/domain/briefs";
 import { stageOrderIndex } from "@/server/orchestrator/v1-pipeline";
@@ -21,10 +22,9 @@ export async function buildStudioExportJson(
   const brief = await getBriefForClient(briefId, clientId);
   if (!brief) return null;
 
+  const plan = briefRecordToWorkPlan(brief);
   const tasks = [...brief.tasks].sort(
-    (a, b) =>
-      stageOrderIndex(a.stage, brief.identityWorkflowEnabled) -
-      stageOrderIndex(b.stage, brief.identityWorkflowEnabled),
+    (a, b) => stageOrderIndex(a.stage, plan) - stageOrderIndex(b.stage, plan),
   );
 
   const payload = {
@@ -79,6 +79,7 @@ export async function buildStudioExportMarkdown(
 ): Promise<{ filename: string; body: string } | null> {
   const brief = await getBriefForClient(briefId, clientId);
   if (!brief) return null;
+  const plan = briefRecordToWorkPlan(brief);
 
   const lines: string[] = [
     `# ${brief.title}`,
@@ -91,7 +92,7 @@ export async function buildStudioExportMarkdown(
     "",
   ];
 
-  for (const stage of workflowStageOrderForBrief(brief.identityWorkflowEnabled)) {
+  for (const stage of workflowStageOrderForBrief(plan)) {
     const t = brief.tasks.find((x) => x.stage === stage);
     if (!t) continue;
     const arts = [...t.artifacts].sort((a, b) => b.version - a.version);

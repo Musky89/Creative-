@@ -15,6 +15,8 @@ export type WorkflowTaskSnapshot = {
   requiresReview: boolean;
   startedAt: string | null;
   completedAt: string | null;
+  lastFailureReason: string | null;
+  lastFailureType: string | null;
 };
 
 export type WorkflowStateResponse = {

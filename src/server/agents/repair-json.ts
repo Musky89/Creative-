@@ -18,6 +18,7 @@ export async function repairJsonWithProvider(
   invalidRaw: string,
   schemaDescription: string,
   zodErrorSummary: string,
+  maxTokens = 4096,
 ): Promise<{ text: string }> {
   const user = [
     "## Required JSON shape",
@@ -36,7 +37,7 @@ export async function repairJsonWithProvider(
       { role: "system", content: REPAIR_SYSTEM },
       { role: "user", content: user },
     ],
-    { maxTokens: 4096, jsonMode: useJsonMode },
+    { maxTokens, jsonMode: useJsonMode },
   );
 }
 

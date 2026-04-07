@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { visualSpecArtifactSchema } from "@/lib/artifacts/contracts";
+import {
+  compositionProfilePromptIssues,
+  type ReferenceCompositionProfile,
+} from "@/lib/visual/reference-composition-profile";
 
 /**
  * Structured visual QA output (persisted on VisualAssetReview.evaluation).
@@ -17,6 +21,26 @@ export const visualAssetEvaluationSchema = z.object({
   regenerationRecommended: z.boolean(),
   deterministicIssues: z.array(z.string()),
   llmNotes: z.string().optional(),
+  /** 0–1 higher = more photographic / less plastic */
+  realismScore: z.number().min(0).max(1),
+  /** 0–1 higher = stronger layout / breathing room */
+  compositionScore: z.number().min(0).max(1),
+  /** 0–1 higher = better fit to spec / prompt intent */
+  brandFitScore: z.number().min(0).max(1),
+  /** 0–1 higher = more AI-slop risk */
+  slopScore: z.number().min(0).max(1),
+  slopDetection: z
+    .object({
+      overSaturationScore: z.number(),
+      specularGlossScore: z.number(),
+      unnaturalSymmetryScore: z.number(),
+      cgiLookScore: z.number(),
+      lackOfNegativeSpaceScore: z.number(),
+      clutteredCompositionScore: z.number(),
+      aggregateSlopScore: z.number(),
+      notes: z.array(z.string()),
+    })
+    .optional(),
 });
 
 export type VisualAssetEvaluation = z.infer<typeof visualAssetEvaluationSchema>;
@@ -44,6 +68,7 @@ export function deterministicVisualAssetEvaluation(args: {
   promptUsed: string;
   negativePromptUsed?: string;
   spec: z.infer<typeof visualSpecArtifactSchema> | null;
+  compositionProfile?: ReferenceCompositionProfile | null;
 }): Pick<
   VisualAssetEvaluation,
   | "avoidListRespected"
@@ -59,6 +84,12 @@ export function deterministicVisualAssetEvaluation(args: {
 > {
   const issues: string[] = [];
   const p = norm(args.promptUsed);
+
+  if (args.compositionProfile) {
+    issues.push(
+      ...compositionProfilePromptIssues(args.promptUsed, args.compositionProfile),
+    );
+  }
 
   for (const h of SLOP_HINTS) {
     if (p.includes(h)) {

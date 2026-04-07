@@ -1,4 +1,4 @@
-import type { Prisma } from "@/generated/prisma/client";
+import type { BriefEngagementType, Prisma } from "@/generated/prisma/client";
 import { getPrisma } from "@/server/db/prisma";
 
 export type BriefFormInput = {
@@ -8,10 +8,14 @@ export type BriefFormInput = {
   targetAudience: string;
   keyMessage: string;
   deliverablesRequested: Prisma.InputJsonValue;
+  engagementType: BriefEngagementType;
+  workstreams: Prisma.InputJsonValue;
   tone: string;
   constraints: Prisma.InputJsonValue;
   deadline: Date;
   identityWorkflowEnabled: boolean;
+  onboardingSource?: string;
+  aiOnboardingNeedsReview?: boolean;
 };
 
 export async function getBriefForClient(briefId: string, clientId: string) {
@@ -53,8 +57,18 @@ export async function getBriefForStudio(briefId: string, clientId: string) {
 }
 
 export async function createBrief(clientId: string, data: BriefFormInput) {
+  const {
+    onboardingSource = "",
+    aiOnboardingNeedsReview = false,
+    ...rest
+  } = data;
   return getPrisma().brief.create({
-    data: { clientId, ...data },
+    data: {
+      clientId,
+      ...rest,
+      onboardingSource,
+      aiOnboardingNeedsReview,
+    },
   });
 }
 
@@ -63,9 +77,20 @@ export async function updateBrief(
   clientId: string,
   data: BriefFormInput,
 ) {
+  const {
+    onboardingSource,
+    aiOnboardingNeedsReview,
+    ...rest
+  } = data;
   return getPrisma().brief.update({
     where: { id: briefId, clientId },
-    data,
+    data: {
+      ...rest,
+      ...(onboardingSource !== undefined ? { onboardingSource } : {}),
+      ...(aiOnboardingNeedsReview !== undefined
+        ? { aiOnboardingNeedsReview }
+        : {}),
+    },
   });
 }
 

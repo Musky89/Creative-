@@ -6,6 +6,7 @@
 
 import type { ArtifactType, WorkflowStage } from "@/generated/prisma/client";
 import type { Brief } from "@/generated/prisma/client";
+import { CANON_FRAMEWORKS } from "@/lib/canon/frameworks";
 
 const SCAFFOLD_MARKER = {
   _agenticforcePlaceholder: true,
@@ -24,6 +25,70 @@ export type PlaceholderContext = {
     | "keyMessage"
   >;
 };
+
+function scaffoldConceptPack(
+  base: Record<string, unknown>,
+): Record<string, unknown> {
+  const four = CANON_FRAMEWORKS.slice(0, 4);
+  const concepts = four.map((f, i) => ({
+    conceptId: `concept-${i}`,
+    frameworkId: f.id,
+    conceptName: `[Placeholder] Route ${String.fromCharCode(65 + i)} — ${f.name}`,
+    hook: `[Placeholder] Hook executing ${f.id} structure for this brief — scaffold only.`,
+    rationale:
+      "[Placeholder] Strategic rationale tying route to proposition and audience tension (scaffold).",
+    distinctivenessVsCategory:
+      "[Placeholder] This route is not interchangeable with category wallpaper because it commits to a specific Canon narrative device and visual temperature.",
+    visualDirection: `[Placeholder] Art direction notes aligned with ${f.id} — scaffold.`,
+    whyItWorksForBrand:
+      "[Placeholder] Brand OS alignment: emotional register, vocabulary boundaries, positioning (scaffold).",
+    coreTension:
+      "[Placeholder] Productive contradiction this route holds — aspiration vs proof in scaffold form.",
+    emotionalCenter:
+      "[Placeholder] Single feeling state the route owns — scaffold emotional center.",
+    whyBeatsCategoryNorm:
+      "[Placeholder] Sharp edge vs what everyone in the category defaults to — naming the cliché and diverging.",
+    whyCouldFail:
+      "[Placeholder] Honest execution risk if craft slips — scaffold warning.",
+    distinctVisualWorld:
+      "[Placeholder] Concrete capture world diverging from sibling routes — light, set, casting bias (scaffold).",
+  }));
+
+  const pairComparisons: {
+    leftIndex: number;
+    rightIndex: number;
+    overlapNotes: string;
+    howTheyDiffer: string;
+    strongerConceptThisPair: "left" | "right" | "tie";
+  }[] = [];
+  for (let i = 0; i < four.length; i++) {
+    for (let j = i + 1; j < four.length; j++) {
+      pairComparisons.push({
+        leftIndex: i,
+        rightIndex: j,
+        overlapNotes:
+          "[Placeholder] Both serve the same brief; overlap is strategic goal — scaffold pairwise note.",
+        howTheyDiffer: `[Placeholder] Route ${i} (${four[i]!.id}) vs ${j} (${four[j]!.id}) — different engines and visual worlds.`,
+        strongerConceptThisPair: "tie",
+      });
+    }
+  }
+
+  return {
+    ...base,
+    frameworkUsed:
+      "[Placeholder] Four distinct Creative Canon frameworks — competition field (scaffold only).",
+    concepts,
+    pairwiseDifferentiation: {
+      pairComparisons,
+      aggregateOverlap:
+        "[Placeholder] Shared proposition across routes; divergence is framework engine, hook architecture, and default visual temperature — scaffold aggregate.",
+      strongestConceptIndex: 0,
+      differentiationSummary:
+        "[Placeholder] Scaffold concept field spans four Canon frameworks; pairwise compares every route. Winner selection runs after generation in production — this placeholder is tied for review only.",
+    },
+  };
+}
 
 export function buildPlaceholderArtifactContent(
   stage: WorkflowStage,
@@ -220,13 +285,23 @@ export function buildPlaceholderArtifactContent(
         ...base,
         objective: `[Placeholder] Strategic objective derived from: ${ctx.brief.title}`,
         audience: ctx.brief.targetAudience,
-        insight: "[Placeholder] Audience tension / opportunity statement.",
-        proposition: "[Placeholder] Single-minded proposition.",
+        insight:
+          "[Placeholder] Core audience tension the proposition must exploit — behavior-led, not demographic fluff.",
+        proposition:
+          "[Placeholder] Single-minded proposition rooted in audience tension for this brief.",
         messagePillars: [
           "[Placeholder] Pillar 1",
           "[Placeholder] Pillar 2",
           "[Placeholder] Pillar 3",
         ],
+        campaignCore: {
+          singleLineIdea:
+            "[Placeholder] Unify the proposition and audience tension into one memorable campaign idea every execution proves.",
+          emotionalTension:
+            "[Placeholder] Productive emotional conflict the work holds (e.g. indulgence vs responsibility) aligned with audience truth.",
+          visualNarrative:
+            "[Placeholder] Visual story spine: where we meet the audience, the hero moment, and how the frame resolves — matches the idea and tension.",
+        },
         strategicAngles: [
           {
             frameworkId: "transformation",
@@ -238,72 +313,15 @@ export function buildPlaceholderArtifactContent(
             angle:
               "[Placeholder] Pain → stakes → relief structure (Canon: Problem Agitation).",
           },
+          {
+            frameworkId: "aspirational-identity",
+            angle:
+              "[Placeholder] Who the audience becomes when they choose this brand (Canon: Aspirational Identity).",
+          },
         ],
       };
     case "CONCEPT":
-      return {
-        ...base,
-        frameworkUsed:
-          "[Placeholder] Two routes: Transformation + Problem Agitation (scaffold only).",
-        concepts: [
-          {
-            frameworkId: "transformation",
-            conceptName: "[Placeholder] Route A",
-            hook: "[Placeholder] Before → after hook using transformation logic.",
-            rationale: "[Placeholder] Why this fits the strategy.",
-            visualDirection: "[Placeholder] Visual notes for Route A.",
-            whyItWorksForBrand:
-              "[Placeholder] How Route A reinforces positioning and Brand OS emotional register.",
-            coreTension:
-              "[Placeholder] Aspiration vs proof — show the after-state without fantasy staging.",
-            emotionalCenter:
-              "[Placeholder] Relief and pride when the room finally behaves.",
-            whyBeatsCategoryNorm:
-              "[Placeholder] Leads with outcome truth instead of feature laundry lists common in the category.",
-            whyCouldFail:
-              "[Placeholder] After-state could feel generic if not tied to this product truth.",
-            distinctVisualWorld:
-              "[Placeholder] Natural light on real materials, editorial crop, no stock-smile humans — transformation shown through space, not slogans.",
-          },
-          {
-            frameworkId: "problem-agitation",
-            conceptName: "[Placeholder] Route B",
-            hook: "[Placeholder] Pain-forward hook using agitation logic.",
-            rationale: "[Placeholder] Why this fits the strategy.",
-            visualDirection: "[Placeholder] Visual notes for Route B.",
-            whyItWorksForBrand:
-              "[Placeholder] How Route B reinforces positioning and Brand OS emotional register.",
-            coreTension:
-              "[Placeholder] Urgency vs trust — agitate without fear-mongering.",
-            emotionalCenter:
-              "[Placeholder] Competent ally calling out the hidden cost of waiting.",
-            whyBeatsCategoryNorm:
-              "[Placeholder] Names the stakes the category usually smooths over with 'solutions' language.",
-            whyCouldFail:
-              "[Placeholder] Could read as negative if pain is not balanced with a credible fix.",
-            distinctVisualWorld:
-              "[Placeholder] Tighter frames, higher contrast, proof objects in frame — clinical but warm, not alarm-red retail.",
-          },
-        ],
-        pairwiseDifferentiation: {
-          pairComparisons: [
-            {
-              leftIndex: 0,
-              rightIndex: 1,
-              overlapNotes:
-                "[Placeholder] Both serve the same proposition; both avoid category fluff phrases in scaffold.",
-              howTheyDiffer:
-                "[Placeholder] A is transformation arc; B is pain→stakes→relief — narrative engine and visual temperature differ.",
-              strongerConceptThisPair: "tie" as const,
-            },
-          ],
-          aggregateOverlap:
-            "[Placeholder] Shared strategic goal; split is narrative mechanism and default visual temperature.",
-          strongestConceptIndex: 0,
-          differentiationSummary:
-            "[Placeholder] Route A optimizes for desire and after-state; Route B optimizes for urgency and credibility — pick by brief bias (scaffold).",
-        },
-      };
+      return scaffoldConceptPack(base);
     case "VISUAL_SPEC":
       return {
         ...base,
@@ -336,18 +354,27 @@ export function buildPlaceholderArtifactContent(
         ],
         optionalPromptSeed:
           "[Optional] Concrete noun-heavy seed for a future image pipeline — scaffold placeholder.",
+        referenceIntent:
+          "[Placeholder] Real-world genre to emulate — e.g. handheld QSR appetite macro with practical kitchen light.",
+        referenceStyleHints: [
+          "[Placeholder] Shallow depth of field with motivated background",
+          "[Placeholder] Natural skin and food texture — no CGI gloss",
+        ],
       };
     case "COPY":
       return {
         ...base,
         frameworkUsed: "transformation",
         headlineOptions: [
-          "[Placeholder] Headline A",
-          "[Placeholder] Headline B",
-          "[Placeholder] Headline C",
+          "[Placeholder] Headline A — proof-led tension",
+          "[Placeholder] Headline B — sensory invitation",
+          "[Placeholder] Headline C — cultural edge",
+          "[Placeholder] Headline D — restraint + confidence",
+          "[Placeholder] Headline E — direct product truth",
         ],
         bodyCopyOptions: [
           "[Placeholder] Short body variant.",
+          "[Placeholder] Medium body variant.",
           "[Placeholder] Long body variant.",
         ],
         ctaOptions: ["[Placeholder] CTA 1", "[Placeholder] CTA 2"],
@@ -362,6 +389,11 @@ export function buildPlaceholderArtifactContent(
           "[Placeholder] Recommendation 1",
           "[Placeholder] Recommendation 2",
         ],
+        narrativeCoherence: "MIXED" as const,
+        toneCoherence: "MIXED" as const,
+        visualCoherence: "MIXED" as const,
+        campaignCoreAlignmentNotes:
+          "[Placeholder] Scaffold — Campaign Core coherence vs concept/copy/visual not evaluated without real STRATEGY.campaignCore and upstream artifacts.",
         frameworkAssessment:
           "[Placeholder] Scaffold — framework execution not evaluated.",
         frameworkExecution: "NOT_APPLICABLE" as const,
@@ -371,6 +403,10 @@ export function buildPlaceholderArtifactContent(
         toneAlignment: "[Placeholder] Brand OS tone vs draft — not evaluated in scaffold.",
         languageCompliance: "WARN" as const,
         bannedPhraseViolations: [],
+        toneDistinctiveness: "MIXED" as const,
+        rhythmCompliance: "WARN" as const,
+        signatureDeviceUsage: "ABSENT" as const,
+        culturalAlignment: "MIXED" as const,
         regenerationRecommended: false,
         regenerationReasons: [],
         technicallyCorrectButCreativelySafe:

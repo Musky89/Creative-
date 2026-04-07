@@ -2,30 +2,33 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   approveTaskAction,
   executeNextTaskAction,
   initializeWorkflowAction,
   requestRevisionAction,
   resetTaskReadyAction,
+  retryTaskGenerationAction,
 } from "@/app/actions/workflow";
-import { STAGE_LABELS } from "@/lib/workflow-display";
-import type { WorkflowStage } from "@/generated/prisma/client";
-import { Card } from "@/components/ui/section";
+import { STAGE_LABELS, STUDIO_STAGE_LABELS } from "@/lib/workflow-display";
+import type { TaskStatus, WorkflowStage } from "@/generated/prisma/client";
 import { FieldHint, Label, Textarea } from "@/components/ui/forms";
+import { StudioDirectorHero } from "@/components/studio/studio-director-hero";
 
 function ActionButton({
   children,
   pending,
   disabled,
   variant = "dark",
+  size = "md",
   onClick,
 }: {
   children: React.ReactNode;
   pending: boolean;
   disabled?: boolean;
   variant?: "dark" | "light" | "danger";
+  size?: "md" | "lg";
   onClick: () => void;
 }) {
   const v =
@@ -34,12 +37,14 @@ function ActionButton({
       : variant === "danger"
         ? "border border-red-500/40 bg-red-950/40 text-red-100 hover:bg-red-950/60 disabled:opacity-50"
         : "border border-zinc-600 bg-zinc-950/60 text-zinc-100 hover:border-zinc-500 disabled:opacity-50";
+  const sz =
+    size === "lg" ? "rounded-xl px-6 py-3.5 text-base font-semibold" : "rounded-lg px-3.5 py-2 text-sm font-medium";
   return (
     <button
       type="button"
       disabled={disabled || pending}
       onClick={onClick}
-      className={`rounded-lg px-3.5 py-2 text-sm font-medium ${v}`}
+      className={`${sz} ${v}`}
     >
       {pending ? "…" : children}
     </button>
@@ -67,10 +72,12 @@ function Notice({
 function stageLabelForTaskId(
   taskId: string,
   tasks: { id: string; stage: WorkflowStage }[],
+  creative: boolean,
 ): string {
   const t = tasks.find((x) => x.id === taskId);
   if (!t) return taskId;
-  return STAGE_LABELS[t.stage as keyof typeof STAGE_LABELS] ?? t.stage;
+  const map = creative ? STUDIO_STAGE_LABELS : STAGE_LABELS;
+  return map[t.stage as keyof typeof STAGE_LABELS] ?? t.stage;
 }
 
 export function WorkflowControls({
@@ -83,6 +90,15 @@ export function WorkflowControls({
   reviseTaskId,
   brandReadiness,
   timelineTasks,
+  reviewApproveGate,
+  variant = "workspace",
+  primaryCampaignActionLabel,
+  hideGenerateRow = false,
+  hideRefinementChrome = false,
+  /** Splits primary CTA (hero) from review tail — one component, shared state */
+  layout = "default",
+  directorScore10 = null,
+  directorVerdictLine = "",
 }: {
   clientId: string;
   briefId: string;
@@ -93,8 +109,34 @@ export function WorkflowControls({
   reviewTaskId: string | null;
   reviseTaskId: string | null;
   brandReadiness: { ok: boolean; missing: string[] };
-  timelineTasks: { id: string; stage: WorkflowStage }[];
+  timelineTasks: {
+    id: string;
+    stage: WorkflowStage;
+    status: TaskStatus;
+    lastFailureReason?: string | null;
+    lastFailureType?: string | null;
+  }[];
+  reviewApproveGate: {
+    canApprove: boolean;
+    structuralOk: boolean;
+    structuralMessage: string | null;
+    qualityBlocked: boolean;
+    qualityReasons: string[];
+  } | null;
+  /** `campaign` = single primary “Generate campaign”, minimal chrome */
+  variant?: "workspace" | "campaign";
+  /** Overrides button label when variant is campaign (director hero) */
+  primaryCampaignActionLabel?: string | null;
+  /** When true, hide generate row (verdict already shows primary CTA) */
+  hideGenerateRow?: boolean;
+  /** When true, hide refinement header + failure type noise */
+  hideRefinementChrome?: boolean;
+  layout?: "default" | "director";
+  directorScore10?: number | null;
+  directorVerdictLine?: string;
 }) {
+  const campaign = variant === "campaign";
+  const director = campaign && layout === "director";
   const router = useRouter();
   const [pending, start] = useTransition();
   const [notice, setNotice] = useState<{
@@ -105,6 +147,11 @@ export function WorkflowControls({
   const approveNoteRef = useRef<HTMLTextAreaElement>(null);
   const revisionRef = useRef<HTMLTextAreaElement>(null);
   const reviewerRef = useRef<HTMLInputElement>(null);
+  const [approveAnyway, setApproveAnyway] = useState(false);
+
+  useEffect(() => {
+    setApproveAnyway(false);
+  }, [reviewTaskId]);
 
   const refresh = () => router.refresh();
 
@@ -125,229 +172,348 @@ export function WorkflowControls({
 
   const nextExecutableCount = nextExecutableTaskIds.length;
   const reviewStageLabel = reviewTaskId
-    ? stageLabelForTaskId(reviewTaskId, timelineTasks)
+    ? stageLabelForTaskId(reviewTaskId, timelineTasks, campaign)
     : null;
 
-  return (
-    <Card id="review">
-      <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-        Actions
-      </p>
-      <p className="mt-1 text-sm text-zinc-400">
-        Server-backed workflow — one deliberate step at a time.
-      </p>
+  const failedTasks = timelineTasks.filter((t) => t.status === "FAILED");
+  const approveDisabled =
+    !!reviewTaskId &&
+    (!reviewApproveGate ||
+      !reviewApproveGate.structuralOk ||
+      (reviewApproveGate.qualityBlocked && !approveAnyway));
 
-      {!brandReadiness.ok &&
-      nextExecutableStage != null &&
-      nextExecutableStage !== "BRIEF_INTAKE" &&
-      nextExecutableStage !== "EXPORT" ? (
-        <div className="mt-4">
-          <Notice variant="info">
-            <p className="font-medium">Brand Bible required for AI stages</p>
-            <p className="mt-1 text-sm opacity-90">
-              Complete the following before running Strategist, Identity Strategist,
-              Identity Director, Creative Director, Art Director, Copywriter, or Brand
-              Guardian tasks:
-            </p>
-            <ul className="mt-2 list-inside list-disc text-sm">
-              {brandReadiness.missing.map((m) => (
-                <li key={m}>{m}</li>
-              ))}
-            </ul>
-            <Link
-              href={`/clients/${clientId}/brand-bible`}
-              className="mt-2 inline-block text-sm font-medium text-emerald-200 underline decoration-emerald-500/50"
-            >
-              Open Brand Bible →
-            </Link>
-          </Notice>
-        </div>
-      ) : null}
+  const approveTooltip =
+    reviewApproveGate && !reviewApproveGate.structuralOk
+      ? reviewApproveGate.structuralMessage ?? "Output is not valid for approval."
+      : reviewApproveGate?.qualityBlocked && !approveAnyway
+        ? reviewApproveGate.qualityReasons.join(" ")
+        : undefined;
 
-      {notice ? (
-        <div className="mt-4">
-          <Notice variant={notice.type}>{notice.text}</Notice>
-        </div>
-      ) : null}
+  const shellClass = campaign
+    ? "px-0 py-2 sm:py-4"
+    : "rounded-2xl bg-zinc-900/25 px-5 py-6 sm:px-6 sm:py-7";
 
-      <div className="mt-6 flex flex-col gap-4">
-        {!hasWorkflow ? (
+  const brandGateNotice =
+    !brandReadiness.ok &&
+    nextExecutableStage != null &&
+    nextExecutableStage !== "BRIEF_INTAKE" &&
+    nextExecutableStage !== "EXPORT" ? (
+      <div className="mt-4">
+        <Notice variant="info">
+          <p className="font-medium">Brand guide needed</p>
+          <p className="mt-1 text-sm opacity-90">
+            Add these to your Brand Bible so the creative team can run with a clear voice
+            and guardrails:
+          </p>
+          <ul className="mt-2 list-inside list-disc text-sm">
+            {brandReadiness.missing.map((m) => (
+              <li key={m}>{m}</li>
+            ))}
+          </ul>
+          <Link
+            href={`/clients/${clientId}/brand-bible`}
+            className="mt-2 inline-block text-sm font-medium text-emerald-200 underline decoration-emerald-500/50"
+          >
+            Open Brand Bible →
+          </Link>
+        </Notice>
+      </div>
+    ) : null;
+
+  const noticeBlock = notice ? (
+    <div className="mt-4">
+      <Notice variant={notice.type}>{notice.text}</Notice>
+    </div>
+  ) : null;
+
+  const failureBlock =
+    hasWorkflow && failedTasks.length > 0 ? (
+      <div className="rounded-lg border border-red-500/35 bg-red-950/35 px-3 py-3">
+        <p className="text-sm font-medium text-red-100">Needs attention</p>
+        <ul className="mt-2 space-y-2 text-xs text-red-100/85">
+          {failedTasks.map((t) => (
+            <li key={t.id}>
+              <span className="font-medium text-red-50">
+                {campaign ? STUDIO_STAGE_LABELS[t.stage] : STAGE_LABELS[t.stage]}
+              </span>
+              {!campaign && t.lastFailureType ? (
+                <span className="ml-1 text-red-200/70">({t.lastFailureType})</span>
+              ) : null}
+              {t.lastFailureReason ? (
+                <p className="mt-0.5 text-red-100/80">{t.lastFailureReason}</p>
+              ) : (
+                <p className="mt-0.5 text-red-200/70">
+                  We couldn&apos;t produce a valid output — try again, then continue.
+                </p>
+              )}
+              <div className="mt-2">
+                <ActionButton
+                  pending={pending}
+                  variant="light"
+                  onClick={() =>
+                    run(() => retryTaskGenerationAction(clientId, briefId, t.id))
+                  }
+                >
+                  Try again
+                </ActionButton>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : null;
+
+  const generateRow =
+    !hasWorkflow ? (
+      <div>
+        <ActionButton
+          pending={pending}
+          size={campaign ? "lg" : "md"}
+          onClick={() => run(() => initializeWorkflowAction(clientId, briefId))}
+        >
+          {campaign ? "Generate campaign" : "Start campaign workspace"}
+        </ActionButton>
+      </div>
+    ) : (
+      <>
+        {failureBlock}
+        {!hideGenerateRow ? (
           <div>
             <ActionButton
               pending={pending}
-              onClick={() =>
-                run(() => initializeWorkflowAction(clientId, briefId))
+              size={campaign ? "lg" : "md"}
+              disabled={
+                nextExecutableCount === 0 ||
+                failedTasks.length > 0 ||
+                (!brandReadiness.ok &&
+                  nextExecutableStage != null &&
+                  nextExecutableStage !== "BRIEF_INTAKE" &&
+                  nextExecutableStage !== "EXPORT")
               }
+              onClick={() => run(() => executeNextTaskAction(clientId, briefId))}
             >
-              Initialize workflow
+              {campaign
+                ? (primaryCampaignActionLabel?.trim() || "Generate campaign")
+                : "Continue"}
             </ActionButton>
-          </div>
-        ) : (
-          <>
-            <div>
-              <ActionButton
-                pending={pending}
-                disabled={
-                  nextExecutableCount === 0 ||
-                  (!brandReadiness.ok &&
-                    nextExecutableStage != null &&
-                    nextExecutableStage !== "BRIEF_INTAKE" &&
-                    nextExecutableStage !== "EXPORT")
-                }
-                onClick={() =>
-                  run(() => executeNextTaskAction(clientId, briefId))
-                }
-              >
-                Run next step
-              </ActionButton>
+            {!campaign ? (
               <FieldHint>
-                Runs the next ready stage in order. Brand Bible must be complete
-                before AI stages.
+                Moves the work forward in order. Brand guide must be complete before AI
+                stages.
               </FieldHint>
-            </div>
+            ) : director ? null : (
+              <p className="mt-3 max-w-xl text-sm text-zinc-500">
+                We build the campaign in sequence behind the scenes — brand guide required
+                before AI stages.
+              </p>
+            )}
+          </div>
+        ) : null}
+      </>
+    );
 
-            {reviewTaskId ? (
-              <div className="border-t border-zinc-800 pt-4">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-medium text-zinc-100">
-                      Your review
-                    </p>
-                    <p className="mt-0.5 text-xs text-zinc-500">
-                      <span className="font-medium text-zinc-300">
-                        {reviewStageLabel}
-                      </span>
-                    </p>
-                  </div>
-                  <span className="text-xs font-medium text-amber-200/90">
-                    Decision needed
-                  </span>
-                </div>
-
-                <div className="mt-3">
-                  <Label htmlFor="reviewerLabel">Reviewer name (optional)</Label>
-                  <input
-                    ref={reviewerRef}
-                    id="reviewerLabel"
-                    type="text"
-                    placeholder="e.g. Jordan — stored on review records"
-                    className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-500/30"
-                  />
-                  <FieldHint>
-                    Used for attribution until full auth exists.
-                  </FieldHint>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  <div>
-                    <Label htmlFor="approveFeedback">
-                      Approval note (optional)
-                    </Label>
-                    <Textarea
-                      ref={approveNoteRef}
-                      id="approveFeedback"
-                      rows={2}
-                      placeholder="Optional context for the record"
-                    />
-                  </div>
-                  <ActionButton
-                    pending={pending}
-                    onClick={() =>
-                      run(() =>
-                        approveTaskAction(
-                          clientId,
-                          briefId,
-                          reviewTaskId,
-                          approveNoteRef.current?.value?.trim() || undefined,
-                          reviewerRef.current?.value?.trim() || undefined,
-                        ),
-                      )
-                    }
-                  >
-                    Approve task
-                  </ActionButton>
-                </div>
-
-                <div className="mt-6 border-t border-zinc-800 pt-4">
-                  <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                    Request changes
-                  </p>
-                  <p className="mt-1 text-sm text-zinc-600">
-                    Sends the task back to revision. Be specific so the next run
-                    is purposeful.
-                  </p>
-                  <div className="mt-3 space-y-3">
-                    <div>
-                      <Label htmlFor="revisionFeedback">
-                        Revision feedback (required)
-                      </Label>
-                      <Textarea
-                        ref={revisionRef}
-                        id="revisionFeedback"
-                        rows={4}
-                        placeholder="What must change before this can ship?"
-                      />
-                    </div>
-                    <ActionButton
-                      pending={pending}
-                      variant="danger"
-                      onClick={() => {
-                        const feedback =
-                          revisionRef.current?.value?.trim() ?? "";
-                        if (!feedback) {
-                          setNotice({
-                            type: "error",
-                            text: "Revision feedback is required.",
-                          });
-                          return;
-                        }
-                        run(() =>
-                          requestRevisionAction(
-                            clientId,
-                            briefId,
-                            reviewTaskId,
-                            feedback,
-                            reviewerRef.current?.value?.trim() || undefined,
-                          ),
-                        );
-                      }}
-                    >
-                      Request revision
-                    </ActionButton>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {reviseTaskId ? (
-              <div className="border-t border-zinc-800 pt-4">
-                <p className="text-sm font-medium text-zinc-100">
-                  Revision required
-                </p>
-                <p className="mt-0.5 text-xs text-zinc-500">
-                  <span className="font-medium">
-                    {stageLabelForTaskId(reviseTaskId, timelineTasks)}
-                  </span>{" "}
-                  — reset to READY, then execute again to regenerate.
-                </p>
-                <div className="mt-3">
-                  <ActionButton
-                    pending={pending}
-                    variant="light"
-                    onClick={() =>
-                      run(() =>
-                        resetTaskReadyAction(clientId, briefId, reviseTaskId),
-                      )
-                    }
-                  >
-                    Reset revised task to ready
-                  </ActionButton>
-                </div>
-              </div>
-            ) : null}
-          </>
-        )}
+  const reviewBlock = reviewTaskId ? (
+    <div className="border-t border-zinc-800 pt-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <p className="text-sm font-medium text-zinc-100">Your decision</p>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            <span className="font-medium text-zinc-300">{reviewStageLabel}</span>
+          </p>
+        </div>
+        <span className="text-xs font-medium text-amber-200/90">Awaiting you</span>
       </div>
-    </Card>
+
+      <div className="mt-3">
+        <Label htmlFor="reviewerLabel">Reviewer name (optional)</Label>
+        <input
+          ref={reviewerRef}
+          id="reviewerLabel"
+          type="text"
+          placeholder="e.g. Jordan — stored on review records"
+          className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-500/30"
+        />
+        <FieldHint>Used for attribution until full auth exists.</FieldHint>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        {reviewApproveGate && !reviewApproveGate.structuralOk ? (
+          <Notice variant="error">
+            <p className="font-medium">
+              {campaign ? "This isn’t ready to lock yet" : "Cannot approve — invalid output"}
+            </p>
+            <p className="mt-1 text-sm opacity-90">{reviewApproveGate.structuralMessage}</p>
+          </Notice>
+        ) : null}
+        {reviewApproveGate?.qualityBlocked ? (
+          <Notice variant="info">
+            <p className="font-medium">
+              {campaign ? "Worth another pass first" : "Quality gate"}
+            </p>
+            <p className="mt-1 text-sm opacity-90">
+              {reviewApproveGate.qualityReasons.join(" ")}
+              {campaign
+                ? " You can refine, or approve below if you accept the risk."
+                : " Regenerate, or approve with override below (not recommended)."}
+            </p>
+          </Notice>
+        ) : null}
+        <div>
+          <Label htmlFor="approveFeedback">Approval note (optional)</Label>
+          <Textarea
+            ref={approveNoteRef}
+            id="approveFeedback"
+            rows={2}
+            placeholder="Optional context for the record"
+          />
+        </div>
+        {reviewApproveGate?.qualityBlocked && reviewApproveGate.structuralOk ? (
+          <label className="flex cursor-pointer items-start gap-2 text-xs text-amber-100/90">
+            <input
+              type="checkbox"
+              checked={approveAnyway}
+              onChange={(e) => setApproveAnyway(e.target.checked)}
+              className="mt-0.5 rounded border-zinc-600"
+            />
+            <span>
+              {campaign
+                ? "Approve anyway — I accept the risk on this read."
+                : "Approve anyway (not recommended) — bypasses weak / regen-recommended quality signals."}
+            </span>
+          </label>
+        ) : null}
+        <div title={approveTooltip}>
+          <ActionButton
+            pending={pending}
+            disabled={approveDisabled}
+            onClick={() =>
+              run(() =>
+                approveTaskAction(
+                  clientId,
+                  briefId,
+                  reviewTaskId,
+                  approveNoteRef.current?.value?.trim() || undefined,
+                  reviewerRef.current?.value?.trim() || undefined,
+                  approveAnyway,
+                ),
+              )
+            }
+          >
+            Lock this in
+          </ActionButton>
+        </div>
+      </div>
+
+      <div className="mt-6 border-t border-zinc-800 pt-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Refine</p>
+        <p className="mt-1 text-sm text-zinc-600">
+          Send this back with clear direction so the next pass lands closer.
+        </p>
+        <div className="mt-3 space-y-3">
+          <div>
+            <Label htmlFor="revisionFeedback">Revision feedback (required)</Label>
+            <Textarea
+              ref={revisionRef}
+              id="revisionFeedback"
+              rows={4}
+              placeholder="What must change before this can ship?"
+            />
+          </div>
+          <ActionButton
+            pending={pending}
+            variant="danger"
+            onClick={() => {
+              const feedback = revisionRef.current?.value?.trim() ?? "";
+              if (!feedback) {
+                setNotice({ type: "error", text: "Revision feedback is required." });
+                return;
+              }
+              run(() =>
+                requestRevisionAction(
+                  clientId,
+                  briefId,
+                  reviewTaskId,
+                  feedback,
+                  reviewerRef.current?.value?.trim() || undefined,
+                ),
+              );
+            }}
+          >
+            Refine
+          </ActionButton>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const reviseBlock = reviseTaskId ? (
+    <div className="border-t border-zinc-800 pt-4">
+      <p className="text-sm font-medium text-zinc-100">Refine in progress</p>
+      <p className="mt-0.5 text-xs text-zinc-500">
+        <span className="font-medium">
+          {stageLabelForTaskId(reviseTaskId, timelineTasks, campaign)}
+        </span>{" "}
+        — reset when you&apos;re ready, then generate again.
+      </p>
+      <div className="mt-3">
+        <ActionButton
+          pending={pending}
+          variant="light"
+          onClick={() => run(() => resetTaskReadyAction(clientId, briefId, reviseTaskId))}
+        >
+          Ready to regenerate
+        </ActionButton>
+      </div>
+    </div>
+  ) : null;
+
+  const headerBlock = !campaign ? (
+    <>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+        Workspace
+      </p>
+      <p className="mt-2 text-sm text-zinc-500">
+        Generate, choose, refine — one focused move at a time.
+      </p>
+    </>
+  ) : !director && !hideRefinementChrome ? (
+    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+      When you&apos;re ready
+    </p>
+  ) : null;
+
+  /** Single root so id="studio-workspace" is unique (duplicate IDs break anchors and hydration). */
+  return (
+    <div id="studio-workspace" className={shellClass}>
+      {director ? (
+        <>
+          <StudioDirectorHero
+            score10={directorScore10}
+            verdictLine={directorVerdictLine || "—"}
+          >
+            <div className="w-full max-w-lg space-y-4">
+              {generateRow}
+              {brandGateNotice}
+            </div>
+          </StudioDirectorHero>
+          {noticeBlock}
+          <div className="mt-6 flex flex-col gap-4">
+            {reviewBlock}
+            {reviseBlock}
+          </div>
+        </>
+      ) : (
+        <>
+          {headerBlock}
+          {brandGateNotice}
+          {noticeBlock}
+          <div className="mt-6 flex flex-col gap-4">
+            {generateRow}
+            {reviewBlock}
+            {reviseBlock}
+          </div>
+        </>
+      )}
+    </div>
   );
 }

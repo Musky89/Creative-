@@ -6,6 +6,13 @@ import {
   formatBrandOperatingSystemSection,
   type BrandOperatingSystemContext,
 } from "@/server/brand/brand-os-prompt";
+import type { BrandMemoryPromptSlice } from "@/server/memory/brand-memory-service";
+import { loadBrandMemoryForPrompt } from "@/server/memory/brand-memory-service";
+import { formatBrandMemorySection } from "@/server/memory/format-brand-memory-prompt";
+import { filterUpstreamToWinningConcept } from "./concept-context-filter";
+import type { CampaignCore } from "@/lib/campaign/campaign-core";
+import { formatCampaignCoreSection } from "@/lib/campaign/campaign-core";
+import { loadCampaignCoreForBrief } from "@/server/campaign/load-campaign-core";
 
 export type { BrandOperatingSystemContext };
 
@@ -23,6 +30,7 @@ export type TaskAgentContext = {
   clientId: string;
   clientName: string;
   clientIndustry: string;
+  briefId: string;
   brief: {
     title: string;
     businessObjective: string;
@@ -33,6 +41,8 @@ export type TaskAgentContext = {
     deliverablesSummary: string;
     constraintsSummary: string;
     deadlineIso: string;
+    /** Creative Director final rework directives (copy stage). */
+    cdImprovementDirectives: string[];
   };
   brand: {
     positioning: string;
@@ -53,6 +63,10 @@ export type TaskAgentContext = {
     activeServicesLines: string[];
   } | null;
   upstreamArtifacts: UpstreamArtifactSummary[];
+  /** Soft bias from BrandMemory — injected below Brand Bible in prompts. */
+  brandMemoryPromptSlice: BrandMemoryPromptSlice | null;
+  /** From latest STRATEGY artifact — one campaign idea for all stages. */
+  campaignCore: CampaignCore | null;
 };
 
 function asStringArray(json: unknown, maxItems: number): string[] {
@@ -92,10 +106,9 @@ export async function loadTaskAgentContext(taskId: string): Promise<{
     orderBy: { id: "asc" },
   });
 
-  const idFlow = brief.identityWorkflowEnabled;
-  const currentOrder = stageOrderIndex(task.stage, idFlow);
+  const currentOrder = stageOrderIndex(task.stage, brief);
   const upstreamStages = allTasks.filter(
-    (t) => stageOrderIndex(t.stage, idFlow) < currentOrder,
+    (t) => stageOrderIndex(t.stage, brief) < currentOrder,
   );
   const upstreamIds = upstreamStages.map((t) => t.id);
 
@@ -129,10 +142,22 @@ export async function loadTaskAgentContext(taskId: string): Promise<{
   const bb: BrandBible | null = client.brandBible;
   const bp: ServiceBlueprint | null = client.serviceBlueprint;
 
+  const cdDirsRaw = brief.cdLastImprovementDirectives;
+  const cdImprovementDirectives =
+    task.stage === "COPY_DEVELOPMENT" && Array.isArray(cdDirsRaw)
+      ? cdDirsRaw
+          .map((x) => String(x).trim())
+          .filter((s) => s.length > 0)
+          .slice(0, 12)
+      : [];
+
+  const campaignCore = await loadCampaignCoreForBrief(prisma, brief.id);
+
   const context: TaskAgentContext = {
     clientId: client.id,
     clientName: client.name,
     clientIndustry: client.industry,
+    briefId: brief.id,
     brief: {
       title: brief.title,
       businessObjective: brief.businessObjective,
@@ -145,6 +170,7 @@ export async function loadTaskAgentContext(taskId: string): Promise<{
       ),
       constraintsSummary: asStringArray(brief.constraints, 12).join("; "),
       deadlineIso: brief.deadline.toISOString(),
+      cdImprovementDirectives,
     },
     brand: bb
       ? {
@@ -193,6 +219,14 @@ export async function loadTaskAgentContext(taskId: string): Promise<{
             visualCompositionTendencies: bb.visualCompositionTendencies,
             visualMaterialTextureDirection: bb.visualMaterialTextureDirection,
             visualLightingTendencies: bb.visualLightingTendencies,
+            voicePrinciples: asStringArray(bb.voicePrinciples, 24),
+            rhythmRules: asStringArray(bb.rhythmRules, 24),
+            signatureDevices: asStringArray(bb.signatureDevices, 24),
+            culturalCodes: asStringArray(bb.culturalCodes, 24),
+            emotionalRange: bb.emotionalRange,
+            metaphorStyle: bb.metaphorStyle,
+            visualPhilosophy: bb.visualPhilosophy,
+            brandTension: bb.brandTension,
           },
         }
       : null,
@@ -205,7 +239,18 @@ export async function loadTaskAgentContext(taskId: string): Promise<{
         }
       : null,
     upstreamArtifacts,
+    brandMemoryPromptSlice: null,
+    campaignCore,
   };
+
+  const memorySlice = await loadBrandMemoryForPrompt(prisma, client.id, 10);
+  const hasMemory =
+    memorySlice.approvedLines.length > 0 ||
+    memorySlice.rejectedLines.length > 0 ||
+    memorySlice.preferredFrameworks.length > 0 ||
+    memorySlice.avoidFrameworkIds.length > 0 ||
+    memorySlice.avoidPatterns.length > 0;
+  context.brandMemoryPromptSlice = hasMemory ? memorySlice : null;
 
   return {
     task: {
@@ -218,57 +263,85 @@ export async function loadTaskAgentContext(taskId: string): Promise<{
   };
 }
 
-export function formatContextForPrompt(ctx: TaskAgentContext): string {
+export function formatContextForPrompt(
+  ctx: TaskAgentContext,
+  options?: { conceptWinnerOnly?: boolean },
+): string {
+  const work =
+    options?.conceptWinnerOnly === true
+      ? { ...filterUpstreamToWinningConcept(ctx), brandMemoryPromptSlice: ctx.brandMemoryPromptSlice }
+      : ctx;
   const lines: string[] = [
     "## Client",
-    `- Name: ${ctx.clientName}`,
-    `- Industry: ${ctx.clientIndustry}`,
+    `- Name: ${work.clientName}`,
+    `- Industry: ${work.clientIndustry}`,
     "",
-    "## Brief",
-    `- Title: ${ctx.brief.title}`,
-    `- Business objective: ${ctx.brief.businessObjective}`,
-    `- Communication objective: ${ctx.brief.communicationObjective}`,
-    `- Target audience (brief): ${ctx.brief.targetAudience}`,
-    `- Key message: ${ctx.brief.keyMessage}`,
-    `- Tone: ${ctx.brief.tone}`,
-    `- Deliverables: ${ctx.brief.deliverablesSummary || "(none listed)"}`,
-    `- Constraints: ${ctx.brief.constraintsSummary || "(none listed)"}`,
-    `- Deadline: ${ctx.brief.deadlineIso}`,
   ];
 
-  if (ctx.brand) {
+  if (work.campaignCore) {
+    lines.push(formatCampaignCoreSection(work.campaignCore), "");
+  }
+
+  lines.push(
+    "## Brief",
+    `- Title: ${work.brief.title}`,
+    `- Business objective: ${work.brief.businessObjective}`,
+    `- Communication objective: ${work.brief.communicationObjective}`,
+    `- Target audience (brief): ${work.brief.targetAudience}`,
+    `- Key message: ${work.brief.keyMessage}`,
+    `- Tone: ${work.brief.tone}`,
+    `- Deliverables: ${work.brief.deliverablesSummary || "(none listed)"}`,
+    `- Constraints: ${work.brief.constraintsSummary || "(none listed)"}`,
+    `- Deadline: ${work.brief.deadlineIso}`,
+  );
+
+  if (work.brief.cdImprovementDirectives.length > 0) {
+    lines.push(
+      "",
+      "## Creative Director (final) — mandatory rework directives",
+      "The Executive CD rejected the prior bundle. You MUST address every bullet in fresh copy:",
+      ...work.brief.cdImprovementDirectives.map((d, i) => `${i + 1}. ${d}`),
+    );
+  }
+
+  if (work.brand) {
     lines.push(
       "",
       "## Brand Bible (must respect)",
-      `- Positioning: ${ctx.brand.positioning}`,
-      `- Brand target audience: ${ctx.brand.targetAudience}`,
-      `- Tone of voice: ${ctx.brand.toneOfVoice}`,
-      `- Messaging pillars: ${ctx.brand.messagingPillars.join(" | ") || "—"}`,
-      `- Mandatory inclusions: ${ctx.brand.mandatoryInclusions.join("; ") || "—"}`,
-      `- Things to avoid: ${ctx.brand.thingsToAvoid.join("; ") || "—"}`,
-      `- Visual identity notes: ${ctx.brand.visualIdentityBullets.join("; ") || "—"}`,
-      `- Channel guidelines: ${ctx.brand.channelGuidelinesBullets.join("; ") || "—"}`,
+      `- Positioning: ${work.brand.positioning}`,
+      `- Brand target audience: ${work.brand.targetAudience}`,
+      `- Tone of voice: ${work.brand.toneOfVoice}`,
+      `- Messaging pillars: ${work.brand.messagingPillars.join(" | ") || "—"}`,
+      `- Mandatory inclusions: ${work.brand.mandatoryInclusions.join("; ") || "—"}`,
+      `- Things to avoid: ${work.brand.thingsToAvoid.join("; ") || "—"}`,
+      `- Visual identity notes: ${work.brand.visualIdentityBullets.join("; ") || "—"}`,
+      `- Channel guidelines: ${work.brand.channelGuidelinesBullets.join("; ") || "—"}`,
       "",
-      formatBrandOperatingSystemSection(ctx.brand.operatingSystem),
+      formatBrandOperatingSystemSection(work.brand.operatingSystem),
     );
   } else {
     lines.push("", "## Brand Bible", "(Not configured — infer carefully from brief.)");
   }
 
-  if (ctx.blueprint) {
+  const memBlock = formatBrandMemorySection(work.brandMemoryPromptSlice);
+  if (memBlock) {
+    lines.push("", memBlock);
+  }
+
+  if (work.blueprint) {
     lines.push(
       "",
       "## Service blueprint",
-      `- Template: ${ctx.blueprint.templateType}`,
-      `- Quality threshold (0–1): ${ctx.blueprint.qualityThreshold}`,
-      `- Approval required flag: ${ctx.blueprint.approvalRequired}`,
-      `- Active services: ${ctx.blueprint.activeServicesLines.join("; ") || "—"}`,
+      `- Template: ${work.blueprint.templateType}`,
+      `- Quality threshold (0–1): ${work.blueprint.qualityThreshold}`,
+      `- Approval required flag: ${work.blueprint.approvalRequired}`,
+      `- Active services: ${work.blueprint.activeServicesLines.join("; ") || "—"}`,
     );
   }
 
-  if (ctx.upstreamArtifacts.length) {
+  if (work.upstreamArtifacts.length) {
     lines.push("", "## Upstream work (use as inputs; do not contradict approved strategy)");
-    for (const u of ctx.upstreamArtifacts) {
+    for (const u of work.upstreamArtifacts) {
       lines.push(
         `### ${u.stage} (${u.type} v${u.version})`,
         "```json",
