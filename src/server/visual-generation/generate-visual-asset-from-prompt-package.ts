@@ -28,6 +28,27 @@ function stripInternalKeys(data: Record<string, unknown>): Record<string, unknow
   return out;
 }
 
+function brandProfileInfluenceFromPackageContent(
+  content: Record<string, unknown>,
+): { profileId: string; traitsUsed: string[] } | undefined {
+  const raw = content._brandVisualProfileInfluence;
+  if (!raw || typeof raw !== "object") return undefined;
+  const o = raw as Record<string, unknown>;
+  const profileId = String(o.profileId ?? "");
+  const tu = o.traitsUsed;
+  if (!profileId || !Array.isArray(tu)) return undefined;
+  const traitsUsed = tu.map((x) => String(x)).filter(Boolean);
+  return traitsUsed.length ? { profileId, traitsUsed } : undefined;
+}
+
+function visualModelRefFromPackageContent(
+  content: Record<string, unknown>,
+): string | undefined {
+  const v = content._visualModelRef;
+  if (typeof v === "string" && v.trim()) return v.trim();
+  return undefined;
+}
+
 function visualReferencesUsedFromPackageContent(
   content: Record<string, unknown>,
 ): { id: string; label: string }[] | undefined {
@@ -111,6 +132,7 @@ function pickBundle(
 export async function runProvider(
   target: VisualPromptProviderTarget,
   bundle: Bundle,
+  options?: { visualModelRef?: string | null },
 ): Promise<{
   providerName: string;
   modelName: string;
@@ -118,7 +140,13 @@ export async function runProvider(
   mime: string;
   genMeta: Record<string, unknown>;
 }> {
-  const prompt = bundle.prompt;
+  const vmRef = options?.visualModelRef?.trim() || null;
+  const refMeta = vmRef
+    ? { visualModelRef: vmRef, visualModelRefPending: true as const }
+    : {};
+  const prompt = vmRef
+    ? `[Brand visual model ref (reserved for future LoRA / fine-tune): ${vmRef}]\n\n${bundle.prompt}`
+    : bundle.prompt;
   const negative = bundle.negativeOrAvoid;
 
   if (target === "GPT_IMAGE") {
@@ -128,7 +156,7 @@ export async function runProvider(
       modelName: process.env.OPENAI_IMAGE_MODEL?.trim() || "dall-e-3",
       buffer: r.imageBuffer,
       mime: r.mimeType,
-      genMeta: r.metadata ?? {},
+      genMeta: { ...(r.metadata ?? {}), ...refMeta },
     };
   }
 
@@ -139,7 +167,7 @@ export async function runProvider(
       modelName: process.env.GEMINI_IMAGE_MODEL?.trim() || "imagen-4.0-generate-001",
       buffer: r.imageBuffer,
       mime: r.mimeType,
-      genMeta: r.metadata ?? {},
+      genMeta: { ...(r.metadata ?? {}), ...refMeta },
     };
   }
 
@@ -154,7 +182,11 @@ export async function runProvider(
       modelName: process.env.GEMINI_IMAGE_MODEL?.trim() || "imagen-4.0-generate-001",
       buffer: r.imageBuffer,
       mime: r.mimeType,
-      genMeta: { ...((r.metadata as object) ?? {}), genericResolvedAs: "gemini" },
+      genMeta: {
+        ...((r.metadata as object) ?? {}),
+        genericResolvedAs: "gemini",
+        ...refMeta,
+      },
     };
   }
   if (process.env.OPENAI_API_KEY?.trim()) {
@@ -164,7 +196,11 @@ export async function runProvider(
       modelName: process.env.OPENAI_IMAGE_MODEL?.trim() || "dall-e-3",
       buffer: r.imageBuffer,
       mime: r.mimeType,
-      genMeta: { ...((r.metadata as object) ?? {}), genericResolvedAs: "openai" },
+      genMeta: {
+        ...((r.metadata as object) ?? {}),
+        genericResolvedAs: "openai",
+        ...refMeta,
+      },
     };
   }
 
@@ -254,6 +290,8 @@ export async function generateVisualVariantsFromPromptPackage(
   const resolvedTarget = resolveProviderTargetForGeneration(args.providerTarget);
   const rawPkg = art.content as Record<string, unknown>;
   const refsUsed = visualReferencesUsedFromPackageContent(rawPkg);
+  const profileInfl = brandProfileInfluenceFromPackageContent(rawPkg);
+  const visualModelRef = visualModelRefFromPackageContent(rawPkg);
   const content = stripInternalKeys(rawPkg);
   const baseBundle = pickBundle(content, resolvedTarget, critiqueTrim || undefined);
   const suffixes = critiqueTrim ? [""] : variantPromptSuffixes(count);
@@ -291,7 +329,9 @@ export async function generateVisualVariantsFromPromptPackage(
 
     try {
       const { providerName, modelName, buffer, mime, genMeta } =
-        await runProvider(resolvedTarget, bundle);
+        await runProvider(resolvedTarget, bundle, {
+          visualModelRef: visualModelRef ?? null,
+        });
       const ext = mime.includes("jpeg") || mime.includes("jpg") ? "jpg" : "png";
       const { relativePath } = await saveVisualAssetFile(asset.id, buffer, ext);
       const resultUrl = `/api/visual-assets/${asset.id}/file`;
@@ -310,6 +350,7 @@ export async function generateVisualVariantsFromPromptPackage(
             variantBatchSize: count,
             critiqueAppended: critiqueTrim || undefined,
             ...(refsUsed ? { _visualReferencesUsed: refsUsed } : {}),
+            ...(profileInfl ? { _brandVisualProfileInfluence: profileInfl } : {}),
             ...genMeta,
           } as object,
           generationNotes: null,
@@ -401,6 +442,8 @@ export async function generateVisualAssetFromPromptPackage(
   const resolvedTarget = resolveProviderTargetForGeneration(args.providerTarget);
   const rawPkg = art.content as Record<string, unknown>;
   const refsUsed = visualReferencesUsedFromPackageContent(rawPkg);
+  const profileInfl = brandProfileInfluenceFromPackageContent(rawPkg);
+  const visualModelRef = visualModelRefFromPackageContent(rawPkg);
   const content = stripInternalKeys(rawPkg);
   const bundle = pickBundle(content, resolvedTarget, critiqueTrim || undefined);
   const regenAttempt = critiqueTrim ? 1 : 0;
@@ -426,6 +469,7 @@ export async function generateVisualAssetFromPromptPackage(
     const { providerName, modelName, buffer, mime, genMeta } = await runProvider(
       resolvedTarget,
       bundle,
+      { visualModelRef: visualModelRef ?? null },
     );
     const ext = mime.includes("jpeg") || mime.includes("jpg") ? "jpg" : "png";
     const { relativePath } = await saveVisualAssetFile(asset.id, buffer, ext);
@@ -444,6 +488,7 @@ export async function generateVisualAssetFromPromptPackage(
           mimeType: mime,
           critiqueAppended: critiqueTrim || undefined,
           ...(refsUsed ? { _visualReferencesUsed: refsUsed } : {}),
+          ...(profileInfl ? { _brandVisualProfileInfluence: profileInfl } : {}),
           ...genMeta,
         } as object,
         generationNotes: null,

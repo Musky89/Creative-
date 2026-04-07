@@ -13,6 +13,19 @@ import type {
   VisualPromptPackagePayload,
 } from "./types";
 import { VISUAL_SLOP_AND_REALISM_BLOCK } from "@/server/visual-reference/slop-grounding-prompt";
+import { formatBrandVisualDnaSection } from "@/server/visual-identity/format-brand-visual-dna-prompt";
+import type { BrandVisualProfileForPrompt } from "@/server/visual-identity/merge-brand-visual-profile";
+
+function traitsUsedFromProfile(p: BrandVisualProfileForPrompt): string[] {
+  return [
+    ...p.lightingPatterns.slice(0, 3),
+    ...p.compositionPatterns.slice(0, 3),
+    ...p.colorSignatures.slice(0, 2),
+    ...p.texturePatterns.slice(0, 2),
+    ...p.framingRules.slice(0, 2),
+    ...p.styleKeywords.slice(0, 3),
+  ];
+}
 
 function joinLines(title: string, body: string, extra?: string[]): string {
   const parts = [title, body.trim()];
@@ -168,6 +181,13 @@ export function buildVisualPromptPackage(
   const { text: referenceGroundingBlock, used: visualRefsUsed } =
     formatReferenceGroundingBlock(input);
 
+  const brandDnaBlock = formatBrandVisualDnaSection(
+    input.brandVisualProfile ?? null,
+  );
+  const traitsUsedForInfluence = input.brandVisualProfile
+    ? traitsUsedFromProfile(input.brandVisualProfile)
+    : [];
+
   const seed =
     spec.optionalPromptSeed?.trim() &&
     `Supporting seed (do not override spec specifics): ${spec.optionalPromptSeed.trim()}`;
@@ -190,6 +210,7 @@ export function buildVisualPromptPackage(
   const primaryPrompt = [
     VISUAL_SLOP_AND_REALISM_BLOCK,
     "",
+    brandDnaBlock ? `${brandDnaBlock}\n` : "",
     `Objective: ${spec.visualObjective}`,
     `Concept route: ${spec.conceptName}.`,
     frameworkLine,
@@ -284,6 +305,11 @@ export function buildVisualPromptPackage(
     brandVisualLines.length ? [`Brand OS visual anchors: ${brandVisualLines.join(" | ")}`] : undefined,
   );
 
+  const profileNeg =
+    input.brandVisualProfile?.negativeTraits.map(
+      (t) => `Brand visual DNA avoid: ${t}`,
+    ) ?? [];
+
   const boundaryLines = [
     ...brandOs.emotionalBoundaries,
     ...brandOs.bannedPhrases.map((p) => `Avoid phrase/trope: ${p}`),
@@ -293,6 +319,7 @@ export function buildVisualPromptPackage(
     ...(brandOs.tasteMustNotFeelLike.trim()
       ? [`Must NOT feel like: ${brandOs.tasteMustNotFeelLike.trim()}`]
       : []),
+    ...profileNeg.slice(0, 12),
   ];
 
   const negativePrompt = mergeAvoid(spec, boundaryLines);
@@ -321,8 +348,18 @@ export function buildVisualPromptPackage(
       frameworkId: spec.frameworkUsed,
       conceptName: spec.conceptName,
       referenceGrounding: referenceGroundingBlock ? true : false,
+      brandVisualDna: brandDnaBlock ? true : false,
+      visualModelRef: input.visualModelRef?.trim() || null,
     },
     _visualReferencesUsed: visualRefsUsed.length ? visualRefsUsed : undefined,
+    _brandVisualProfileInfluence:
+      input.brandVisualProfile && traitsUsedForInfluence.length
+        ? {
+            profileId: input.brandVisualProfile.id,
+            traitsUsed: traitsUsedForInfluence,
+          }
+        : undefined,
+    _visualModelRef: input.visualModelRef?.trim() || null,
     providerVariants: {},
   };
 
@@ -346,6 +383,8 @@ export function buildVisualPromptPackage(
     optionalShotVariants: payload.optionalShotVariants,
     optionalPromptMetadata: payload.optionalPromptMetadata,
     _visualReferencesUsed: payload._visualReferencesUsed,
+    _brandVisualProfileInfluence: payload._brandVisualProfileInfluence,
+    _visualModelRef: payload._visualModelRef,
     providerVariants: payload.providerVariants,
   });
 

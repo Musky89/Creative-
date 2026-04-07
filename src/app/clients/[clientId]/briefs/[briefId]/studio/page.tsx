@@ -24,6 +24,7 @@ import type { PromptPackageRef } from "./studio-visual-references";
 import { parseConceptPack } from "./studio-concept-summary";
 import { getDefaultHeadlineForBrief } from "@/server/visual-finishing/headline-from-brief";
 import { StudioBrandLearningPanel } from "./studio-brand-learning";
+import { StudioBrandVisualIdentityPanel } from "./studio-brand-visual-identity";
 
 function reviewStatusText(status: ReviewStatus) {
   const map: Record<ReviewStatus, string> = {
@@ -325,6 +326,8 @@ export default async function BriefStudioPage({
           />
 
           <StudioBrandLearningPanel clientId={clientId} />
+
+          <StudioBrandVisualIdentityPanel clientId={clientId} />
 
           <Card className="border-zinc-800/90 bg-zinc-900/40">
             <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">

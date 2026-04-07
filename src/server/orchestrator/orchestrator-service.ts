@@ -18,6 +18,7 @@ import { getPrisma } from "@/server/db/prisma";
 import { visualSpecArtifactSchema } from "@/lib/artifacts/contracts";
 import { buildVisualPromptPackage } from "@/server/visual-prompt/assemble-visual-prompt-package";
 import { selectVisualReferences } from "@/server/visual-reference/select-references";
+import { loadBrandVisualProfileForPrompt } from "@/server/visual-identity/merge-brand-visual-profile";
 import {
   arePrerequisitesSatisfied,
   statusMapFromTasks,
@@ -782,6 +783,14 @@ export class OrchestratorService {
     }
     const brandOs = brandBibleToOperatingSystem(bb);
 
+    const [brandVisualProfile, clientRow] = await Promise.all([
+      loadBrandVisualProfileForPrompt(this.db, clientId),
+      this.db.client.findUnique({
+        where: { id: clientId },
+        select: { visualModelRef: true },
+      }),
+    ]);
+
     const taskRow = await this.db.task.findUnique({
       where: { id: taskId },
       select: { briefId: true },
@@ -808,6 +817,7 @@ export class OrchestratorService {
       spec: parsed.data,
       brandOs,
       extraImageUrls: founderRefUrls,
+      brandVisualProfile,
     });
 
     const pkg = buildVisualPromptPackage({
@@ -818,6 +828,8 @@ export class OrchestratorService {
       framework: null,
       selectedReferences,
       founderReferenceUrls: founderRefUrls.slice(0, 5),
+      brandVisualProfile,
+      visualModelRef: clientRow?.visualModelRef?.trim() || null,
     });
 
     const latestPkg = await this.db.artifact.findFirst({

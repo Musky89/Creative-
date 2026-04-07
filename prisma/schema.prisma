@@ -197,6 +197,9 @@ model Client {
   brandMemories          BrandMemory[]
   brandMemoryAggregate   BrandMemoryAggregate?
   visualReferences       VisualReference[]
+  brandVisualProfile     BrandVisualProfile?
+  /// Future: LoRA / fine-tuned model id — generation passes through when set.
+  visualModelRef         String?
 }
 
 /// One canonical Brand Bible per client (1:1).
@@ -455,6 +458,28 @@ model BrandMemory {
 }
 
 /// Cached rollups for fast prompt injection (optional optimization).
+/// Learned visual DNA from founder-approved frames (soft lock for prompts; LoRA later).
+model BrandVisualProfile {
+  id        String   @id @default(cuid())
+  clientId  String   @unique
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  styleKeywords        Json @default("[]")
+  lightingPatterns     Json @default("[]")
+  compositionPatterns  Json @default("[]")
+  colorSignatures      Json @default("[]")
+  texturePatterns      Json @default("[]")
+  framingRules         Json @default("[]")
+  negativeTraits       Json @default("[]")
+  /// 0–1 — rises slowly with repeated preferred selections (capped; not instant lock-in).
+  confidenceScore      Float  @default(0)
+  confirmationCount    Int    @default(0)
+  rejectionCount       Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 /// Campaign-style reference stills for grounding image prompts (global + per-client).
 model VisualReference {
   id        String                  @id @default(cuid())

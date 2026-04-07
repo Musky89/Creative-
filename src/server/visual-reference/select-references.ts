@@ -1,6 +1,7 @@
 import type { VisualSpecArtifact } from "@/lib/artifacts/contracts";
 import type { BrandOperatingSystemContext } from "@/server/brand/brand-os-prompt";
 import type { PrismaClient, VisualReference } from "@/generated/prisma/client";
+import type { BrandVisualProfileForPrompt } from "@/server/visual-identity/merge-brand-visual-profile";
 
 export type SelectedVisualReference = Pick<
   VisualReference,
@@ -101,12 +102,41 @@ function memoryKeywordSets(
 /**
  * Deterministic reference pick: 2–5 rows, scored by spec/brand overlap + brand memory bias.
  */
+function profileWordSets(profile: BrandVisualProfileForPrompt | null | undefined): {
+  positive: Set<string>;
+  negative: Set<string>;
+  weight: number;
+} {
+  if (!profile) {
+    return { positive: new Set(), negative: new Set(), weight: 0 };
+  }
+  const positive = new Set<string>();
+  const negative = new Set<string>();
+  const buckets = [
+    ...profile.lightingPatterns,
+    ...profile.compositionPatterns,
+    ...profile.colorSignatures,
+    ...profile.texturePatterns,
+    ...profile.framingRules,
+    ...profile.styleKeywords,
+  ];
+  for (const line of buckets) {
+    for (const w of normTokens(line)) positive.add(w);
+  }
+  for (const line of profile.negativeTraits) {
+    for (const w of normTokens(line)) negative.add(w);
+  }
+  const weight = Math.min(1, 0.35 + profile.confirmationCount * 0.08);
+  return { positive, negative, weight };
+}
+
 export async function selectVisualReferences(
   db: PrismaClient,
   args: {
     clientId: string;
     spec: VisualSpecArtifact;
     brandOs: BrandOperatingSystemContext;
+    brandVisualProfile?: BrandVisualProfileForPrompt | null;
     /** Optional founder image URLs — treated as high-priority pseudo-references (description-only in prompts). */
     extraImageUrls?: string[];
     minCount?: number;
@@ -137,6 +167,7 @@ export async function selectVisualReferences(
 
   const hay = haystackFromSpec(args.spec, args.brandOs);
   const { approved: memOk, rejected: memBad } = memoryKeywordSets(memRows);
+  const prof = profileWordSets(args.brandVisualProfile ?? null);
 
   type Scored = { ref: VisualReference; score: number };
   const founderBoost = (args.extraImageUrls?.length ?? 0) > 0 ? 0.35 : 0;
@@ -156,6 +187,14 @@ export async function selectVisualReferences(
     for (const w of memBad) {
       if (tags.has(w)) score -= 1.1;
     }
+    let profAlign = 0;
+    let profConflict = 0;
+    for (const w of tags) {
+      if (prof.positive.has(w)) profAlign += 1;
+      if (prof.negative.has(w)) profConflict += 1;
+    }
+    score += profAlign * 0.45 * prof.weight;
+    score -= profConflict * 0.95 * prof.weight;
     if (ref.clientId === args.clientId) score += 2;
     return { ref, score };
   });

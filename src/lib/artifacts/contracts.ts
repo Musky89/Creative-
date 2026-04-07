@@ -49,6 +49,14 @@ export const visualPromptPackageArtifactSchema = z.object({
     )
     .max(8)
     .optional(),
+  _brandVisualProfileInfluence: z
+    .object({
+      profileId: z.string().min(1),
+      traitsUsed: z.array(z.string()).max(40),
+    })
+    .optional(),
+  /** Future: LoRA / fine-tuned checkpoint id (passed to provider when implemented). */
+  _visualModelRef: z.string().nullable().optional(),
   providerVariants: z
     .object({
       GENERIC: providerReadyBundleSchema.optional(),

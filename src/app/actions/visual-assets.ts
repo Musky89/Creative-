@@ -12,6 +12,12 @@ import { composeCampaignAsset } from "@/server/visual-finishing/compose-campaign
 import { getDefaultHeadlineForBrief } from "@/server/visual-finishing/headline-from-brief";
 import { recordBrandMemoryEvent } from "@/server/memory/brand-memory-service";
 import { extractVisualMemory } from "@/server/memory/extract-memory";
+import { visualSpecArtifactSchema } from "@/lib/artifacts/contracts";
+import { extractVisualIdentityFromAsset } from "@/server/visual-identity/extract-visual-identity";
+import {
+  mergeBrandVisualProfileOnPreferredSelection,
+  mergeBrandVisualProfileOnRejection,
+} from "@/server/visual-identity/merge-brand-visual-profile";
 
 function studioPath(clientId: string, briefId: string) {
   return `/clients/${clientId}/briefs/${briefId}/studio`;
@@ -149,10 +155,10 @@ export async function selectPreferredVisualAssetAction(
     });
   });
 
-  const review = await prisma.visualAssetReview.findUnique({
+  const reviewFull = await prisma.visualAssetReview.findUnique({
     where: { visualAssetId: assetId },
   });
-  const evalBody = review?.evaluation as
+  const evalBody = reviewFull?.evaluation as
     | { regenerationRecommended?: boolean; qualityVerdict?: string }
     | undefined;
   const stillWeak =
@@ -172,9 +178,6 @@ export async function selectPreferredVisualAssetAction(
         ? (specArt.content as Record<string, unknown>)
         : null;
     if (specRaw) {
-      const reviewFull = await prisma.visualAssetReview.findUnique({
-        where: { visualAssetId: assetId },
-      });
       const ev = reviewFull?.evaluation;
       const ext = extractVisualMemory({
         spec: specRaw,
@@ -196,6 +199,28 @@ export async function selectPreferredVisualAssetAction(
         outcome: "APPROVED",
         strengthScore: stillWeak ? 0.55 : 0.88,
       });
+
+      const strippedSpec = { ...specRaw };
+      for (const k of Object.keys(strippedSpec)) {
+        if (k.startsWith("_")) delete strippedSpec[k];
+      }
+      const specParsed = visualSpecArtifactSchema.safeParse(strippedSpec);
+      if (specParsed.success) {
+        const ev2 = reviewFull?.evaluation;
+        const extracted = extractVisualIdentityFromAsset({
+          visualSpec: specParsed.data,
+          promptUsed: a.promptUsed,
+          promptPackageSnippet: String(
+            (a.sourceArtifact.content as Record<string, unknown>).primaryPrompt ?? "",
+          ),
+          evaluation:
+            ev2 && typeof ev2 === "object" ? (ev2 as Record<string, unknown>) : null,
+        });
+        await mergeBrandVisualProfileOnPreferredSelection(prisma, {
+          clientId,
+          extracted,
+        });
+      }
     }
   }
 
@@ -298,6 +323,10 @@ export async function rejectVisualAssetAction(
     data: { founderRejected: true, isPreferred: false },
   });
 
+  const reviewReject = await prisma.visualAssetReview.findUnique({
+    where: { visualAssetId: assetId },
+  });
+
   if (specId) {
     await recordVisualMemoryFromSpecArtifact(prisma, {
       clientId,
@@ -311,10 +340,7 @@ export async function rejectVisualAssetAction(
         ? (specArt.content as Record<string, unknown>)
         : null;
     if (specRaw) {
-      const reviewFull = await prisma.visualAssetReview.findUnique({
-        where: { visualAssetId: assetId },
-      });
-      const ev = reviewFull?.evaluation;
+      const ev = reviewReject?.evaluation;
       const ext = extractVisualMemory({
         spec: specRaw,
         asset: {
@@ -335,6 +361,31 @@ export async function rejectVisualAssetAction(
         outcome: "REJECTED",
         strengthScore: a.autoRejected ? 0.62 : 0.48,
       });
+
+      const strippedSpec = { ...specRaw };
+      for (const k of Object.keys(strippedSpec)) {
+        if (k.startsWith("_")) delete strippedSpec[k];
+      }
+      const specParsed = visualSpecArtifactSchema.safeParse(strippedSpec);
+      if (specParsed.success) {
+        const evR = reviewReject?.evaluation;
+        const extracted = extractVisualIdentityFromAsset({
+          visualSpec: specParsed.data,
+          promptUsed: a.promptUsed,
+          promptPackageSnippet: String(
+            (a.sourceArtifact.content as Record<string, unknown>).primaryPrompt ?? "",
+          ),
+          evaluation:
+            evR && typeof evR === "object" ? (evR as Record<string, unknown>) : null,
+        });
+        await mergeBrandVisualProfileOnRejection(prisma, {
+          clientId,
+          negativeHints: [
+            ...extracted.negativeTraits,
+            `founder rejected frame (${a.autoRejected ? "auto-filter" : "manual"})`,
+          ],
+        });
+      }
     }
   }
 

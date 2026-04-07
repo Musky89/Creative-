@@ -2,6 +2,7 @@ import type { VisualPromptProviderTarget } from "@/generated/prisma/client";
 import type { VisualSpecArtifact } from "@/lib/artifacts/contracts";
 import type { BrandOperatingSystemContext } from "@/server/brand/brand-os-prompt";
 import type { SelectedVisualReference } from "@/server/visual-reference/select-references";
+import type { BrandVisualProfileForPrompt } from "@/server/visual-identity/merge-brand-visual-profile";
 
 /** Creative Canon framework summary for assembly (no full agent context required). */
 export type FrameworkAssemblyContext = {
@@ -21,6 +22,10 @@ export type BuildVisualPromptPackageInput = {
   selectedReferences?: SelectedVisualReference[];
   /** Founder-supplied reference image URLs (brief-level); described in prompt when present. */
   founderReferenceUrls?: string[];
+  /** Learned visual DNA (soft lock); null if none yet. */
+  brandVisualProfile?: BrandVisualProfileForPrompt | null;
+  /** Future LoRA / fine-tune id — echoed into package metadata for providers. */
+  visualModelRef?: string | null;
 };
 
 /** Provider-ready strings — adapters fill these; no API calls. */
@@ -48,6 +53,8 @@ export type VisualPromptPackagePayload = {
   optionalShotVariants?: string[];
   optionalPromptMetadata?: Record<string, unknown>;
   _visualReferencesUsed?: { id: string; label: string; imageUrl?: string }[];
+  _brandVisualProfileInfluence?: { profileId: string; traitsUsed: string[] };
+  _visualModelRef?: string | null;
   /** Per-provider adapted bundles for `generateVisualAssetFromPromptPackage` (future). */
   providerVariants: Partial<
     Record<VisualPromptProviderTarget, ProviderReadyPromptBundle>
