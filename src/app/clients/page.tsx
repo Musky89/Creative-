@@ -6,68 +6,83 @@ import { DatabaseUnavailableNotice } from "@/components/dev/deployment-blocked";
 import { isDatabaseLikelyUnavailableError } from "@/lib/dev/db-unavailable";
 
 export default async function ClientsPage() {
-  let clients: Awaited<ReturnType<typeof listClients>>;
   try {
-    clients = await listClients();
-  } catch (e) {
-    if (!isDatabaseLikelyUnavailableError(e)) throw e;
+    const clients = await listClients();
+
     return (
       <>
         <PageHeader
           title="Clients"
-          description="Accounts in AgenticForce."
+          description="Pick a client to open Brand Bible, Blueprint, and briefs."
+          tone="muted"
+          action={<ButtonLink href="/clients/new">New client</ButtonLink>}
         />
-        <div className="max-w-xl">
-          <DatabaseUnavailableNotice />
+
+        {clients.length === 0 ? (
+          <p className="text-sm text-zinc-400">
+            No clients yet.{" "}
+            <Link href="/clients/new" className="text-zinc-100 underline decoration-zinc-600">
+              Create one
+            </Link>
+            .
+          </p>
+        ) : (
+          <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800/90 bg-zinc-900/40 shadow-sm">
+            {clients.map((c) => (
+              <li key={c.id}>
+                <Link
+                  href={`/clients/${c.id}`}
+                  className="flex items-center justify-between px-4 py-4 transition-colors hover:bg-zinc-800/40"
+                >
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium text-zinc-100">{c.name}</p>
+                      {c.isDemoClient ? (
+                        <span className="rounded border border-amber-600/50 bg-amber-950/40 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-200/90">
+                          Demo
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="text-sm text-zinc-500">{c.industry}</p>
+                  </div>
+                  <span className="text-sm text-zinc-500">
+                    {c._count.briefs} brief{c._count.briefs === 1 ? "" : "s"}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </>
+    );
+  } catch (e) {
+    console.error("[ClientsPage]", e);
+    if (isDatabaseLikelyUnavailableError(e)) {
+      return (
+        <>
+          <PageHeader title="Clients" description="Accounts in AgenticForce." />
+          <div className="max-w-xl">
+            <DatabaseUnavailableNotice />
+          </div>
+        </>
+      );
+    }
+    return (
+      <>
+        <PageHeader title="Clients" description="Could not load clients." />
+        <div className="max-w-xl rounded-xl border border-red-500/30 bg-red-950/25 p-5">
+          <p className="text-sm text-red-100/90">
+            Something unexpected went wrong. Check the terminal where{" "}
+            <code className="rounded bg-red-950/50 px-1 font-mono text-xs">npm run dev</code> is
+            running.
+          </p>
+          {process.env.NODE_ENV === "development" && e instanceof Error ? (
+            <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-red-200/85">
+              {e.message}
+            </pre>
+          ) : null}
         </div>
       </>
     );
   }
-
-  return (
-    <>
-      <PageHeader
-        title="Clients"
-        description="Pick a client to open Brand Bible, Blueprint, and briefs."
-        tone="muted"
-        action={<ButtonLink href="/clients/new">New client</ButtonLink>}
-      />
-
-      {clients.length === 0 ? (
-        <p className="text-sm text-zinc-400">
-          No clients yet.{" "}
-          <Link href="/clients/new" className="text-zinc-100 underline decoration-zinc-600">
-            Create one
-          </Link>
-          .
-        </p>
-      ) : (
-        <ul className="divide-y divide-zinc-800 rounded-xl border border-zinc-800/90 bg-zinc-900/40 shadow-sm">
-          {clients.map((c) => (
-            <li key={c.id}>
-              <Link
-                href={`/clients/${c.id}`}
-                className="flex items-center justify-between px-4 py-4 transition-colors hover:bg-zinc-800/40"
-              >
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium text-zinc-100">{c.name}</p>
-                    {c.isDemoClient ? (
-                      <span className="rounded border border-amber-600/50 bg-amber-950/40 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-200/90">
-                        Demo
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="text-sm text-zinc-500">{c.industry}</p>
-                </div>
-                <span className="text-sm text-zinc-500">
-                  {c._count.briefs} brief{c._count.briefs === 1 ? "" : "s"}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </>
-  );
 }
