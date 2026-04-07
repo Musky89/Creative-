@@ -1,4 +1,5 @@
 import type { TaskStatus, WorkflowStage } from "@/generated/prisma/client";
+import type { BriefForWorkPlan } from "@/lib/workflow/brief-work-plan";
 import {
   STAGE_LABELS,
   TASK_STATUS_LABELS,
@@ -28,13 +29,13 @@ function statusPill(status: TaskStatus) {
 export function WorkflowTimeline({
   tasks,
   nextExecutableTaskIds,
-  identityWorkflowEnabled = false,
+  briefPlan,
 }: {
   tasks: TaskRow[];
   nextExecutableTaskIds: string[];
-  identityWorkflowEnabled?: boolean;
+  briefPlan: BriefForWorkPlan;
 }) {
-  const order = workflowStageOrderForBrief(identityWorkflowEnabled);
+  const order = workflowStageOrderForBrief(briefPlan);
   const byStage = new Map<WorkflowStage, TaskRow>();
   for (const t of tasks) {
     byStage.set(t.stage, t);

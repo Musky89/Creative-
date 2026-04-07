@@ -1,18 +1,29 @@
 import type { WorkflowStage } from "@/generated/prisma/client";
-import { buildV1PipelineRows } from "@/server/orchestrator/v1-pipeline";
+import type { BriefForWorkPlan } from "@/lib/workflow/brief-work-plan";
+import { buildV1PipelineRowsForBrief } from "@/server/orchestrator/v1-pipeline";
 
 /** Ordered stages for a brief — matches server pipeline. */
 export type WorkflowStageOrder = readonly WorkflowStage[];
 
 /** UI ordering for timeline + studio — must match server pipeline for this brief. */
-export function workflowStageOrderForBrief(
-  identityWorkflowEnabled: boolean,
-): WorkflowStageOrder {
-  return buildV1PipelineRows(identityWorkflowEnabled).map((r) => r.stage);
+export function workflowStageOrderForBrief(brief: BriefForWorkPlan): WorkflowStageOrder {
+  return buildV1PipelineRowsForBrief(brief).map((r) => r.stage);
 }
 
-/** Default order (standard pipeline) for types that don't have brief context. */
-export const WORKFLOW_STAGE_ORDER = workflowStageOrderForBrief(false);
+/** @deprecated Prefer workflowStageOrderForBrief(brief) */
+export function workflowStageOrderForBriefLegacy(
+  identityWorkflowEnabled: boolean,
+): WorkflowStageOrder {
+  return workflowStageOrderForBrief({
+    engagementType: "CAMPAIGN",
+    workstreams: [],
+    deliverablesRequested: [],
+    identityWorkflowEnabled,
+  });
+}
+
+/** Default order (standard campaign, no identity) for types that don't have brief context. */
+export const WORKFLOW_STAGE_ORDER = workflowStageOrderForBriefLegacy(false);
 
 export type WorkflowStageId = WorkflowStage;
 
