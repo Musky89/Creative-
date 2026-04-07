@@ -48,3 +48,14 @@ export const TASK_STATUS_LABELS: Record<string, string> = {
   COMPLETED: "Completed",
   FAILED: "Failed",
 };
+
+/** Studio-facing copy — avoids pipeline / debugger tone */
+export const CREATIVE_TASK_STATUS_LABELS: Record<string, string> = {
+  PENDING: "Queued",
+  READY: "Ready to go",
+  RUNNING: "In progress",
+  AWAITING_REVIEW: "Your call",
+  REVISE_REQUIRED: "Refine requested",
+  COMPLETED: "Done",
+  FAILED: "Needs attention",
+};

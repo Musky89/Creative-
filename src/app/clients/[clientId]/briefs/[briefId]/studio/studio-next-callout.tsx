@@ -39,8 +39,7 @@ export function StudioNextCallout({
       <div className="rounded-2xl border border-zinc-700/80 bg-zinc-900/40 px-5 py-4">
         <p className="text-sm font-medium text-zinc-100">Start this project</p>
         <p className="mt-1 text-sm text-zinc-400">
-          Initialize the workflow once, then use{" "}
-          <span className="text-zinc-300">Run next step</span> to move forward.
+          Open <span className="text-zinc-300">Workspace</span> below to start this campaign.
         </p>
       </div>
     );
@@ -77,8 +76,8 @@ export function StudioNextCallout({
       {visualJob && vdReview && !imagesReady ? (
         <p className="mt-2 text-sm text-zinc-400">
           Approving <span className="text-zinc-300">Visual direction</span> in{" "}
-          <a href="#review" className="text-emerald-300 underline decoration-emerald-700">
-            Actions
+          <a href="#studio-workspace" className="text-emerald-300 underline decoration-emerald-700">
+            Workspace
           </a>{" "}
           assembles the visual prompt package for{" "}
           <a
@@ -92,24 +91,25 @@ export function StudioNextCallout({
       ) : null}
       {visualJob && imagesReady ? (
         <p className="mt-2 text-sm text-emerald-200/90">
-          Visual generation is ready — open the module below to run frames.
+          You can generate frames in <span className="text-emerald-100">Visuals & layouts</span>{" "}
+          below.
         </p>
       ) : null}
       <div className="mt-4 flex flex-wrap gap-2">
         {reviewTaskId ? (
           <a
-            href="#review"
+            href="#studio-workspace"
             className="inline-flex rounded-lg bg-amber-500/15 px-3 py-2 text-sm font-medium text-amber-100 ring-1 ring-amber-500/30 hover:bg-amber-500/25"
           >
-            Open review
+            Decide
           </a>
         ) : null}
         {reviseTaskId ? (
           <a
-            href="#review"
+            href="#studio-workspace"
             className="inline-flex rounded-lg bg-orange-500/15 px-3 py-2 text-sm font-medium text-orange-100 ring-1 ring-orange-500/30 hover:bg-orange-500/25"
           >
-            Reset revision
+            Refine
           </a>
         ) : null}
         {visualJob && imagesReady ? (

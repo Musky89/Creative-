@@ -47,47 +47,67 @@ export function StudioCreativeRouteSections({
 
   const w = parsed.winner;
 
+  const whyText = (r: (typeof parsed.routes)[0]) =>
+    r.whyItWorksForBrand?.trim() || r.rationale?.trim() || "";
+
   return (
-    <div className="space-y-6">
-      <section className="space-y-3">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-          Selected direction
+    <div className="space-y-12">
+      <section className="space-y-4">
+        <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+          Creative direction
         </h2>
         {w ? (
-          <div className="rounded-2xl border border-emerald-900/40 bg-emerald-950/10 p-6 ring-1 ring-emerald-500/15">
+          <div className="rounded-3xl bg-gradient-to-br from-emerald-950/20 via-zinc-950/40 to-zinc-950 p-8 sm:p-10">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge tone="selected">Selected</Badge>
+              <Badge tone="selected">Primary route</Badge>
               {needsAttention ? (
                 <Badge tone="needs">Needs improvement</Badge>
               ) : null}
               {w.frameworkId ? (
-                <span className="text-xs text-zinc-500">{w.frameworkId}</span>
+                <span className="text-xs text-zinc-600">{w.frameworkId}</span>
               ) : null}
             </div>
-            <p className="mt-4 text-xl font-medium tracking-tight text-zinc-50">
+            <p className="mt-6 text-2xl font-semibold tracking-tight text-zinc-50 sm:text-3xl">
               {w.conceptName}
             </p>
             {w.hook ? (
-              <p className="mt-3 text-sm leading-relaxed text-zinc-400">{w.hook}</p>
+              <p className="mt-4 max-w-3xl text-base leading-relaxed text-zinc-400">{w.hook}</p>
+            ) : null}
+            {whyText(w) ? (
+              <div className="mt-8 border-t border-white/5 pt-8">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">
+                  Why it works
+                </p>
+                <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-300">
+                  {whyText(w)}
+                </p>
+              </div>
             ) : null}
           </div>
         ) : null}
       </section>
 
       {parsed.alternatives.length > 0 ? (
-        <section className="space-y-3">
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-            Alternative routes
+        <section className="space-y-4">
+          <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+            Alternate routes
           </h2>
-          <ul className="space-y-3">
+          <ul className="grid gap-6 sm:grid-cols-2">
             {parsed.alternatives.map((r) => (
-              <li
-                key={r.conceptId}
-                className="rounded-xl border border-zinc-800/90 bg-zinc-900/30 px-5 py-4"
-              >
-                <p className="text-sm font-medium text-zinc-200">{r.conceptName}</p>
+              <li key={r.conceptId} className="rounded-2xl bg-zinc-900/25 p-6 sm:p-7">
+                <p className="text-lg font-medium text-zinc-100">{r.conceptName}</p>
                 {r.hook ? (
-                  <p className="mt-2 text-xs leading-relaxed text-zinc-500">{r.hook}</p>
+                  <p className="mt-3 text-sm leading-relaxed text-zinc-500">{r.hook}</p>
+                ) : null}
+                {whyText(r) ? (
+                  <div className="mt-5">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-600">
+                      Why it works
+                    </p>
+                    <p className="mt-2 text-sm leading-relaxed text-zinc-400 line-clamp-6">
+                      {whyText(r)}
+                    </p>
+                  </div>
                 ) : null}
               </li>
             ))}

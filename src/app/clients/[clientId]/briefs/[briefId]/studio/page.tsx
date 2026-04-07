@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import type { ReviewStatus } from "@/generated/prisma/client";
-import { Card } from "@/components/ui/section";
 import { PageHeader } from "@/components/ui/section";
 import { DisclosureSection } from "@/components/ui/collapse";
 import { STAGE_LABELS, workflowStageOrderForBrief } from "@/lib/workflow-display";
@@ -13,13 +12,16 @@ import {
 import { orchestrator } from "@/server/orchestrator/orchestrator-service";
 import { getReviewApproveGate } from "@/server/studio/review-approve-gate";
 import { WorkflowControls } from "@/components/workflow/workflow-controls";
-import { WorkflowTimeline } from "@/components/workflow/workflow-timeline";
 import { StudioNextCallout } from "./studio-next-callout";
 import { StudioArtifactsSection } from "./studio-artifacts-section";
 import { IdentityExportPanel } from "./identity-export-panel";
 import { getVisualGenerationReadiness } from "@/lib/studio/visual-generation-readiness";
-import { StudioCreativeHero } from "./studio-creative-hero";
 import { StudioCreativeRouteSections } from "./studio-creative-routes";
+import { StudioCampaignCoreBoard } from "./studio-campaign-core-board";
+import { StudioCampaignVisualHero } from "./studio-campaign-visual-hero";
+import { StudioCopyHeadlines } from "./studio-copy-headlines";
+import { parseCopyCampaign } from "./studio-copy-campaign";
+import { StudioPipelineRail } from "./studio-pipeline-rail";
 import { StudioExploreAlternatives } from "./studio-explore-alternatives";
 import type { PromptPackageRef } from "./studio-visual-references";
 import { parseConceptPack } from "./studio-concept-summary";
@@ -40,13 +42,15 @@ import {
   referenceCompositionProfileSchema,
 } from "@/lib/visual/reference-composition-profile";
 import { StudioEngagementOverview } from "./studio-engagement-overview";
+import { loadCampaignCoreForBrief } from "@/server/campaign/load-campaign-core";
+import { getPrisma } from "@/server/db/prisma";
 
 function reviewStatusText(status: ReviewStatus) {
   const map: Record<ReviewStatus, string> = {
-    PENDING: "Pending",
+    PENDING: "Queued",
     APPROVED: "Approved",
-    REJECTED: "Rejected",
-    REVISION_REQUESTED: "Revision requested",
+    REJECTED: "Set aside",
+    REVISION_REQUESTED: "Refine requested",
   };
   return map[status];
 }
@@ -67,11 +71,14 @@ export default async function BriefStudioPage({
     brief.client.brandBible ?? null,
   );
 
-  const [canonHighlight, preferredFrameworkIds, trainingCandidates] = await Promise.all([
-    getClientCanonHighlights(clientId),
-    getTopPreferredFrameworkIds(clientId, 4),
-    getClientVisualTrainingCandidates(clientId),
-  ]);
+  const prisma = getPrisma();
+  const [canonHighlight, preferredFrameworkIds, trainingCandidates, campaignCore] =
+    await Promise.all([
+      getClientCanonHighlights(clientId),
+      getTopPreferredFrameworkIds(clientId, 4),
+      getClientVisualTrainingCandidates(clientId),
+      loadCampaignCoreForBrief(prisma, briefId),
+    ]);
 
   const hasBrandVisualStyle =
     !!brief.client.visualModelRef?.trim() && !!process.env.FAL_KEY?.trim();
@@ -237,7 +244,12 @@ export default async function BriefStudioPage({
     .filter((a) => a.type === "CONCEPT")
     .sort((a, b) => b.version - a.version)[0];
   const parsedConcepts = parseConceptPack(latestConceptArt?.content ?? null);
-  const winnerConcept = parsedConcepts?.winner ?? null;
+
+  const copyTask = taskByStage.get("COPY_DEVELOPMENT");
+  const latestCopyArt = copyTask?.artifacts
+    .filter((a) => a.type === "COPY")
+    .sort((a, b) => b.version - a.version)[0];
+  const parsedCopy = parseCopyCampaign(latestCopyArt?.content ?? null);
 
   const visualAssetsForStudio = brief.visualAssets.map((va) => ({
     id: va.id,
@@ -326,79 +338,117 @@ export default async function BriefStudioPage({
     <>
       <PageHeader
         title={brief.title}
-        description={`${brief.client.name} · Studio`}
+        description={brief.client.name}
         tone="muted"
       />
 
-      <div className="mb-10 space-y-8">
+      <div className="mb-12 space-y-3">
         <StudioEngagementOverview plan={workPlan} />
-        {workPlan.showCampaignCreative ? (
-          <>
-            <StudioCreativeHero
-              clientId={clientId}
-              imageUrl={heroImageUrl}
-              headline={composeDefaultHeadline}
-              conceptName={winnerConcept?.conceptName ?? null}
-              conceptHook={winnerConcept?.hook ?? null}
-            />
-            <StudioCreativeRouteSections
-              parsed={parsedConcepts}
-              conceptTaskStatus={conceptTask?.status ?? null}
-            />
-          </>
-        ) : (
-          <Card className="border-zinc-800/80 bg-zinc-950/40">
-            <p className="text-sm font-medium text-zinc-200">Campaign creative not in scope</p>
-            <p className="mt-1 text-sm text-zinc-500">
-              This engagement focuses on strategy and defined deliverables — expand{" "}
-              <span className="text-zinc-400">Creative</span> below for stage outputs.
-            </p>
-          </Card>
-        )}
+        <StudioNextCallout
+          clientId={clientId}
+          briefId={briefId}
+          briefPlan={briefPlan}
+          hasWorkflow={hasWorkflow}
+          reviewTaskId={reviewTaskId}
+          reviseTaskId={reviseTaskId}
+          nextExecutableStage={nextExecutableStage}
+          tasks={taskLite}
+          visualDirectionAwaitingReview={visualDirectionAwaitingReview}
+          imageGenReady={imageGenReady}
+        />
       </div>
 
-      <div className="grid gap-10 lg:grid-cols-12">
-        <div className="space-y-6 lg:col-span-5">
-          <StudioNextCallout
-            clientId={clientId}
-            briefId={briefId}
-            briefPlan={briefPlan}
-            hasWorkflow={hasWorkflow}
-            reviewTaskId={reviewTaskId}
-            reviseTaskId={reviseTaskId}
-            nextExecutableStage={nextExecutableStage}
-            tasks={taskLite}
-            visualDirectionAwaitingReview={visualDirectionAwaitingReview}
-            imageGenReady={imageGenReady}
-          />
+      <div className="flex flex-col gap-14 lg:flex-row lg:gap-12 xl:gap-16">
+        <StudioPipelineRail
+          hasWorkflow={hasWorkflow}
+          timelineTasks={timelineTasks}
+          nextExecutableTaskIds={nextExecutableTaskIds}
+          briefPlan={briefPlan}
+        />
 
-          <WorkflowControls
-            clientId={clientId}
-            briefId={briefId}
-            hasWorkflow={hasWorkflow}
-            nextExecutableTaskIds={nextExecutableTaskIds}
-            nextExecutableStage={nextExecutableStage}
-            reviewTaskId={reviewTaskId}
-            reviseTaskId={reviseTaskId}
-            brandReadiness={brandReadiness}
-            timelineTasks={timelineTasks}
-            reviewApproveGate={reviewApproveGate}
-          />
+        <div className="min-w-0 flex-1 space-y-20 lg:space-y-24">
+          <StudioCampaignCoreBoard core={campaignCore} />
 
-          <StudioBrandLearningPanel clientId={clientId} />
+          {workPlan.showCampaignCreative ? (
+            <>
+              {workPlan.showImageGeneration ? (
+                <StudioCampaignVisualHero
+                  clientId={clientId}
+                  imageUrl={heroImageUrl}
+                />
+              ) : null}
 
-          <StudioBrandVisualIdentityPanel clientId={clientId} />
+              <StudioCopyHeadlines parsed={parsedCopy} />
 
-          <StudioBrandVisualStylePanel clientId={clientId} assets={trainingCandidates} />
+              <StudioCreativeRouteSections
+                parsed={parsedConcepts}
+                conceptTaskStatus={conceptTask?.status ?? null}
+              />
+            </>
+          ) : (
+            <div className="rounded-3xl bg-zinc-900/25 px-8 py-12 text-center">
+              <p className="text-sm font-medium text-zinc-200">
+                Campaign creative isn&apos;t in scope for this engagement
+              </p>
+              <p className="mt-2 text-sm text-zinc-500">
+                Focus on strategy and deliverables below — or add visual workstreams on the brief.
+              </p>
+            </div>
+          )}
 
-          <Card className="border-zinc-800/90 bg-zinc-900/40">
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-              Context
-            </p>
-            <dl className="mt-3 space-y-3 text-sm text-zinc-300">
+          {workPlan.showImageGeneration ? (
+            <StudioExploreAlternatives
+              clientId={clientId}
+              briefId={briefId}
+              visualDirectionStatus={vdTask?.status ?? null}
+              hasVisualSpec={hasVisualSpec}
+              hasPromptPackage={hasPromptPackage}
+              promptPackageArtifactId={promptPackageArtifactId}
+              promptPackageRefs={promptPackageRefs}
+              compositionGuidance={compositionGuidance}
+              savedReferenceUrls={savedReferenceUrls}
+              visualAssets={visualAssetsForStudio}
+              readinessLines={visualGenReadiness}
+              creativeDirectorDecision={cdDecision}
+              composeDefaultHeadline={composeDefaultHeadline}
+              composeDefaultCta={composeDefaultCta}
+              defaultOpen={exploreAlternativesDefaultOpen}
+              hasBrandVisualStyle={hasBrandVisualStyle}
+              showVisualGenerationModule={workPlan.showImageGeneration}
+              visualLayout="campaign"
+            />
+          ) : null}
+
+          <div id="studio-workspace-anchor" className="scroll-mt-8 space-y-6">
+            <WorkflowControls
+              clientId={clientId}
+              briefId={briefId}
+              hasWorkflow={hasWorkflow}
+              nextExecutableTaskIds={nextExecutableTaskIds}
+              nextExecutableStage={nextExecutableStage}
+              reviewTaskId={reviewTaskId}
+              reviseTaskId={reviseTaskId}
+              brandReadiness={brandReadiness}
+              timelineTasks={timelineTasks}
+              reviewApproveGate={reviewApproveGate}
+            />
+          </div>
+
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
+            <StudioBrandLearningPanel clientId={clientId} />
+            <StudioBrandVisualIdentityPanel clientId={clientId} />
+            <StudioBrandVisualStylePanel clientId={clientId} assets={trainingCandidates} />
+          </div>
+
+          <DisclosureSection
+            title="Brief context"
+            subtitle="Deadline and key message"
+            defaultOpen={false}
+          >
+            <dl className="space-y-4 text-sm text-zinc-300">
               <div>
                 <dt className="text-xs text-zinc-500">Deadline</dt>
-                <dd className="mt-0.5 text-zinc-200">
+                <dd className="mt-1 text-zinc-200">
                   {new Date(brief.deadline).toLocaleDateString(undefined, {
                     weekday: "short",
                     month: "short",
@@ -409,22 +459,80 @@ export default async function BriefStudioPage({
               </div>
               <div>
                 <dt className="text-xs text-zinc-500">Key message</dt>
-                <dd className="mt-0.5 leading-relaxed text-zinc-200">
-                  {brief.keyMessage}
-                </dd>
+                <dd className="mt-1 leading-relaxed text-zinc-200">{brief.keyMessage}</dd>
               </div>
             </dl>
             {canonHighlight ? (
-              <p className="mt-4 rounded-lg border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-xs leading-relaxed text-violet-100/90">
-                {canonHighlight}
-              </p>
+              <p className="mt-4 text-xs leading-relaxed text-violet-200/85">{canonHighlight}</p>
             ) : null}
-          </Card>
+          </DisclosureSection>
+
+          {workPlan.showIdentityStudio && hasWorkflow ? (
+            <div className="rounded-2xl bg-fuchsia-950/10 px-5 py-5 sm:px-6">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-fuchsia-200/80">
+                Identity
+              </p>
+              <p className="mt-2 text-sm text-fuchsia-100/75">
+                Strategy and routes live in the full creative record below.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <a
+                  href="#studio-identity-strategy"
+                  className="rounded-lg bg-fuchsia-950/40 px-3 py-1.5 text-xs font-medium text-fuchsia-100 hover:bg-fuchsia-900/50"
+                >
+                  Identity strategy
+                </a>
+                <a
+                  href="#studio-identity-routes"
+                  className="rounded-lg bg-fuchsia-950/40 px-3 py-1.5 text-xs font-medium text-fuchsia-100 hover:bg-fuchsia-900/50"
+                >
+                  Identity routes
+                </a>
+              </div>
+            </div>
+          ) : null}
+
+          {(workPlan.showTvcModule ||
+            workPlan.showSocialModule ||
+            workPlan.showOohPrintModule) && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {workPlan.showTvcModule ? (
+                <div className="rounded-2xl bg-amber-950/15 px-5 py-4">
+                  <p className="text-[10px] font-semibold uppercase text-amber-200/90">
+                    TVC / film
+                  </p>
+                  <p className="mt-2 text-xs text-amber-100/75">
+                    Script and storyboard outputs are flagged for this job.
+                  </p>
+                </div>
+              ) : null}
+              {workPlan.showSocialModule ? (
+                <div className="rounded-2xl bg-sky-950/15 px-5 py-4">
+                  <p className="text-[10px] font-semibold uppercase text-sky-200/90">
+                    Social
+                  </p>
+                  <p className="mt-2 text-xs text-sky-100/75">
+                    Captions and post sets flow through copy and review.
+                  </p>
+                </div>
+              ) : null}
+              {workPlan.showOohPrintModule ? (
+                <div className="rounded-2xl bg-orange-950/15 px-5 py-4">
+                  <p className="text-[10px] font-semibold uppercase text-orange-200/90">
+                    OOH / print
+                  </p>
+                  <p className="mt-2 text-xs text-orange-100/75">
+                    Uses the same visual path when generation is on.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {workPlan.showExportModule || workPlan.showPresentationModule ? (
             <DisclosureSection
-              title="Export & delivery"
-              subtitle="Bundles, deck handoff, studio dump"
+              title="Export"
+              subtitle="Download working files"
               defaultOpen={false}
             >
               {workPlan.showIdentityStudio && brief.identityWorkflowEnabled ? (
@@ -436,162 +544,38 @@ export default async function BriefStudioPage({
                   />
                 </div>
               ) : null}
-              <p className="text-xs text-zinc-500">
-                {workPlan.showPresentationModule
-                  ? "Presentation / deck deliverables — use exports as working artifacts."
-                  : "Structured export of what the workflow produced."}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                 <a
                   href={`/api/export/briefs/${briefId}?clientId=${encodeURIComponent(clientId)}&format=json`}
-                  className="inline-flex rounded-lg border border-zinc-600 bg-zinc-900/80 px-3.5 py-2 text-sm font-medium text-zinc-100 hover:border-zinc-500"
+                  className="inline-flex rounded-xl bg-zinc-100 px-4 py-2.5 text-sm font-medium text-zinc-950 hover:bg-white"
                 >
-                  Studio JSON
+                  Export JSON
                 </a>
                 <a
                   href={`/api/export/briefs/${briefId}?clientId=${encodeURIComponent(clientId)}&format=markdown`}
-                  className="inline-flex rounded-lg border border-zinc-600 bg-zinc-900/80 px-3.5 py-2 text-sm font-medium text-zinc-100 hover:border-zinc-500"
+                  className="inline-flex rounded-xl border border-zinc-600 px-4 py-2.5 text-sm font-medium text-zinc-200 hover:border-zinc-500"
                 >
-                  Studio Markdown
+                  Export Markdown
                 </a>
               </div>
             </DisclosureSection>
           ) : null}
-        </div>
-
-        <div className="space-y-8 lg:col-span-7">
-          <Card className="border-zinc-800/90 bg-zinc-900/50">
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-              Pipeline
-            </p>
-            {!hasWorkflow ? (
-              <p className="mt-3 text-sm text-zinc-400">
-                Initialize the workflow once from Actions — stages appear here.
-              </p>
-            ) : (
-              <div className="mt-4">
-                <WorkflowTimeline
-                  tasks={timelineTasks}
-                  nextExecutableTaskIds={nextExecutableTaskIds}
-                  briefPlan={briefPlan}
-                />
-              </div>
-            )}
-          </Card>
-
-          {workPlan.showIdentityStudio && hasWorkflow ? (
-            <Card className="border-fuchsia-900/45 bg-fuchsia-950/15">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-fuchsia-200/90">
-                Identity studio
-              </p>
-              <p className="mt-1 text-sm text-fuchsia-100/80">
-                Symbolic strategy and route logic — jump to artifacts in Creative.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <a
-                  href="#studio-identity-strategy"
-                  className="rounded-lg border border-fuchsia-700/40 bg-fuchsia-950/30 px-3 py-1.5 text-xs font-medium text-fuchsia-100 hover:bg-fuchsia-900/40"
-                >
-                  Identity strategy
-                </a>
-                <a
-                  href="#studio-identity-routes"
-                  className="rounded-lg border border-fuchsia-700/40 bg-fuchsia-950/30 px-3 py-1.5 text-xs font-medium text-fuchsia-100 hover:bg-fuchsia-900/40"
-                >
-                  Identity routes
-                </a>
-              </div>
-            </Card>
-          ) : null}
-
-          <Card className="border-zinc-800/90 bg-zinc-900/40">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-              Strategy layer
-            </p>
-            <p className="mt-1 text-sm text-zinc-400">
-              Direction and narrative before execution — use{" "}
-              <span className="text-zinc-300">Pipeline</span> to run stages, then{" "}
-              <span className="text-zinc-300">Creative</span> for full artifacts.
-            </p>
-          </Card>
-
-          {(workPlan.showTvcModule ||
-            workPlan.showSocialModule ||
-            workPlan.showOohPrintModule) && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {workPlan.showTvcModule ? (
-                <Card className="border-amber-900/40 bg-amber-950/15">
-                  <p className="text-[11px] font-semibold uppercase text-amber-200/90">
-                    TVC / film
-                  </p>
-                  <p className="mt-1 text-xs text-amber-100/75">
-                    Script, scene breakdown, and storyboard deliverables are flagged for this job.
-                    Structured TVC artifacts will plug in here as the product evolves.
-                  </p>
-                </Card>
-              ) : null}
-              {workPlan.showSocialModule ? (
-                <Card className="border-sky-900/40 bg-sky-950/15">
-                  <p className="text-[11px] font-semibold uppercase text-sky-200/90">
-                    Social content
-                  </p>
-                  <p className="mt-1 text-xs text-sky-100/75">
-                    Copy bank, captions, and post-set outputs route through copy + review stages.
-                  </p>
-                </Card>
-              ) : null}
-              {workPlan.showOohPrintModule ? (
-                <Card className="border-orange-900/40 bg-orange-950/15">
-                  <p className="text-[11px] font-semibold uppercase text-orange-200/90">
-                    OOH / print
-                  </p>
-                  <p className="mt-1 text-xs text-orange-100/75">
-                    OOH and print concepts use the same visual direction + generation path when
-                    enabled.
-                  </p>
-                </Card>
-              ) : null}
-            </div>
-          )}
-
-          <StudioExploreAlternatives
-            clientId={clientId}
-            briefId={briefId}
-            visualDirectionStatus={vdTask?.status ?? null}
-            hasVisualSpec={hasVisualSpec}
-            hasPromptPackage={hasPromptPackage}
-            promptPackageArtifactId={promptPackageArtifactId}
-            promptPackageRefs={promptPackageRefs}
-            compositionGuidance={compositionGuidance}
-            savedReferenceUrls={savedReferenceUrls}
-            visualAssets={visualAssetsForStudio}
-            readinessLines={visualGenReadiness}
-            creativeDirectorDecision={cdDecision}
-            composeDefaultHeadline={composeDefaultHeadline}
-            composeDefaultCta={composeDefaultCta}
-            defaultOpen={exploreAlternativesDefaultOpen}
-            hasBrandVisualStyle={hasBrandVisualStyle}
-            showVisualGenerationModule={workPlan.showImageGeneration}
-          />
 
           <DisclosureSection
-            title="Review history"
+            title="Decision log"
             subtitle={
               allReviews.length === 0
-                ? "No decisions logged yet"
+                ? "Nothing logged yet"
                 : `${Math.min(allReviews.length, 8)} recent`
             }
-            defaultOpen={allReviews.length > 0 && allReviews.length <= 3}
+            defaultOpen={false}
           >
             {allReviews.length === 0 ? (
               <p className="text-sm text-zinc-500">Nothing yet.</p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-3">
                 {allReviews.slice(0, 8).map((r) => (
-                  <li
-                    key={r.id}
-                    className="rounded-lg border border-zinc-800/90 bg-zinc-950/40 px-3 py-2.5 text-sm"
-                  >
+                  <li key={r.id} className="text-sm">
                     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-zinc-400">
                       <span className="font-medium text-zinc-200">
                         {reviewStatusText(r.status)}
@@ -601,15 +585,11 @@ export default async function BriefStudioPage({
                         {new Date(r.createdAt).toLocaleDateString()}
                       </span>
                       {r.reviewerLabel ? (
-                        <span className="text-xs text-zinc-500">
-                          · {r.reviewerLabel}
-                        </span>
+                        <span className="text-xs text-zinc-500">· {r.reviewerLabel}</span>
                       ) : null}
                     </div>
                     {r.feedback ? (
-                      <p className="mt-1.5 text-sm leading-relaxed text-zinc-300">
-                        {r.feedback}
-                      </p>
+                      <p className="mt-1.5 leading-relaxed text-zinc-300">{r.feedback}</p>
                     ) : null}
                   </li>
                 ))}

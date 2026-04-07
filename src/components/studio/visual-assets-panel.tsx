@@ -94,6 +94,8 @@ export function VisualAssetsPanel({
   composeDefaultCta = null,
   panelTitle = "Visual variants",
   compact = false,
+  /** `campaign` = larger grid, less chrome, pitch-friendly copy */
+  layout = "panel",
 }: {
   clientId: string;
   briefId: string;
@@ -111,6 +113,7 @@ export function VisualAssetsPanel({
   panelTitle?: string;
   /** Less top margin when nested under another card. */
   compact?: boolean;
+  layout?: "panel" | "campaign";
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -215,17 +218,35 @@ export function VisualAssetsPanel({
     });
   };
 
+  const isCampaign = layout === "campaign";
+
   return (
     <div
-      className={`rounded-2xl border border-zinc-700/80 bg-zinc-950/50 p-5 ${compact ? "mt-0" : "mt-6"}`}
+      className={`${isCampaign ? "rounded-2xl bg-zinc-950/20 p-1 sm:p-2" : "rounded-2xl border border-zinc-700/80 bg-zinc-950/50 p-5"} ${compact ? "mt-0" : "mt-6"}`}
     >
-      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+      <p
+        className={
+          isCampaign
+            ? "text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500"
+            : "text-xs font-semibold uppercase tracking-wide text-zinc-400"
+        }
+      >
         {panelTitle}
       </p>
-      <p className="mt-1 text-sm text-zinc-500">
-        {rawCount}/{packageAssetLimit} raw stored · each{" "}
-        <strong className="font-medium text-zinc-300">Generate</strong> run produces a batch
-        (default {VISUAL_VARIANTS_PER_RUN_MIN}+ variants), filters slop, surfaces top 2
+      <p className={`mt-1 text-sm ${isCampaign ? "text-zinc-500" : "text-zinc-500"}`}>
+        {isCampaign ? (
+          <>
+            Each <strong className="font-medium text-zinc-300">Generate</strong> creates a batch
+            of frames; we surface the strongest options. {rawCount}/{packageAssetLimit} in this
+            package.
+          </>
+        ) : (
+          <>
+            {rawCount}/{packageAssetLimit} raw stored · each{" "}
+            <strong className="font-medium text-zinc-300">Generate</strong> run produces a batch
+            (default {VISUAL_VARIANTS_PER_RUN_MIN}+ variants), filters slop, surfaces top 2
+          </>
+        )}
       </p>
       <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-zinc-400">
         <input
@@ -234,14 +255,26 @@ export function VisualAssetsPanel({
           onChange={(e) => setShowRejected(e.target.checked)}
           className="rounded border-zinc-600"
         />
-        Show rejected / filtered variants
+        Show set-aside / filtered frames
       </label>
 
       {composedOutputs.length > 0 ? (
-        <div className="mt-5 rounded-xl border border-teal-700/40 bg-teal-950/20 p-4">
+        <div
+          className={
+            isCampaign
+              ? "mt-6 rounded-2xl bg-gradient-to-b from-teal-950/15 to-transparent p-4 sm:p-6"
+              : "mt-5 rounded-xl border border-teal-700/40 bg-teal-950/20 p-4"
+          }
+        >
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-teal-200/90">
-              Final outputs (composed)
+            <p
+              className={
+                isCampaign
+                  ? "text-[10px] font-semibold uppercase tracking-[0.18em] text-teal-200/80"
+                  : "text-xs font-semibold uppercase tracking-wide text-teal-200/90"
+              }
+            >
+              {isCampaign ? "Finished ads" : "Final outputs (composed)"}
             </p>
             <label className="flex cursor-pointer items-center gap-2 text-[11px] text-zinc-400">
               <input
@@ -253,31 +286,53 @@ export function VisualAssetsPanel({
               Show raw AI outputs
             </label>
           </div>
-          <ul className="mt-3 space-y-4">
+          <ul
+            className={
+              isCampaign
+                ? "mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+                : "mt-3 space-y-4"
+            }
+          >
             {composedOutputs.map((a) =>
               a.status === "COMPLETED" && a.resultUrl ? (
                 <li
                   key={a.id}
-                  className="flex flex-col gap-2 border-b border-teal-900/30 pb-4 last:border-0 last:pb-0 sm:flex-row sm:items-start"
+                  className={
+                    isCampaign
+                      ? "flex flex-col gap-3"
+                      : "flex flex-col gap-2 border-b border-teal-900/30 pb-4 last:border-0 last:pb-0 sm:flex-row sm:items-start"
+                  }
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`${a.resultUrl}?clientId=${encodeURIComponent(clientId)}`}
                     alt={a.variantLabel ?? "Composed"}
-                    className="h-44 w-full max-w-[280px] rounded-lg border border-teal-800/50 object-cover"
+                    className={
+                      isCampaign
+                        ? "aspect-[4/5] w-full rounded-xl object-cover shadow-lg shadow-black/40 ring-1 ring-white/5"
+                        : "h-44 w-full max-w-[280px] rounded-lg border border-teal-800/50 object-cover"
+                    }
                   />
                   <div>
                     <p className="text-[11px] font-medium text-teal-200/90">
                       {a.variantLabel === "COMPOSED"
-                        ? "Quick finish (legacy layout)"
+                        ? isCampaign
+                          ? "Campaign layout"
+                          : "Quick finish (legacy layout)"
                         : a.variantLabel?.replace(/^COMPOSED_/, "").replace(/_/g, " ") ??
                           "Composed"}
                     </p>
-                    <p className="mt-1 text-xs text-zinc-500">
-                      High-res PNG; metadata includes{" "}
-                      <code className="text-zinc-400">layerManifest</code> for future PSD/FIG
-                      export.
-                    </p>
+                    {!isCampaign ? (
+                      <p className="mt-1 text-xs text-zinc-500">
+                        High-res PNG; metadata includes{" "}
+                        <code className="text-zinc-400">layerManifest</code> for future PSD/FIG
+                        export.
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs text-zinc-500">
+                        High-resolution — ready to share or export.
+                      </p>
+                    )}
                   </div>
                 </li>
               ) : null,
@@ -286,13 +341,20 @@ export function VisualAssetsPanel({
         </div>
       ) : null}
 
-      <div className="mt-5 rounded-xl border border-zinc-800/90 bg-zinc-950/40 p-4">
+      <div
+        className={
+          isCampaign
+            ? "mt-8 rounded-2xl bg-zinc-900/25 p-5 sm:p-6"
+            : "mt-5 rounded-xl border border-zinc-800/90 bg-zinc-950/40 p-4"
+        }
+      >
         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
-          Final output composer
+          {isCampaign ? "Build campaign layouts" : "Final output composer"}
         </p>
         <p className="mt-1 text-[11px] text-zinc-500">
-          Campaign-ready layouts: headline hierarchy, optional CTA, optional logo (URL), format
-          canvas, 2× resolution. Quick finish keeps the previous single-canvas behavior.
+          {isCampaign
+            ? "Add headline, CTA, and logo to your selected frame — Social, OOH, or print proportions."
+            : "Campaign-ready layouts: headline hierarchy, optional CTA, optional logo (URL), format canvas, 2× resolution. Quick finish keeps the previous single-canvas behavior."}
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div>
@@ -477,7 +539,7 @@ export function VisualAssetsPanel({
       ) : null}
 
       <ul
-        className={`mt-6 grid gap-4 sm:grid-cols-2 ${composedOutputs.length > 0 && !showRaw ? "hidden" : ""}`}
+        className={`mt-6 grid gap-5 ${isCampaign ? "sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2"} ${composedOutputs.length > 0 && !showRaw ? "hidden" : ""}`}
       >
         {rawOnlyPool.length === 0 ? (
           <li className="col-span-full text-sm text-zinc-500">
@@ -505,12 +567,16 @@ export function VisualAssetsPanel({
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
                 {a.status === "COMPLETED" && a.resultUrl ? (
-                  <div className="shrink-0">
+                  <div className={isCampaign ? "w-full" : "shrink-0"}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`${a.resultUrl}?clientId=${encodeURIComponent(clientId)}`}
                       alt="Generated visual"
-                      className="h-36 w-full max-w-[200px] rounded-lg border border-zinc-700 object-cover sm:h-40 sm:w-40"
+                      className={
+                        isCampaign
+                          ? "aspect-[4/3] w-full rounded-xl object-cover shadow-md shadow-black/30 ring-1 ring-white/5"
+                          : "h-36 w-full max-w-[200px] rounded-lg border border-zinc-700 object-cover sm:h-40 sm:w-40"
+                      }
                     />
                   </div>
                 ) : null}
@@ -530,7 +596,7 @@ export function VisualAssetsPanel({
                     ) : null}
                     {a.isPreferred ? (
                       <span className="text-xs font-medium text-emerald-300">
-                        Selected
+                        {isCampaign ? "Hero frame" : "Selected"}
                       </span>
                     ) : null}
                     {a.isSecondary ? (
@@ -543,18 +609,22 @@ export function VisualAssetsPanel({
                     ) : null}
                     {a.founderRejected ? (
                       <span className="text-xs font-medium text-zinc-500">
-                        Rejected
+                        {isCampaign ? "Set aside" : "Rejected"}
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-1 text-xs text-zinc-500">
-                    {a.providerTarget} · {a.providerName} / {a.modelName}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-zinc-600">
-                    {new Date(a.createdAt).toLocaleString()}
-                    {a.regenerationAttempt > 0 ? " · from critique" : ""}
-                  </p>
-                  <QualitySummary review={a.review} />
+                  {!isCampaign ? (
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {a.providerTarget} · {a.providerName} / {a.modelName}
+                    </p>
+                  ) : null}
+                  {!isCampaign ? (
+                    <p className="mt-0.5 text-[11px] text-zinc-600">
+                      {new Date(a.createdAt).toLocaleString()}
+                      {a.regenerationAttempt > 0 ? " · from critique" : ""}
+                    </p>
+                  ) : null}
+                  {!isCampaign ? <QualitySummary review={a.review} /> : null}
                   {isRecord(a.review?.evaluation) &&
                   Array.isArray(a.review.evaluation.recommendations) ? (
                     <ul className="mt-2 list-inside list-disc text-[11px] text-zinc-400">
@@ -585,7 +655,7 @@ export function VisualAssetsPanel({
                         }}
                         className="rounded-lg bg-emerald-600/90 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-40"
                       >
-                        Use this
+                        {isCampaign ? "Select" : "Use this"}
                       </button>
                       <button
                         type="button"
@@ -598,7 +668,7 @@ export function VisualAssetsPanel({
                         }}
                         className="rounded-lg border border-zinc-600 bg-transparent px-3 py-1.5 text-xs font-medium text-zinc-300 hover:border-zinc-500 disabled:opacity-40"
                       >
-                        Reject
+                        {isCampaign ? "Set aside" : "Reject"}
                       </button>
                     </div>
                   ) : null}

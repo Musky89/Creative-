@@ -112,8 +112,8 @@ export function StudioArtifactsSection({
                                 Frames &amp; finishing
                               </a>{" "}
                               after you approve Visual direction in{" "}
-                              <a href="#review" className="text-sky-400 underline">
-                                Actions
+                              <a href="#studio-workspace" className="text-sky-400 underline">
+                                Workspace
                               </a>
                               .
                             </p>

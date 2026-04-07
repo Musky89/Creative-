@@ -62,6 +62,7 @@ export function StudioExploreAlternatives({
   defaultOpen,
   hasBrandVisualStyle,
   showVisualGenerationModule,
+  visualLayout = "panel",
 }: {
   clientId: string;
   briefId: string;
@@ -80,6 +81,8 @@ export function StudioExploreAlternatives({
   defaultOpen: boolean;
   hasBrandVisualStyle: boolean;
   showVisualGenerationModule: boolean;
+  /** Larger grid + softer chrome for campaign-first Studio */
+  visualLayout?: "panel" | "campaign";
 }) {
   const canGenerate =
     hasPromptPackage &&
@@ -95,15 +98,29 @@ export function StudioExploreAlternatives({
   return (
     <div id="studio-image-generation">
       <DisclosureSection
-        title={showVisualGenerationModule ? "Visual generation & alternatives" : "Additional outputs"}
+        title={
+          showVisualGenerationModule
+            ? visualLayout === "campaign"
+              ? "Visuals & layouts"
+              : "Visual generation & alternatives"
+            : "Additional outputs"
+        }
         subtitle={
           showVisualGenerationModule
-            ? "Frames, finishing pass, references — when this engagement includes visuals"
+            ? visualLayout === "campaign"
+              ? "Generate frames, pick a hero, build finished ads"
+              : "Frames, finishing pass, references — when this engagement includes visuals"
             : "Decisions and extras when not running a full visual pipeline"
         }
         defaultOpen={defaultOpen}
       >
-        <div className="space-y-6 rounded-2xl border border-zinc-800/80 bg-zinc-950/40 p-5">
+        <div
+          className={
+            visualLayout === "campaign"
+              ? "space-y-8 py-2"
+              : "space-y-6 rounded-2xl border border-zinc-800/80 bg-zinc-950/40 p-5"
+          }
+        >
         {creativeDirectorDecision ? (
           <div className="rounded-xl border border-violet-800/40 bg-violet-950/20 px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-200/90">
@@ -139,10 +156,10 @@ export function StudioExploreAlternatives({
         <div>
           <p className="text-sm text-zinc-400">
             After you approve <strong className="text-zinc-200">Visual direction</strong> in{" "}
-            <a href="#review" className="text-sky-400 underline">
-              Actions
+            <a href="#studio-workspace" className="text-sky-400 underline">
+              Workspace
             </a>
-            , the system builds the prompt package so you can generate frames here.
+            , then generate frames here.
           </p>
         </div>
         ) : null}
@@ -178,23 +195,32 @@ export function StudioExploreAlternatives({
                 <p className="font-medium text-amber-50">Waiting on your approval</p>
                 <p className="mt-1 text-amber-100/85">
                   Approve Visual direction in{" "}
-                  <a href="#review" className="font-medium text-amber-200 underline">
-                    Actions
+                  <a href="#studio-workspace" className="font-medium text-amber-200 underline">
+                    Workspace
                   </a>{" "}
                   to unlock generation.
                 </p>
               </>
             ) : (
-              <p className="text-amber-100/85">
-                Visual direction status:{" "}
-                <code className="text-xs">{visualDirectionStatus ?? "—"}</code>
+                <p className="text-amber-100/85">
+                Visual direction isn&apos;t ready yet — check{" "}
+                <a href="#studio-workspace" className="font-medium text-amber-200 underline">
+                  Workspace
+                </a>
+                .
               </p>
             )}
           </div>
         ) : null}
 
         {showVisualGenerationModule && hasPromptPackage && promptPackageArtifactId ? (
-          <div className="border-t border-zinc-800/80 pt-6 space-y-6">
+          <div
+            className={
+              visualLayout === "campaign"
+                ? "space-y-8 pt-4"
+                : "border-t border-zinc-800/80 pt-6 space-y-6"
+            }
+          >
             <StudioVisualReferencesPanel
               clientId={clientId}
               briefId={briefId}
@@ -202,10 +228,17 @@ export function StudioExploreAlternatives({
               savedUrls={savedReferenceUrls}
               compositionGuidance={compositionGuidance ?? null}
             />
-            <p className="text-sm font-semibold text-zinc-100">Generate frames</p>
-            <p className="mt-1 text-xs text-zinc-500">
-              Keys: GEMINI / Google or OpenAI. Storage under <code className="text-zinc-400">storage/</code>.
-            </p>
+            <p className="text-sm font-semibold text-zinc-100">Generate</p>
+            {visualLayout === "panel" ? (
+              <p className="mt-1 text-xs text-zinc-500">
+                Keys: GEMINI / Google or OpenAI. Storage under{" "}
+                <code className="text-zinc-400">storage/</code>.
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-zinc-500">
+                Google Imagen, OpenAI, or your taught brand style when available.
+              </p>
+            )}
             {hasBrandVisualStyle ? (
               <p className="mt-2 rounded-lg border border-emerald-800/50 bg-emerald-950/25 px-3 py-2 text-xs text-emerald-100/90">
                 Using brand visual style ✓ — new batches automatically follow your taught look when fal.ai
@@ -229,6 +262,8 @@ export function StudioExploreAlternatives({
               packageAssetLimit={MAX_VISUAL_ASSETS_PER_PACKAGE}
               composeDefaultHeadline={composeDefaultHeadline}
               composeDefaultCta={composeDefaultCta}
+              layout={visualLayout === "campaign" ? "campaign" : "panel"}
+              panelTitle={visualLayout === "campaign" ? "Frames" : "Frames & finishing"}
               assets={visualAssets.map((va) => ({
                 id: va.id,
                 status: va.status,
@@ -257,7 +292,6 @@ export function StudioExploreAlternatives({
                   : null,
               }))}
               compact
-              panelTitle="Frames & finishing"
             />
           </div>
         ) : null}

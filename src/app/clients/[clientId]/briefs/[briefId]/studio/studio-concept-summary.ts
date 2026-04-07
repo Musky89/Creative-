@@ -5,6 +5,8 @@ export type ConceptRouteBrief = {
   conceptId: string;
   conceptName: string;
   hook: string;
+  rationale: string;
+  whyItWorksForBrand: string;
   frameworkId: string;
   isSelected?: boolean;
   isAlternate?: boolean;
@@ -33,6 +35,8 @@ export function parseConceptPack(content: unknown): ParsedConceptPack | null {
         conceptId: `concept-${i}`,
         conceptName: "Route",
         hook: "",
+        rationale: "",
+        whyItWorksForBrand: "",
         frameworkId: "",
       };
     }
@@ -43,6 +47,8 @@ export function parseConceptPack(content: unknown): ParsedConceptPack | null {
           : `concept-${i}`,
       conceptName: String(c.conceptName ?? `Concept ${i + 1}`),
       hook: String(c.hook ?? ""),
+      rationale: String(c.rationale ?? ""),
+      whyItWorksForBrand: String(c.whyItWorksForBrand ?? ""),
       frameworkId: String(c.frameworkId ?? ""),
       isSelected: c.isSelected === true,
       isAlternate: c.isAlternate === true,
@@ -62,12 +68,13 @@ export function parseConceptPack(content: unknown): ParsedConceptPack | null {
 
   const rejected = routes.filter((r) => r.isRejected === true);
   const taggedAlternates = routes.filter((r) => r.isAlternate === true);
-  const alternatives =
+  let alternatives =
     taggedAlternates.length > 0
       ? taggedAlternates
       : routes.filter(
           (r) => r.conceptId !== winner?.conceptId && r.isRejected !== true,
         );
+  alternatives = alternatives.slice(0, 2);
 
   return { routes, winner, alternatives, rejected };
 }

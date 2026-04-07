@@ -13,7 +13,6 @@ import {
 } from "@/app/actions/workflow";
 import { STAGE_LABELS } from "@/lib/workflow-display";
 import type { TaskStatus, WorkflowStage } from "@/generated/prisma/client";
-import { Card } from "@/components/ui/section";
 import { FieldHint, Label, Textarea } from "@/components/ui/forms";
 
 function ActionButton({
@@ -72,6 +71,30 @@ function stageLabelForTaskId(
   const t = tasks.find((x) => x.id === taskId);
   if (!t) return taskId;
   return STAGE_LABELS[t.stage as keyof typeof STAGE_LABELS] ?? t.stage;
+}
+
+function primaryActionLabel(stage: WorkflowStage | null | undefined): string {
+  switch (stage) {
+    case "BRIEF_INTAKE":
+      return "Continue";
+    case "STRATEGY":
+      return "Generate ideas";
+    case "IDENTITY_STRATEGY":
+    case "IDENTITY_ROUTING":
+      return "Develop identity";
+    case "CONCEPTING":
+      return "Develop concepts";
+    case "VISUAL_DIRECTION":
+      return "Create visuals";
+    case "COPY_DEVELOPMENT":
+      return "Write copy";
+    case "REVIEW":
+      return "Run review";
+    case "EXPORT":
+      return "Build campaign";
+    default:
+      return "Continue";
+  }
 }
 
 export function WorkflowControls({
@@ -163,12 +186,15 @@ export function WorkflowControls({
         : undefined;
 
   return (
-    <Card id="review">
-      <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-        Actions
+    <div
+      id="studio-workspace"
+      className="rounded-2xl bg-zinc-900/25 px-5 py-6 sm:px-6 sm:py-7"
+    >
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+        Workspace
       </p>
-      <p className="mt-1 text-sm text-zinc-400">
-        Server-backed workflow — one deliberate step at a time.
+      <p className="mt-2 text-sm text-zinc-500">
+        Generate, choose, refine — one focused move at a time.
       </p>
 
       {!brandReadiness.ok &&
@@ -177,11 +203,10 @@ export function WorkflowControls({
       nextExecutableStage !== "EXPORT" ? (
         <div className="mt-4">
           <Notice variant="info">
-            <p className="font-medium">Brand Bible required for AI stages</p>
+            <p className="font-medium">Brand guide needed</p>
             <p className="mt-1 text-sm opacity-90">
-              Complete the following before running Strategist, Identity Strategist,
-              Identity Director, Creative Director, Art Director, Copywriter, or Brand
-              Guardian tasks:
+              Add these to your Brand Bible so the creative team can run with a clear voice
+              and guardrails:
             </p>
             <ul className="mt-2 list-inside list-disc text-sm">
               {brandReadiness.missing.map((m) => (
@@ -213,14 +238,14 @@ export function WorkflowControls({
                 run(() => initializeWorkflowAction(clientId, briefId))
               }
             >
-              Initialize workflow
+              Start campaign workspace
             </ActionButton>
           </div>
         ) : (
           <>
             {failedTasks.length > 0 ? (
               <div className="rounded-lg border border-red-500/35 bg-red-950/35 px-3 py-3">
-                <p className="text-sm font-medium text-red-100">Stage failed</p>
+                <p className="text-sm font-medium text-red-100">Needs attention</p>
                 <ul className="mt-2 space-y-2 text-xs text-red-100/85">
                   {failedTasks.map((t) => (
                     <li key={t.id}>
@@ -234,7 +259,7 @@ export function WorkflowControls({
                         <p className="mt-0.5 text-red-100/80">{t.lastFailureReason}</p>
                       ) : (
                         <p className="mt-0.5 text-red-200/70">
-                          Generation or validation failed — use Retry, then Run next step.
+                          We couldn&apos;t produce a valid output — try again, then continue.
                         </p>
                       )}
                       <div className="mt-2">
@@ -245,7 +270,7 @@ export function WorkflowControls({
                             run(() => retryTaskGenerationAction(clientId, briefId, t.id))
                           }
                         >
-                          Retry generation
+                          Try again
                         </ActionButton>
                       </div>
                     </li>
@@ -269,11 +294,11 @@ export function WorkflowControls({
                   run(() => executeNextTaskAction(clientId, briefId))
                 }
               >
-                Run next step
+                {primaryActionLabel(nextExecutableStage)}
               </ActionButton>
               <FieldHint>
-                Runs the next ready stage in order. Brand Bible must be complete
-                before AI stages.
+                Moves the work forward in order. Brand guide must be complete before AI
+                stages.
               </FieldHint>
             </div>
 
@@ -281,9 +306,7 @@ export function WorkflowControls({
               <div className="border-t border-zinc-800 pt-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <div>
-                    <p className="text-sm font-medium text-zinc-100">
-                      Your review
-                    </p>
+                    <p className="text-sm font-medium text-zinc-100">Your decision</p>
                     <p className="mt-0.5 text-xs text-zinc-500">
                       <span className="font-medium text-zinc-300">
                         {reviewStageLabel}
@@ -291,7 +314,7 @@ export function WorkflowControls({
                     </p>
                   </div>
                   <span className="text-xs font-medium text-amber-200/90">
-                    Decision needed
+                    Awaiting you
                   </span>
                 </div>
 
@@ -369,18 +392,17 @@ export function WorkflowControls({
                         )
                       }
                     >
-                      Approve task
+                      Lock this in
                     </ActionButton>
                   </div>
                 </div>
 
                 <div className="mt-6 border-t border-zinc-800 pt-4">
                   <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                    Request changes
+                    Refine
                   </p>
                   <p className="mt-1 text-sm text-zinc-600">
-                    Sends the task back to revision. Be specific so the next run
-                    is purposeful.
+                    Send this back with clear direction so the next pass lands closer.
                   </p>
                   <div className="mt-3 space-y-3">
                     <div>
@@ -418,7 +440,7 @@ export function WorkflowControls({
                         );
                       }}
                     >
-                      Request revision
+                      Refine
                     </ActionButton>
                   </div>
                 </div>
@@ -427,14 +449,12 @@ export function WorkflowControls({
 
             {reviseTaskId ? (
               <div className="border-t border-zinc-800 pt-4">
-                <p className="text-sm font-medium text-zinc-100">
-                  Revision required
-                </p>
+                <p className="text-sm font-medium text-zinc-100">Refine in progress</p>
                 <p className="mt-0.5 text-xs text-zinc-500">
                   <span className="font-medium">
                     {stageLabelForTaskId(reviseTaskId, timelineTasks)}
                   </span>{" "}
-                  — reset to READY, then execute again to regenerate.
+                  — reset when you&apos;re ready, then generate again.
                 </p>
                 <div className="mt-3">
                   <ActionButton
@@ -446,7 +466,7 @@ export function WorkflowControls({
                       )
                     }
                   >
-                    Reset revised task to ready
+                    Ready to regenerate
                   </ActionButton>
                 </div>
               </div>
@@ -454,6 +474,6 @@ export function WorkflowControls({
           </>
         )}
       </div>
-    </Card>
+    </div>
   );
 }

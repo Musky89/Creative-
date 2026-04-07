@@ -1,4 +1,3 @@
-import { Card } from "@/components/ui/section";
 import type { BriefWorkPlan } from "@/lib/workflow/brief-work-plan";
 import { ENGAGEMENT_TYPE_LABELS } from "@/lib/workflow/brief-work-plan";
 
@@ -25,9 +24,26 @@ export function StudioEngagementOverview({ plan }: { plan: BriefWorkPlan }) {
   ];
 
   return (
-    <Card className="border-zinc-800/90 bg-gradient-to-br from-zinc-900/80 to-zinc-950/60">
+    <details className="group rounded-2xl bg-zinc-900/20 open:bg-zinc-900/30">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 [&::-webkit-details-marker]:hidden">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">
+            Engagement
+          </p>
+          <p className="mt-0.5 text-sm text-zinc-400">
+            Type, streams, and deliverables — expand when you need the map.
+          </p>
+        </div>
+        <span
+          className="shrink-0 text-zinc-600 transition-transform group-open:rotate-180"
+          aria-hidden
+        >
+          ▼
+        </span>
+      </summary>
+      <div className="border-t border-white/5 px-4 py-5">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-        Engagement overview
+        Overview
       </p>
       <div className="mt-3 flex flex-wrap items-baseline gap-2">
         <span className="text-lg font-semibold tracking-tight text-zinc-100">{et}</span>
@@ -49,7 +65,7 @@ export function StudioEngagementOverview({ plan }: { plan: BriefWorkPlan }) {
             ))
           ) : (
             <span className="text-xs text-zinc-500">
-              Default full pipeline — set workstreams on the brief to narrow modules.
+              Default full job — set workstreams on the brief to narrow what appears.
             </span>
           )}
         </div>
@@ -73,16 +89,16 @@ export function StudioEngagementOverview({ plan }: { plan: BriefWorkPlan }) {
             </span>
           ) : null}
           {plan.deliverables.length === 0 ? (
-            <span className="text-xs text-zinc-500">None listed — full pipeline assumed.</span>
+            <span className="text-xs text-zinc-500">None listed — full job assumed.</span>
           ) : null}
         </div>
       </div>
       <div className="mt-5 border-t border-zinc-800/80 pt-4">
         <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-          Studio modules
+          What&apos;s in this workspace
         </p>
         <p className="mt-1 text-[11px] text-zinc-500">
-          Only relevant outputs are emphasized below — one job, coordinated deliverables.
+          We surface only what this brief calls for — one coordinated creative job.
         </p>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {moduleChips.map((m) => (
@@ -92,6 +108,7 @@ export function StudioEngagementOverview({ plan }: { plan: BriefWorkPlan }) {
           ))}
         </div>
       </div>
-    </Card>
+      </div>
+    </details>
   );
 }

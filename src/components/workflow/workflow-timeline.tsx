@@ -1,6 +1,7 @@
 import type { TaskStatus, WorkflowStage } from "@/generated/prisma/client";
 import type { BriefForWorkPlan } from "@/lib/workflow/brief-work-plan";
 import {
+  CREATIVE_TASK_STATUS_LABELS,
   STAGE_LABELS,
   TASK_STATUS_LABELS,
   workflowStageOrderForBrief,
@@ -30,10 +31,13 @@ export function WorkflowTimeline({
   tasks,
   nextExecutableTaskIds,
   briefPlan,
+  creativeLabels = false,
 }: {
   tasks: TaskRow[];
   nextExecutableTaskIds: string[];
   briefPlan: BriefForWorkPlan;
+  /** Softer language for Studio rail */
+  creativeLabels?: boolean;
 }) {
   const order = workflowStageOrderForBrief(briefPlan);
   const byStage = new Map<WorkflowStage, TaskRow>();
@@ -41,6 +45,10 @@ export function WorkflowTimeline({
     byStage.set(t.stage, t);
   }
   const nextSet = new Set(nextExecutableTaskIds);
+  const statusLabel = (s: TaskRow["status"]) =>
+    creativeLabels
+      ? (CREATIVE_TASK_STATUS_LABELS[s] ?? s)
+      : (TASK_STATUS_LABELS[s] ?? s);
 
   return (
     <ol className="space-y-0">
@@ -81,18 +89,20 @@ export function WorkflowTimeline({
                   <span
                     className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${statusPill(task.status)}`}
                   >
-                    {TASK_STATUS_LABELS[task.status] ?? task.status}
+                    {statusLabel(task.status)}
                   </span>
                 ) : (
                   <span className="text-xs text-zinc-500">—</span>
                 )}
                 {task && nextSet.has(task.id) ? (
                   <span className="text-xs font-medium text-emerald-400/90">
-                    Next
+                    {creativeLabels ? "Up next" : "Next"}
                   </span>
                 ) : null}
                 {task?.requiresReview ? (
-                  <span className="text-xs text-zinc-500">Review</span>
+                  <span className="text-xs text-zinc-500">
+                    {creativeLabels ? "Decide" : "Review"}
+                  </span>
                 ) : null}
               </div>
             </div>
