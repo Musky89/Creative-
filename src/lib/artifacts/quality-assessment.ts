@@ -524,7 +524,7 @@ export function deterministicConceptChecks(content: Record<string, unknown>): De
 export function deterministicCopyChecks(content: Record<string, unknown>): DeterministicQualityResult {
   const issues: string[] = [];
   const headlines = content.headlineOptions;
-  if (!Array.isArray(headlines) || headlines.length < 2) {
+  if (!Array.isArray(headlines) || headlines.length < 5) {
     return { issues, recommendRegeneration: false };
   }
   const hs = headlines.map((h) => String(h).toLowerCase());
@@ -561,13 +561,19 @@ export function deterministicStrategyChecks(content: Record<string, unknown>): D
     issues.push("Proposition uses generic phrasing.");
   }
   const angles = content.strategicAngles;
-  if (Array.isArray(angles) && angles.length >= 2) {
+  if (Array.isArray(angles) && angles.length >= 3) {
     const texts = angles.map((a) =>
       a && typeof a === "object" ? String((a as { angle?: string }).angle ?? "") : "",
     );
-    const sim = jaccard(tokenize(texts[0]!), tokenize(texts[1]!));
-    if (sim > 0.55) {
-      issues.push("Strategic angles overlap — differentiate framework applications.");
+    for (let i = 0; i < texts.length; i++) {
+      for (let j = i + 1; j < texts.length; j++) {
+        const sim = jaccard(tokenize(texts[i]!), tokenize(texts[j]!));
+        if (sim > 0.55) {
+          issues.push(
+            `Strategic angles ${i + 1} and ${j + 1} overlap — differentiate framework applications.`,
+          );
+        }
+      }
     }
   }
   return {

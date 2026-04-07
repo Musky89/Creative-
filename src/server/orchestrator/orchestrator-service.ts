@@ -39,6 +39,10 @@ import { getV1PipelineRow, stageOrderIndex } from "./v1-pipeline";
 import { buildPlaceholderArtifactContent } from "./scaffold/placeholder-stage-output";
 import { recordArtifactOutcomeAndPerformance } from "@/server/canon/outcomes";
 import { runCreativeDirectorJudge } from "@/server/agents/creative-director-judge";
+import { runStrategistJudge } from "@/server/agents/strategist-judge";
+import { runCopyHeadlineJudge } from "@/server/agents/copy-judge";
+import { mergeStrategySelectionIntoArtifact } from "@/server/orchestrator/strategy-selection";
+import { mergeCopyHeadlineSelectionIntoArtifact } from "@/server/orchestrator/copy-headline-selection";
 import {
   buildCreativeDirectorDecisionPersisted,
   runCreativeDirectorFinalForExportTask,
@@ -455,6 +459,58 @@ export class OrchestratorService {
       content = buildPlaceholderArtifactContent(task.stage, row.artifactType, {
         brief,
       });
+    }
+
+    if (task.stage === "STRATEGY" && row.artifactType === "STRATEGY") {
+      const angles = content.strategicAngles;
+      if (Array.isArray(angles) && angles.length >= 3) {
+        const anglesPayload = angles.slice(0, 3).map((a) => {
+          const o =
+            a && typeof a === "object"
+              ? (a as Record<string, unknown>)
+              : ({} as Record<string, unknown>);
+          return {
+            frameworkId: String(o.frameworkId ?? "").trim(),
+            angle: String(o.angle ?? "").trim(),
+          };
+        });
+        if (anglesPayload.every((x) => x.frameworkId && x.angle)) {
+          const { context } = await loadTaskAgentContext(taskId);
+          const formatted = formatContextForPrompt(context);
+          const judge = await runStrategistJudge({
+            anglesJson: anglesPayload,
+            formattedContext: formatted,
+          });
+          content = mergeStrategySelectionIntoArtifact(
+            content as Record<string, unknown>,
+            judge,
+          ) as Record<string, unknown>;
+        }
+      }
+    }
+
+    if (task.stage === "COPY_DEVELOPMENT" && row.artifactType === "COPY") {
+      const heads = content.headlineOptions;
+      if (Array.isArray(heads) && heads.length >= 5) {
+        const headlines = heads
+          .map((h) => String(h).trim())
+          .filter((h) => h.length > 0);
+        if (headlines.length >= 5) {
+          const { context } = await loadTaskAgentContext(taskId);
+          const formatted = formatContextForPrompt(context, {
+            conceptWinnerOnly: true,
+          });
+          const judge = await runCopyHeadlineJudge({
+            headlines,
+            formattedContext: formatted,
+          });
+          content = mergeCopyHeadlineSelectionIntoArtifact(
+            content as Record<string, unknown>,
+            judge,
+            headlines,
+          ) as Record<string, unknown>;
+        }
+      }
     }
 
     if (task.stage === "CONCEPTING" && row.artifactType === "CONCEPT") {

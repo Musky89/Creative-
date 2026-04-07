@@ -7,15 +7,12 @@ import {
 } from "@/server/agents/repair-json";
 import { buildCreativeCanonUserSection } from "@/server/canon/prompt-section";
 import { CANON_FRAMEWORKS } from "@/lib/canon/frameworks";
+import {
+  creativeQualityScoreEntrySchema,
+  defaultCreativeQualityScore,
+} from "@/lib/creative/creative-quality-score";
 
-const scoreEntrySchema = z
-  .object({
-    distinctiveness: z.number().min(0).max(1),
-    brandAlignment: z.number().min(0).max(1),
-    strategicStrength: z.number().min(0).max(1),
-    culturalRelevance: z.number().min(0).max(1),
-  })
-  .strict();
+const scoreEntrySchema = creativeQualityScoreEntrySchema;
 
 export const creativeDirectorJudgeOutputSchema = z
   .object({
@@ -43,7 +40,7 @@ export type CreativeDirectorJudgeOutput = z.infer<
 const JUDGE_SYSTEM = [
   "You are a ruthless Executive Creative Director judging a **field** of concept routes for one campaign.",
   "You receive every concept (with conceptId, frameworkId, hook, rationale, differentiation fields).",
-  "Score each conceptId on four 0–1 floats: distinctiveness, brandAlignment, strategicStrength, culturalRelevance.",
+  "Score each conceptId on five 0–1 floats: distinctiveness, brandAlignment, clarity, emotionalImpact, nonGenericLanguage.",
   "Be harsh on generic category filler, interchangeable hooks, and frameworks named but not structurally executed.",
   "rankedConceptIds: ALL conceptIds from the input, best first (full sort).",
   "winnerConceptId: exactly one — the single route that should ship to art direction and copy.",
@@ -81,12 +78,7 @@ function fallbackJudge(conceptIds: string[]): CreativeDirectorJudgeOutput {
   const winner = conceptIds[0] ?? "unknown";
   const scores: Record<string, z.infer<typeof scoreEntrySchema>> = {};
   for (const id of conceptIds) {
-    scores[id] = {
-      distinctiveness: 0.55,
-      brandAlignment: 0.55,
-      strategicStrength: 0.55,
-      culturalRelevance: 0.55,
-    };
+    scores[id] = defaultCreativeQualityScore();
   }
   return {
     rankedConceptIds: [...conceptIds],
@@ -144,7 +136,7 @@ export async function runCreativeDirectorJudge(args: {
   const shapeHint = `{
   "rankedConceptIds": string[],
   "winnerConceptId": string,
-  "scores": { "<conceptId>": { "distinctiveness": 0-1, "brandAlignment": 0-1, "strategicStrength": 0-1, "culturalRelevance": 0-1 } },
+  "scores": { "<conceptId>": { "distinctiveness": 0-1, "brandAlignment": 0-1, "clarity": 0-1, "emotionalImpact": 0-1, "nonGenericLanguage": 0-1 } },
   "rejectionReasons": [{ "conceptId": string, "reason": string }],
   "judgeSummary": string (optional)
 }`;
@@ -177,12 +169,7 @@ function normalizeJudgeOutput(
   const scores: Record<string, z.infer<typeof scoreEntrySchema>> = { ...raw.scores };
   for (const id of validIds) {
     if (!scores[id]) {
-      scores[id] = {
-        distinctiveness: 0.5,
-        brandAlignment: 0.5,
-        strategicStrength: 0.5,
-        culturalRelevance: 0.5,
-      };
+      scores[id] = defaultCreativeQualityScore();
     }
   }
 

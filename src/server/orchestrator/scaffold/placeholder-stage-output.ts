@@ -29,8 +29,8 @@ export type PlaceholderContext = {
 function scaffoldConceptPack(
   base: Record<string, unknown>,
 ): Record<string, unknown> {
-  const six = CANON_FRAMEWORKS.slice(0, 6);
-  const concepts = six.map((f, i) => ({
+  const four = CANON_FRAMEWORKS.slice(0, 4);
+  const concepts = four.map((f, i) => ({
     conceptId: `concept-${i}`,
     frameworkId: f.id,
     conceptName: `[Placeholder] Route ${String.fromCharCode(65 + i)} — ${f.name}`,
@@ -61,14 +61,14 @@ function scaffoldConceptPack(
     howTheyDiffer: string;
     strongerConceptThisPair: "left" | "right" | "tie";
   }[] = [];
-  for (let i = 0; i < six.length; i++) {
-    for (let j = i + 1; j < six.length; j++) {
+  for (let i = 0; i < four.length; i++) {
+    for (let j = i + 1; j < four.length; j++) {
       pairComparisons.push({
         leftIndex: i,
         rightIndex: j,
         overlapNotes:
           "[Placeholder] Both serve the same brief; overlap is strategic goal — scaffold pairwise note.",
-        howTheyDiffer: `[Placeholder] Route ${i} (${six[i]!.id}) vs ${j} (${six[j]!.id}) — different engines and visual worlds.`,
+        howTheyDiffer: `[Placeholder] Route ${i} (${four[i]!.id}) vs ${j} (${four[j]!.id}) — different engines and visual worlds.`,
         strongerConceptThisPair: "tie",
       });
     }
@@ -77,7 +77,7 @@ function scaffoldConceptPack(
   return {
     ...base,
     frameworkUsed:
-      "[Placeholder] Six distinct Creative Canon frameworks — competition field (scaffold only).",
+      "[Placeholder] Four distinct Creative Canon frameworks — competition field (scaffold only).",
     concepts,
     pairwiseDifferentiation: {
       pairComparisons,
@@ -85,7 +85,7 @@ function scaffoldConceptPack(
         "[Placeholder] Shared proposition across routes; divergence is framework engine, hook architecture, and default visual temperature — scaffold aggregate.",
       strongestConceptIndex: 0,
       differentiationSummary:
-        "[Placeholder] Scaffold concept field spans six Canon frameworks; pairwise compares every route. Winner selection runs after generation in production — this placeholder is tied for review only.",
+        "[Placeholder] Scaffold concept field spans four Canon frameworks; pairwise compares every route. Winner selection runs after generation in production — this placeholder is tied for review only.",
     },
   };
 }
@@ -303,6 +303,11 @@ export function buildPlaceholderArtifactContent(
             angle:
               "[Placeholder] Pain → stakes → relief structure (Canon: Problem Agitation).",
           },
+          {
+            frameworkId: "aspirational-identity",
+            angle:
+              "[Placeholder] Who the audience becomes when they choose this brand (Canon: Aspirational Identity).",
+          },
         ],
       };
     case "CONCEPT":
@@ -351,12 +356,15 @@ export function buildPlaceholderArtifactContent(
         ...base,
         frameworkUsed: "transformation",
         headlineOptions: [
-          "[Placeholder] Headline A",
-          "[Placeholder] Headline B",
-          "[Placeholder] Headline C",
+          "[Placeholder] Headline A — proof-led tension",
+          "[Placeholder] Headline B — sensory invitation",
+          "[Placeholder] Headline C — cultural edge",
+          "[Placeholder] Headline D — restraint + confidence",
+          "[Placeholder] Headline E — direct product truth",
         ],
         bodyCopyOptions: [
           "[Placeholder] Short body variant.",
+          "[Placeholder] Medium body variant.",
           "[Placeholder] Long body variant.",
         ],
         ctaOptions: ["[Placeholder] CTA 1", "[Placeholder] CTA 2"],

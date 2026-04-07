@@ -19,6 +19,8 @@ export function ensureConceptIds(
 
 export type ConceptSelectionMeta = {
   winnerConceptId: string;
+  /** Up to two runner-up routes surfaced in Studio. */
+  alternateConceptIds: string[];
   rejectedConceptIds: string[];
   scores: CreativeDirectorJudgeOutput["scores"];
   rankedConceptIds: string[];
@@ -26,10 +28,10 @@ export type ConceptSelectionMeta = {
   judgeSummary?: string;
 };
 
-const REJECT_RATIO = 0.35;
-
+/** ~1 route hidden when n=4 so Studio shows primary + two alternates. */
 /**
  * Annotates each concept with selection flags and attaches `_agenticforceSelection`.
+ * Surfaces **primary + up to two alternates**; all other routes are marked rejected for Studio display.
  */
 export function mergeConceptSelectionIntoArtifact(
   content: Record<string, unknown>,
@@ -46,8 +48,6 @@ export function mergeConceptSelectionIntoArtifact(
   );
 
   const winner = judge.winnerConceptId.trim();
-  const n = idList.filter(Boolean).length;
-  const rejectCount = Math.max(0, Math.floor(n * REJECT_RATIO));
   const ranked = [...judge.rankedConceptIds].filter((id) => idList.includes(id));
   for (const id of idList) {
     if (id && !ranked.includes(id)) ranked.push(id);
@@ -65,30 +65,40 @@ export function mergeConceptSelectionIntoArtifact(
   const ordered =
     orderedRaw.length === withIds.length ? orderedRaw : [...withIds];
 
-  const bottom = new Set(ranked.slice(Math.max(0, ranked.length - rejectCount)));
-  bottom.delete(winner);
+  const alternateIds = new Set<string>();
+  for (const id of ranked) {
+    if (id === winner) continue;
+    if (alternateIds.size < 2) alternateIds.add(id);
+  }
 
   const rejectedFromJudge = new Set(
     judge.rejectionReasons.map((r) => r.conceptId).filter((id) => idList.includes(id)),
   );
-  for (const id of bottom) rejectedFromJudge.add(id);
-  rejectedFromJudge.delete(winner);
+  for (const id of idList) {
+    if (!id) continue;
+    if (id === winner) continue;
+    if (alternateIds.has(id)) continue;
+    rejectedFromJudge.add(id);
+  }
 
   const mergedConcepts = ordered.map((c) => {
     if (!c || typeof c !== "object") return c;
     const o = c as Record<string, unknown>;
     const id = String(o.conceptId ?? "");
     const isWinner = id === winner;
-    const isRejected = !isWinner && rejectedFromJudge.has(id);
+    const isAlternate = !isWinner && alternateIds.has(id);
+    const isRejected = !isWinner && !isAlternate;
     return {
       ...o,
       isSelected: isWinner,
+      isAlternate,
       isRejected,
     };
   });
 
   const selection: ConceptSelectionMeta = {
     winnerConceptId: winner,
+    alternateConceptIds: [...alternateIds],
     rejectedConceptIds: [...rejectedFromJudge],
     scores: judge.scores,
     rankedConceptIds: ranked,

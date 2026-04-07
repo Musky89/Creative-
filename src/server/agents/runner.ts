@@ -244,7 +244,7 @@ export async function executeAgentForTask(
     const mustPreserve = [
       "Output MUST match the same JSON schema as this stage. Honor Brand Bible, **Brand Creative DNA** (voice principles, rhythm rules, signature devices, cultural codes, brand tension, visual philosophy), banned phrases, vocabulary/sentence style, emotional boundaries, taste engine, brief, and upstream artifacts. Apply Creative Canon visibly — no generic marketing filler.",
       "**Specificity:** replace abstraction with concrete execution detail; anchor claims in this client, audience, and brief (use vocabulary from context).",
-      "For CONCEPTING: 6–10 concepts with **unique** frameworkIds from the selected Canon list; distinctivenessVsCategory per route; full pairwise differentiation for all pairs.",
+      "For CONCEPTING: 3–4 concepts with **unique** frameworkIds from the selected Canon list; distinctivenessVsCategory per route; full pairwise differentiation for all pairs.",
       "For VISUAL_DIRECTION: one chosen concept route, concrete art-direction specifics (materials, light, composition, texture), strong avoidList, no vibes-only luxury filler.",
       formatBadOutputBlacklistForPrompt(),
     ].join("\n\n");

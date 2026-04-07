@@ -88,15 +88,14 @@ export function getHeuristicFrameworkIds(
     }
     const dedup = [...new Set(ids)];
     const picked =
-      dedup.length >= 2
-        ? dedup.slice(0, 4)
+      dedup.length >= 3
+        ? dedup.slice(0, 3)
         : [
             "transformation",
             "problem-agitation",
             "aspirational-identity",
-            "cultural-relevance",
           ];
-    return picked.slice(0, 4);
+    return picked.slice(0, 3);
   }
 
   if (stage === "CONCEPTING") {

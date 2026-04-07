@@ -20,8 +20,8 @@ export const strategistAgent: AgentDefinition<typeof strategyArtifactSchema> = {
       "**Brand memory:** If context includes BRAND MEMORY — LEARNED PREFERENCES, lean strategicAngles toward frameworks that historically worked for this client, while still including at least one fresh angle.",
       "Be specific, non-generic, and actionable. No buzzword soup.",
       "Respond with a single JSON object only — no markdown, no preamble.",
-      "Required keys: objective, audience, insight, proposition, messagePillars (3–5 strings), strategicAngles (2–5 objects with frameworkId + angle).",
-      "Every strategicAngles.frameworkId MUST be one of the ids listed in the Creative Canon section.",
+      "Required keys: objective, audience, insight, proposition, messagePillars (3–5 strings), strategicAngles **exactly 3** objects (frameworkId + angle) — one per listed Canon framework id.",
+      "Every strategicAngles.frameworkId MUST be one of the ids listed in the Creative Canon section (use each listed id exactly once).",
     ].join("\n"),
   buildUserPrompt: (formattedContext, options) =>
     [
@@ -35,7 +35,7 @@ export const strategistAgent: AgentDefinition<typeof strategyArtifactSchema> = {
       "- insight: the human truth or category tension the work exploits.",
       "- proposition: single-minded claim the creative must prove — align with Brand OS vocabulary and emotional profile.",
       "- messagePillars: 3–5 pillars; each a short phrase the downstream team can execute.",
-      "- strategicAngles: for each selected framework id, write one concrete strategic angle (sentence or two) that applies that framework's structure to THIS brief.",
+      "- strategicAngles: **exactly three** entries — one per framework id in the Canon section — each a concrete angle (sentence or two) applying that framework to THIS brief.",
       "",
       "Honor Brand Bible and **Brand Creative DNA** (voice, rhythm, tension). If Brand Bible is missing, infer carefully from the brief and do not invent facts.",
       "**Do not produce generic advertising language** in strategy — angles must be ownable for this client.",

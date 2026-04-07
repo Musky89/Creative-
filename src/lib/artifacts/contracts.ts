@@ -221,10 +221,12 @@ export const strategyArtifactSchema = z.object({
       z.object({
         frameworkId: z.string().min(1),
         angle: z.string().min(1),
+        /** Creative Selection Engine — primary angle for downstream work. */
+        isSelectedPrimary: z.boolean().optional(),
+        isAlternate: z.boolean().optional(),
       }),
     )
-    .min(2)
-    .max(5),
+    .length(3),
 });
 
 export const conceptSubSchema = z.object({
@@ -246,6 +248,8 @@ export const conceptSubSchema = z.object({
   distinctVisualWorld: z.string().min(45),
   /** Set after Creative Director Judge — winner only. */
   isSelected: z.boolean().optional(),
+  /** Set after Creative Director Judge — runner-up surfaced in Studio (max 2). */
+  isAlternate: z.boolean().optional(),
   /** Set after Creative Director Judge — low-scoring tail. */
   isRejected: z.boolean().optional(),
 });
@@ -279,7 +283,7 @@ export const conceptArtifactSchema = z
   .object({
     /** Human-readable summary of how frameworks were applied (e.g. "Three routes: Transformation, Contrast, Cultural"). */
     frameworkUsed: z.string().min(1),
-    concepts: z.array(conceptSubSchema).min(6).max(maxConceptRoutes),
+    concepts: z.array(conceptSubSchema).min(3).max(maxConceptRoutes),
     /** Pairwise A vs B (…): overlap, difference, which is stronger per pair. */
     pairwiseDifferentiation: conceptPairwiseDifferentiationSchema,
   })
@@ -376,9 +380,9 @@ export const visualSpecArtifactSchema = z.object({
 export const copyArtifactSchema = z.object({
   /** Primary framework id from the concept route being executed (must match a Canon id when applicable). */
   frameworkUsed: z.string().min(1),
-  headlineOptions: z.array(z.string().min(1)).min(2).max(8),
-  bodyCopyOptions: z.array(z.string().min(1)).min(1).max(6),
-  ctaOptions: z.array(z.string().min(1)).min(1).max(6),
+  headlineOptions: z.array(z.string().min(1)).min(5).max(8),
+  bodyCopyOptions: z.array(z.string().min(1)).min(3).max(6),
+  ctaOptions: z.array(z.string().min(1)).min(2).max(4),
 });
 
 export const reviewReportArtifactSchema = z.object({
@@ -466,11 +470,11 @@ export const ARTIFACT_SHAPE_HINTS = {
   "insight": string,
   "proposition": string,
   "messagePillars": string[] (min 1, max 8),
-  "strategicAngles": { "frameworkId": string, "angle": string }[] (min 2, max 5) — each frameworkId must match a provided Creative Canon id
+  "strategicAngles": { "frameworkId": string, "angle": string }[] (exactly 3) — each frameworkId must match a provided Creative Canon id
 }`,
   CONCEPT: `{
   "frameworkUsed": string,
-  "concepts": array (min 6, max 10) of { optional conceptId, frameworkId (unique per pack), conceptName, hook, rationale, distinctivenessVsCategory, visualDirection, whyItWorksForBrand, coreTension, emotionalCenter, whyBeatsCategoryNorm, whyCouldFail, distinctVisualWorld, optional isSelected, isRejected },
+  "concepts": array (min 3, max 10) of { optional conceptId, frameworkId (unique per pack), conceptName, hook, rationale, distinctivenessVsCategory, visualDirection, whyItWorksForBrand, coreTension, emotionalCenter, whyBeatsCategoryNorm, whyCouldFail, distinctVisualWorld, optional isSelected, isAlternate, isRejected },
   "pairwiseDifferentiation": { pairComparisons (exactly n*(n-1)/2 pairs for n concepts), aggregateOverlap, strongestConceptIndex, differentiationSummary },
   "_agenticforceSelection": optional { winnerConceptId, rejectedConceptIds, scores, rankedConceptIds, rejectionReasons }
 }`,
@@ -487,7 +491,7 @@ export const ARTIFACT_SHAPE_HINTS = {
 }`,
   COPY: `{
   "frameworkUsed": string,
-  "headlineOptions": string[] (min 2, max 8),
+  "headlineOptions": string[] (min 5, max 8),
   "bodyCopyOptions": string[] (min 1, max 6),
   "ctaOptions": string[] (min 1, max 6)
 }`,

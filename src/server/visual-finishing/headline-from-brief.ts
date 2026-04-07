@@ -22,5 +22,18 @@ export async function getDefaultHeadlineForBrief(briefId: string): Promise<strin
   }
   const p = copyArtifactSchema.safeParse(raw);
   if (!p.success || !p.data.headlineOptions.length) return null;
+  const full = art.content as Record<string, unknown>;
+  const sel = full._agenticforceSelection;
+  if (sel && typeof sel === "object" && !Array.isArray(sel)) {
+    const o = sel as Record<string, unknown>;
+    if (o.stage === "COPY_HEADLINES" && typeof o.primaryHeadlineIndex === "number") {
+      const idx = Math.min(
+        p.data.headlineOptions.length - 1,
+        Math.max(0, Math.floor(o.primaryHeadlineIndex)),
+      );
+      const h = p.data.headlineOptions[idx];
+      if (h?.trim()) return h.trim();
+    }
+  }
   return p.data.headlineOptions[0]!.trim() || null;
 }

@@ -161,8 +161,9 @@ export async function recordConceptJudgeMemories(
       {
         distinctiveness: number;
         brandAlignment: number;
-        strategicStrength: number;
-        culturalRelevance: number;
+        clarity: number;
+        emotionalImpact: number;
+        nonGenericLanguage: number;
       }
     >;
     rejectionReasons: { conceptId: string; reason: string }[];
@@ -186,9 +187,10 @@ export async function recordConceptJudgeMemories(
     const strength = scores
       ? (scores.distinctiveness +
           scores.brandAlignment +
-          scores.strategicStrength +
-          scores.culturalRelevance) /
-        4
+          scores.clarity +
+          scores.emotionalImpact +
+          scores.nonGenericLanguage) /
+        5
       : isWinner
         ? 0.75
         : 0.35;
