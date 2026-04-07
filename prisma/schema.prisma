@@ -120,6 +120,8 @@ enum VisualPromptProviderTarget {
   GENERIC
   GEMINI_IMAGE
   GPT_IMAGE
+  /// fal.ai Flux (brand style weights when `Client.visualModelRef` is set)
+  FAL_IMAGE
 }
 
 enum VisualAssetStatus {
@@ -198,8 +200,71 @@ model Client {
   brandMemoryAggregate   BrandMemoryAggregate?
   visualReferences       VisualReference[]
   brandVisualProfile     BrandVisualProfile?
-  /// Future: LoRA / fine-tuned model id — generation passes through when set.
+  /// Learned brand visual style (fal output ref / weights id) — applied automatically when set.
   visualModelRef         String?
+  /// Cooldown: last time founder completed “Train Brand Visual Style”.
+  lastBrandStyleTrainedAt DateTime?
+
+  brandVisualTrainingJobs BrandVisualTrainingJob[]
+}
+
+enum BrandVisualTrainingJobStatus {
+  DRAFT
+  PREPARING
+  QUEUED
+  TRAINING
+  FINALIZING
+  COMPLETE
+  FAILED
+}
+
+/// Founder-facing “teach what good looks like” — one job per training run (internal fal queue).
+model BrandVisualTrainingJob {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  status BrandVisualTrainingJobStatus @default(DRAFT)
+  /// Strong | Medium | Weak — founder-facing training quality.
+  trainingQuality String @default("")
+
+  guidanceLines Json @default("[]")
+
+  falRequestId      String?
+  falStatusPayload  Json?
+  resultPayload     Json?
+  errorMessage      String?
+
+  previousVisualModelRef String?
+  newVisualModelRef      String?
+
+  comparisonBaseAssetId   String?
+  comparisonStyledAssetId   String?
+  comparisonNote            String?
+
+  assets BrandVisualTrainingAsset[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  @@index([clientId, createdAt(sort: Desc)])
+}
+
+model BrandVisualTrainingAsset {
+  id            String @id @default(cuid())
+  jobId         String
+  job           BrandVisualTrainingJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  visualAssetId String
+  visualAsset   VisualAsset            @relation(fields: [visualAssetId], references: [id], onDelete: Cascade)
+
+  caption   String
+  styleTags Json   @default("[]")
+  sortOrder Int    @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([jobId])
 }
 
 /// One canonical Brand Bible per client (1:1).
@@ -601,6 +666,7 @@ model VisualAsset {
 
   review VisualAssetReview?
   privateEvaluationRefs PrivateEvaluationRecord[]
+  brandVisualTrainingUses BrandVisualTrainingAsset[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
