@@ -149,15 +149,20 @@ enum PrivateEvaluationVerdict {
 }
 
 enum BrandMemoryType {
+  STRATEGY
   CONCEPT
   COPY
   VISUAL
   TONE
+  BRAND_STYLE
+  CAMPAIGN_PATTERN
 }
 
 enum BrandMemoryOutcome {
   APPROVED
   REJECTED
+  SELECTED
+  FAILED
 }
 
 enum VisualReferenceCategory {
