@@ -1,5 +1,6 @@
 import type { CopyJudgeOutput } from "@/server/agents/copy-judge";
 import type { CreativeQualityScoreEntry } from "@/lib/creative/creative-quality-score";
+import type { PairwiseComparisonRecord } from "@/lib/creative/pairwise-tournament";
 
 export type CopyHeadlineCreativeSelectionMeta = {
   rankedHeadlineIndices: number[];
@@ -7,6 +8,8 @@ export type CopyHeadlineCreativeSelectionMeta = {
   alternateHeadlineIndices: number[];
   scoresByHeadlineIndex: Record<string, CreativeQualityScoreEntry>;
   selectionRationale: string;
+  pairwiseComparisons: PairwiseComparisonRecord[];
+  tournamentWinningRationale: string;
 };
 
 function headlineKey(i: number): string {
@@ -26,8 +29,8 @@ export function mergeCopyHeadlineSelectionIntoArtifact(
 
   const keyToIndex = (k: string): number => {
     const m = /^h(\d+)$/.exec(k.trim());
-    if (m) return Math.min(n - 1, Math.max(0, parseInt(m[1]!, 10)));
-    return 0;
+    if (!m) return 0;
+    return Math.min(n - 1, Math.max(0, parseInt(m[1]!, 10)));
   };
 
   const primaryIdx = keyToIndex(judge.primaryHeadlineKey);
@@ -63,6 +66,9 @@ export function mergeCopyHeadlineSelectionIntoArtifact(
     alternateHeadlineIndices: alternateIdxs,
     scoresByHeadlineIndex,
     selectionRationale: judge.selectionRationale,
+    pairwiseComparisons: judge.pairwiseComparisons ?? [],
+    tournamentWinningRationale:
+      judge.tournamentWinningRationale ?? judge.selectionRationale.slice(0, 500),
   };
 
   return {

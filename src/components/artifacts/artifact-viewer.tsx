@@ -7,6 +7,59 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+function PairwiseTournamentDisclosure({
+  comparisons,
+  title = "Pairwise tournament",
+}: {
+  comparisons: unknown;
+  title?: string;
+}) {
+  if (!Array.isArray(comparisons) || comparisons.length === 0) return null;
+  return (
+    <DisclosureSection
+      title={title}
+      subtitle={`${comparisons.length} head-to-head match(es)`}
+      defaultOpen={false}
+    >
+      <ul className="mt-2 space-y-2 text-xs text-zinc-400">
+        {comparisons.map((row, i) => {
+          if (!isRecord(row)) return null;
+          return (
+            <li
+              key={i}
+              className="rounded-lg border border-zinc-800/80 bg-zinc-950/40 p-2.5"
+            >
+              <p className="font-mono text-[10px] text-zinc-500">
+                Round {String(row.round)} · {asString(row.leftId)} vs{" "}
+                {asString(row.rightId)}
+              </p>
+              <p className="mt-1.5 text-zinc-300">
+                Stronger:{" "}
+                <span className="font-medium text-teal-200/95">
+                  {asString(row.strongerId)}
+                </span>
+                <span className="text-zinc-600"> · </span>
+                On-brand:{" "}
+                <span className="font-medium text-teal-200/95">
+                  {asString(row.moreOnBrandId)}
+                </span>
+                <span className="text-zinc-600"> · </span>
+                Memorable:{" "}
+                <span className="font-medium text-teal-200/95">
+                  {asString(row.moreMemorableId)}
+                </span>
+              </p>
+              <p className="mt-1.5 leading-relaxed text-zinc-500">
+                {asString(row.rationale)}
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+    </DisclosureSection>
+  );
+}
+
 function BrandDnaComplianceStrip({ content }: { content: unknown }) {
   if (!isRecord(content)) return null;
 
@@ -551,6 +604,18 @@ export function StrategyArtifactCard({
               </p>
             </div>
           ) : null}
+          {isRecord(content._agenticforceSelection) &&
+          asString(
+            (content._agenticforceSelection as Record<string, unknown>).stage,
+          ) === "STRATEGY" ? (
+            <PairwiseTournamentDisclosure
+              comparisons={
+                (content._agenticforceSelection as Record<string, unknown>)
+                  .pairwiseComparisons
+              }
+              title="Strategic angle matchups"
+            />
+          ) : null}
           {angles.map((a, i) => {
             if (!isRecord(a)) return null;
             const fid = asString(a.frameworkId);
@@ -646,6 +711,12 @@ export function ConceptArtifactCard({
                 <code className="text-zinc-300">conceptId</code>
               </p>
             ) : null}
+            <div className="mt-3">
+              <PairwiseTournamentDisclosure
+                comparisons={selection.pairwiseComparisons}
+                title="Concept route matchups"
+              />
+            </div>
           </div>
         ) : null}
         {isRecord(content.pairwiseDifferentiation) ? (
@@ -1166,6 +1237,14 @@ export function CopyArtifactCard({
           <p className="mt-2 leading-relaxed">
             {copyHeadlineSelection.selectionRationale}
           </p>
+        </div>
+      ) : null}
+      {copyHeadlineSelection ? (
+        <div className="mt-3">
+          <PairwiseTournamentDisclosure
+            comparisons={copyHeadlineSelection.pairwiseComparisons}
+            title="Headline matchups"
+          />
         </div>
       ) : null}
       <div className="mt-4 space-y-4">

@@ -1,4 +1,5 @@
 import type { CreativeDirectorJudgeOutput } from "@/server/agents/creative-director-judge";
+import type { PairwiseComparisonRecord } from "@/lib/creative/pairwise-tournament";
 
 /** Stable ids for judging and downstream filtering (`concept-0` …). */
 export function ensureConceptIds(
@@ -26,6 +27,8 @@ export type ConceptSelectionMeta = {
   rankedConceptIds: string[];
   rejectionReasons: CreativeDirectorJudgeOutput["rejectionReasons"];
   judgeSummary?: string;
+  pairwiseComparisons: PairwiseComparisonRecord[];
+  tournamentWinningRationale: string;
 };
 
 /** ~1 route hidden when n=4 so Studio shows primary + two alternates. */
@@ -104,6 +107,11 @@ export function mergeConceptSelectionIntoArtifact(
     rankedConceptIds: ranked,
     rejectionReasons: judge.rejectionReasons,
     judgeSummary: judge.judgeSummary,
+    pairwiseComparisons: judge.pairwiseComparisons ?? [],
+    tournamentWinningRationale:
+      judge.tournamentWinningRationale?.trim() ||
+      judge.judgeSummary?.trim() ||
+      "Pairwise tournament completed.",
   };
 
   return {

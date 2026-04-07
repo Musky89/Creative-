@@ -1,16 +1,11 @@
 import { z } from "zod";
-import { extractJsonObject } from "@/server/llm/extract-json";
 import { getLlmProvider } from "@/server/llm/get-provider";
-import {
-  repairJsonWithProvider,
-  summarizeZodError,
-} from "@/server/agents/repair-json";
-import { buildCreativeCanonUserSection } from "@/server/canon/prompt-section";
-import { CANON_FRAMEWORKS } from "@/lib/canon/frameworks";
 import {
   creativeQualityScoreEntrySchema,
   defaultCreativeQualityScore,
 } from "@/lib/creative/creative-quality-score";
+import { pairwiseTournamentComparisonsSchema } from "@/lib/creative/pairwise-tournament";
+import { runPairwiseSingleElimination } from "@/server/agents/tournament-from-pairwise";
 
 const scoreEntrySchema = creativeQualityScoreEntrySchema;
 
@@ -30,49 +25,14 @@ export const creativeDirectorJudgeOutputSchema = z
       )
       .max(16),
     judgeSummary: z.string().min(40).optional(),
+    pairwiseComparisons: pairwiseTournamentComparisonsSchema.optional(),
+    tournamentWinningRationale: z.string().min(20).optional(),
   })
   .strict();
 
 export type CreativeDirectorJudgeOutput = z.infer<
   typeof creativeDirectorJudgeOutputSchema
 >;
-
-const JUDGE_SYSTEM = [
-  "You are a ruthless Executive Creative Director judging a **field** of concept routes for one campaign.",
-  "You receive every concept (with conceptId, frameworkId, hook, rationale, differentiation fields).",
-  "Score each conceptId on five 0–1 floats: distinctiveness, brandAlignment, clarity, emotionalImpact, nonGenericLanguage.",
-  "Be harsh on generic category filler, interchangeable hooks, and frameworks named but not structurally executed.",
-  "rankedConceptIds: ALL conceptIds from the input, best first (full sort).",
-  "winnerConceptId: exactly one — the single route that should ship to art direction and copy.",
-  "rejectionReasons: ONLY for concepts that should NOT advance (the weaker tail). Each entry: conceptId + substantive reason (why it loses vs winner / category).",
-  "If fewer than 4 concepts, still rank all; rejectionReasons may be empty.",
-  "Output a single JSON object only — no markdown.",
-].join("\n\n");
-
-function parseJudgeOutput(
-  raw: string,
-):
-  | { ok: true; data: CreativeDirectorJudgeOutput }
-  | { ok: false; error: z.ZodError } {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(extractJsonObject(raw));
-  } catch {
-    return {
-      ok: false,
-      error: new z.ZodError([
-        {
-          code: "custom",
-          path: [],
-          message: "Judge output was not valid JSON.",
-        },
-      ]),
-    };
-  }
-  const v = creativeDirectorJudgeOutputSchema.safeParse(parsed);
-  if (v.success) return { ok: true, data: v.data };
-  return { ok: false, error: v.error };
-}
 
 function fallbackJudge(conceptIds: string[]): CreativeDirectorJudgeOutput {
   const winner = conceptIds[0] ?? "unknown";
@@ -87,73 +47,10 @@ function fallbackJudge(conceptIds: string[]): CreativeDirectorJudgeOutput {
     rejectionReasons: [],
     judgeSummary:
       "LLM unavailable — defaulting to first concept as winner; no automated rejections.",
+    pairwiseComparisons: [],
+    tournamentWinningRationale:
+      "No pairwise tournament ran — provider unavailable or insufficient concepts.",
   };
-}
-
-/**
- * Scores and ranks concept routes after creative director generation.
- */
-export async function runCreativeDirectorJudge(args: {
-  conceptsJson: Record<string, unknown>[];
-  formattedContext: string;
-}): Promise<CreativeDirectorJudgeOutput> {
-  const ids = args.conceptsJson
-    .map((c) => String(c.conceptId ?? "").trim())
-    .filter(Boolean);
-  if (ids.length === 0) {
-    return fallbackJudge([]);
-  }
-
-  const provider = getLlmProvider();
-  if (!provider) {
-    return fallbackJudge(ids);
-  }
-
-  const allCanon = buildCreativeCanonUserSection([...CANON_FRAMEWORKS]);
-  const user = [
-    "## Concepts to judge (JSON array)",
-    JSON.stringify(args.conceptsJson, null, 2).slice(0, 24_000),
-    "",
-    "## Full brief / brand / upstream context",
-    args.formattedContext.slice(0, 12_000),
-    "",
-    "## Creative Canon reference (all frameworks)",
-    allCanon.slice(0, 14_000),
-  ].join("\n");
-
-  const useJsonMode = provider.id === "openai";
-  const first = await provider.complete(
-    [{ role: "system", content: JUDGE_SYSTEM }, { role: "user", content: user }],
-    { maxTokens: 4096, jsonMode: useJsonMode },
-  );
-
-  let parsed = parseJudgeOutput(first.text);
-  if (parsed.ok) {
-    return normalizeJudgeOutput(parsed.data, ids);
-  }
-  const parseErrSummary = summarizeZodError(parsed.error);
-
-  const shapeHint = `{
-  "rankedConceptIds": string[],
-  "winnerConceptId": string,
-  "scores": { "<conceptId>": { "distinctiveness": 0-1, "brandAlignment": 0-1, "clarity": 0-1, "emotionalImpact": 0-1, "nonGenericLanguage": 0-1 } },
-  "rejectionReasons": [{ "conceptId": string, "reason": string }],
-  "judgeSummary": string (optional)
-}`;
-
-  const repair = await repairJsonWithProvider(
-    provider,
-    first.text,
-    shapeHint,
-    parseErrSummary,
-    8192,
-  );
-  parsed = parseJudgeOutput(repair.text);
-  if (parsed.ok) {
-    return normalizeJudgeOutput(parsed.data, ids);
-  }
-
-  return fallbackJudge(ids);
 }
 
 function normalizeJudgeOutput(
@@ -186,5 +83,83 @@ function normalizeJudgeOutput(
     scores,
     rejectionReasons,
     judgeSummary: raw.judgeSummary,
+    pairwiseComparisons: raw.pairwiseComparisons,
+    tournamentWinningRationale: raw.tournamentWinningRationale,
   };
+}
+
+/**
+ * Pairwise single-elimination over concept routes; builds rejection tail + judge summary.
+ */
+export async function runCreativeDirectorJudge(args: {
+  conceptsJson: Record<string, unknown>[];
+  formattedContext: string;
+}): Promise<CreativeDirectorJudgeOutput> {
+  const byId = new Map<string, Record<string, unknown>>();
+  for (const c of args.conceptsJson) {
+    const id = String(c.conceptId ?? "").trim();
+    if (id) byId.set(id, c);
+  }
+  const ids = args.conceptsJson
+    .map((c) => String(c.conceptId ?? "").trim())
+    .filter(Boolean);
+  if (ids.length === 0) {
+    return fallbackJudge([]);
+  }
+
+  if (!getLlmProvider()) {
+    return fallbackJudge(ids);
+  }
+
+  try {
+    const tour = await runPairwiseSingleElimination({
+      domain: "CONCEPT_ROUTE",
+      candidateIds: ids,
+      formattedContext: args.formattedContext,
+      getPayload: (id) => byId.get(id) ?? { conceptId: id },
+    });
+
+    const winner = tour.championId;
+    const runnerUp = tour.runnerUpId;
+    const third = tour.thirdPlaceId;
+
+    const rejectionReasons: { conceptId: string; reason: string }[] = [];
+    for (const id of ids) {
+      if (id === winner || id === runnerUp || id === third) continue;
+      rejectionReasons.push({
+        conceptId: id,
+        reason: `Eliminated in pairwise tournament before the final — did not win head-to-head path to champion (${winner}).`,
+      });
+    }
+
+    const ranked = [winner];
+    if (runnerUp && runnerUp !== winner) ranked.push(runnerUp);
+    if (third && third !== winner && third !== runnerUp) ranked.push(third);
+    for (const id of ids) {
+      if (!ranked.includes(id)) ranked.push(id);
+    }
+
+    const judgeSummary = [
+      tour.winningRationale,
+      "",
+      `Pairwise tournament: ${tour.comparisons.length} match(es). Champion: ${winner}.`,
+      runnerUp ? `Runner-up: ${runnerUp}.` : "",
+      third ? `Third (bronze): ${third}.` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const out: CreativeDirectorJudgeOutput = {
+      rankedConceptIds: ranked,
+      winnerConceptId: winner,
+      scores: tour.derivedScores,
+      rejectionReasons,
+      judgeSummary,
+      pairwiseComparisons: tour.comparisons,
+      tournamentWinningRationale: tour.winningRationale,
+    };
+    return normalizeJudgeOutput(out, ids);
+  } catch {
+    return fallbackJudge(ids);
+  }
 }

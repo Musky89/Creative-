@@ -1,17 +1,12 @@
 import { z } from "zod";
-import { extractJsonObject } from "@/server/llm/extract-json";
 import { getLlmProvider } from "@/server/llm/get-provider";
-import {
-  repairJsonWithProvider,
-  summarizeZodError,
-} from "@/server/agents/repair-json";
-import { buildCreativeCanonUserSection } from "@/server/canon/prompt-section";
-import { CANON_FRAMEWORKS } from "@/lib/canon/frameworks";
 import {
   creativeQualityScoreEntrySchema,
   defaultCreativeQualityScore,
   type CreativeQualityScoreEntry,
 } from "@/lib/creative/creative-quality-score";
+import { pairwiseTournamentComparisonsSchema } from "@/lib/creative/pairwise-tournament";
+import { runPairwiseSingleElimination } from "@/server/agents/tournament-from-pairwise";
 
 const headlineKey = (i: number) => `h${i}`;
 
@@ -22,43 +17,12 @@ export const copyJudgeOutputSchema = z
     alternateHeadlineKeys: z.array(z.string().min(1)).max(2),
     scores: z.record(z.string(), creativeQualityScoreEntrySchema),
     selectionRationale: z.string().min(40),
+    pairwiseComparisons: pairwiseTournamentComparisonsSchema.optional(),
+    tournamentWinningRationale: z.string().min(20).optional(),
   })
   .strict();
 
 export type CopyJudgeOutput = z.infer<typeof copyJudgeOutputSchema>;
-
-const JUDGE_SYSTEM = [
-  "You are a ruthless Executive Creative Director judging **headline candidates** for one campaign.",
-  "Headlines are keyed as h0, h1, h2, … in the order given.",
-  "Score each key on five 0–1 floats: distinctiveness, brandAlignment, clarity, emotionalImpact, nonGenericLanguage.",
-  "Penalize generic platitudes, category filler, and lines that could run on any competitor.",
-  "rankedHeadlineKeys: all keys, best first.",
-  "primaryHeadlineKey: the single headline that should lead the deck and comps.",
-  "alternateHeadlineKeys: 1–2 runner-up keys (distinct from primary).",
-  "selectionRationale: why primary wins vs the field; what the alternates preserve.",
-  "Output a single JSON object only — no markdown.",
-].join("\n\n");
-
-function parseOutput(
-  raw: string,
-):
-  | { ok: true; data: CopyJudgeOutput }
-  | { ok: false; error: z.ZodError } {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(extractJsonObject(raw));
-  } catch {
-    return {
-      ok: false,
-      error: new z.ZodError([
-        { code: "custom", path: [], message: "Judge output was not valid JSON." },
-      ]),
-    };
-  }
-  const v = copyJudgeOutputSchema.safeParse(parsed);
-  if (v.success) return { ok: true, data: v.data };
-  return { ok: false, error: v.error };
-}
 
 function fallbackJudge(keys: string[]): CopyJudgeOutput {
   const primary = keys[0] ?? "h0";
@@ -74,6 +38,9 @@ function fallbackJudge(keys: string[]): CopyJudgeOutput {
     scores,
     selectionRationale:
       "LLM unavailable — defaulting to first headline as primary; alternates follow in original order.",
+    pairwiseComparisons: [],
+    tournamentWinningRationale:
+      "No pairwise tournament ran — provider unavailable or insufficient headlines.",
   };
 }
 
@@ -109,11 +76,13 @@ function normalizeJudgeOutput(
     alternateHeadlineKeys: alternates,
     scores,
     selectionRationale: raw.selectionRationale,
+    pairwiseComparisons: raw.pairwiseComparisons,
+    tournamentWinningRationale: raw.tournamentWinningRationale,
   };
 }
 
 /**
- * Ranks headline strings and picks primary + up to two alternates.
+ * Pairwise single-elimination over headline keys h0… → primary + alternates.
  */
 export async function runCopyHeadlineJudge(args: {
   headlines: string[];
@@ -122,55 +91,60 @@ export async function runCopyHeadlineJudge(args: {
   const keys = args.headlines.map((_, i) => headlineKey(i));
   if (keys.length === 0) return fallbackJudge([]);
 
-  const payload = args.headlines.map((text, i) => ({
-    key: headlineKey(i),
-    headline: text,
-  }));
-
-  const provider = getLlmProvider();
-  if (!provider) return fallbackJudge(keys);
-
-  const allCanon = buildCreativeCanonUserSection([...CANON_FRAMEWORKS]);
-  const user = [
-    "## Headline candidates",
-    JSON.stringify(payload, null, 2).slice(0, 12_000),
-    "",
-    "## Context",
-    args.formattedContext.slice(0, 14_000),
-    "",
-    "## Creative Canon (reference)",
-    allCanon.slice(0, 10_000),
-  ].join("\n");
-
-  const useJsonMode = provider.id === "openai";
-  const first = await provider.complete(
-    [{ role: "system", content: JUDGE_SYSTEM }, { role: "user", content: user }],
-    { maxTokens: 3072, jsonMode: useJsonMode },
-  );
-
-  let parsed = parseOutput(first.text);
-  if (parsed.ok) {
-    return normalizeJudgeOutput(parsed.data, keys);
+  if (!getLlmProvider()) {
+    return fallbackJudge(keys);
   }
 
-  const shapeHint = `{
-  "rankedHeadlineKeys": string[],
-  "primaryHeadlineKey": string,
-  "alternateHeadlineKeys": string[] (max 2),
-  "scores": { "h0": { "distinctiveness": 0-1, "brandAlignment": 0-1, "clarity": 0-1, "emotionalImpact": 0-1, "nonGenericLanguage": 0-1 }, ... },
-  "selectionRationale": string
-}`;
+  try {
+    const tour = await runPairwiseSingleElimination({
+      domain: "COPY_HEADLINE",
+      candidateIds: keys,
+      formattedContext: args.formattedContext,
+      getPayload: (k) => {
+        const m = /^h(\d+)$/.exec(k);
+        const idx = m ? parseInt(m[1]!, 10) : 0;
+        const text = args.headlines[idx] ?? "";
+        return { key: k, headline: text };
+      },
+    });
 
-  const repair = await repairJsonWithProvider(
-    provider,
-    first.text,
-    shapeHint,
-    summarizeZodError(parsed.error),
-    8192,
-  );
-  parsed = parseOutput(repair.text);
-  if (parsed.ok) {
-    return normalizeJudgeOutput(parsed.data, keys);
+    const primary = tour.championId;
+    const alts: string[] = [];
+    if (tour.runnerUpId && tour.runnerUpId !== primary) alts.push(tour.runnerUpId);
+    if (
+      tour.thirdPlaceId &&
+      tour.thirdPlaceId !== primary &&
+      !alts.includes(tour.thirdPlaceId)
+    ) {
+      alts.push(tour.thirdPlaceId);
+    }
+    for (const k of keys) {
+      if (alts.length >= 2) break;
+      if (k !== primary && !alts.includes(k)) alts.push(k);
+    }
+
+    const ranked = [primary, ...alts.filter((k) => k !== primary)];
+    for (const k of keys) {
+      if (!ranked.includes(k)) ranked.push(k);
+    }
+
+    const out: CopyJudgeOutput = {
+      rankedHeadlineKeys: ranked,
+      primaryHeadlineKey: primary,
+      alternateHeadlineKeys: alts.slice(0, 2),
+      scores: tour.derivedScores,
+      selectionRationale: [
+        tour.winningRationale,
+        "",
+        `Headline tournament: ${tour.comparisons.length} pairwise match(es); champion ${primary}.`,
+      ]
+        .join("\n")
+        .trim(),
+      pairwiseComparisons: tour.comparisons,
+      tournamentWinningRationale: tour.winningRationale,
+    };
+    return normalizeJudgeOutput(out, keys);
+  } catch {
+    return fallbackJudge(keys);
   }
-  return fallbackJudge(keys);
 }

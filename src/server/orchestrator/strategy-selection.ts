@@ -1,4 +1,5 @@
 import type { StrategistJudgeOutput } from "@/server/agents/strategist-judge";
+import type { PairwiseComparisonRecord } from "@/lib/creative/pairwise-tournament";
 
 export type StrategyCreativeSelectionMeta = {
   rankedFrameworkIds: string[];
@@ -6,6 +7,8 @@ export type StrategyCreativeSelectionMeta = {
   alternateFrameworkIds: string[];
   scores: StrategistJudgeOutput["scores"];
   selectionRationale: string;
+  pairwiseComparisons: PairwiseComparisonRecord[];
+  tournamentWinningRationale: string;
 };
 
 /**
@@ -65,6 +68,9 @@ export function mergeStrategySelectionIntoArtifact(
     alternateFrameworkIds: alternates.filter((id) => id !== primary).slice(0, 2),
     scores: judge.scores,
     selectionRationale: judge.selectionRationale,
+    pairwiseComparisons: judge.pairwiseComparisons ?? [],
+    tournamentWinningRationale:
+      judge.tournamentWinningRationale ?? judge.selectionRationale.slice(0, 500),
   };
 
   return {
