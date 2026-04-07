@@ -63,6 +63,8 @@ export function StudioExploreAlternatives({
   hasBrandVisualStyle,
   showVisualGenerationModule,
   visualLayout = "panel",
+  /** When true, section is always expanded (no disclosure). */
+  alwaysExpanded = false,
 }: {
   clientId: string;
   briefId: string;
@@ -83,6 +85,7 @@ export function StudioExploreAlternatives({
   showVisualGenerationModule: boolean;
   /** Larger grid + softer chrome for campaign-first Studio */
   visualLayout?: "panel" | "campaign";
+  alwaysExpanded?: boolean;
 }) {
   const canGenerate =
     hasPromptPackage &&
@@ -95,29 +98,11 @@ export function StudioExploreAlternatives({
     (a) => !a.composed && promptPackageArtifactId && a.sourceArtifactId === promptPackageArtifactId,
   ).length;
 
-  return (
-    <div id="studio-image-generation">
-      <DisclosureSection
-        title={
-          showVisualGenerationModule
-            ? visualLayout === "campaign"
-              ? "Visuals & layouts"
-              : "Visual generation & alternatives"
-            : "Additional outputs"
-        }
-        subtitle={
-          showVisualGenerationModule
-            ? visualLayout === "campaign"
-              ? "Generate frames, pick a hero, build finished ads"
-              : "Frames, finishing pass, references — when this engagement includes visuals"
-            : "Decisions and extras when not running a full visual pipeline"
-        }
-        defaultOpen={defaultOpen}
-      >
+  const inner = (
         <div
           className={
             visualLayout === "campaign"
-              ? "space-y-8 py-2"
+              ? "space-y-10 py-2"
               : "space-y-6 rounded-2xl border border-zinc-800/80 bg-zinc-950/40 p-5"
           }
         >
@@ -155,7 +140,7 @@ export function StudioExploreAlternatives({
         {showVisualGenerationModule ? (
         <div>
           <p className="text-sm text-zinc-400">
-            After you approve <strong className="text-zinc-200">Visual direction</strong> in{" "}
+            After you lock in <strong className="text-zinc-200">Visual world</strong> in{" "}
             <a href="#studio-workspace" className="text-sky-400 underline">
               Workspace
             </a>
@@ -185,7 +170,7 @@ export function StudioExploreAlternatives({
         ) : null}
 
         {showVisualGenerationModule && !hasVisualSpec && visualDirectionStatus == null ? (
-          <p className="text-sm text-zinc-500">Run the workflow until Visual direction exists.</p>
+          <p className="text-sm text-zinc-500">Generate the campaign until the visual world exists.</p>
         ) : null}
 
         {showVisualGenerationModule && hasVisualSpec && !hasPromptPackage ? (
@@ -194,7 +179,7 @@ export function StudioExploreAlternatives({
               <>
                 <p className="font-medium text-amber-50">Waiting on your approval</p>
                 <p className="mt-1 text-amber-100/85">
-                  Approve Visual direction in{" "}
+                  Approve visual world in{" "}
                   <a href="#studio-workspace" className="font-medium text-amber-200 underline">
                     Workspace
                   </a>{" "}
@@ -203,7 +188,7 @@ export function StudioExploreAlternatives({
               </>
             ) : (
                 <p className="text-amber-100/85">
-                Visual direction isn&apos;t ready yet — check{" "}
+                Visual world isn&apos;t ready yet — check{" "}
                 <a href="#studio-workspace" className="font-medium text-amber-200 underline">
                   Workspace
                 </a>
@@ -264,6 +249,7 @@ export function StudioExploreAlternatives({
               composeDefaultCta={composeDefaultCta}
               layout={visualLayout === "campaign" ? "campaign" : "panel"}
               panelTitle={visualLayout === "campaign" ? "Frames" : "Frames & finishing"}
+              hideRawGrid={visualLayout === "campaign" && alwaysExpanded}
               assets={visualAssets.map((va) => ({
                 id: va.id,
                 status: va.status,
@@ -302,6 +288,44 @@ export function StudioExploreAlternatives({
           </p>
         ) : null}
         </div>
+  );
+
+  if (alwaysExpanded && showVisualGenerationModule) {
+    return (
+      <div id="studio-image-generation" className="space-y-6">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+            Visual world & final layouts
+          </p>
+          <p className="mt-2 text-sm text-zinc-500">
+            References, generation, and finished ad formats — refine your hero and exports here.
+          </p>
+        </div>
+        {inner}
+      </div>
+    );
+  }
+
+  return (
+    <div id="studio-image-generation">
+      <DisclosureSection
+        title={
+          showVisualGenerationModule
+            ? visualLayout === "campaign"
+              ? "Visuals & layouts"
+              : "Visual generation & alternatives"
+            : "Additional outputs"
+        }
+        subtitle={
+          showVisualGenerationModule
+            ? visualLayout === "campaign"
+              ? "Generate frames, pick a hero, build finished ads"
+              : "Frames, finishing pass, references — when this engagement includes visuals"
+            : "Decisions and extras when not running a full visual pipeline"
+        }
+        defaultOpen={defaultOpen}
+      >
+        {inner}
       </DisclosureSection>
     </div>
   );

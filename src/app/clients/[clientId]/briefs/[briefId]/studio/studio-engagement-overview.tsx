@@ -12,7 +12,7 @@ export function StudioEngagementOverview({ plan }: { plan: BriefWorkPlan }) {
 
   const moduleChips: { id: string; label: string; active: boolean }[] = [
     { id: "identity", label: "Identity studio", active: plan.showIdentityStudio },
-    { id: "strategy", label: "Strategy layer", active: true },
+    { id: "strategy", label: "Campaign idea", active: true },
     { id: "campaign", label: "Campaign creative", active: plan.showCampaignCreative },
     { id: "visual", label: "Visual generation", active: plan.showImageGeneration },
     { id: "copy", label: "Copy module", active: plan.showCopyModule },

@@ -1,45 +1,37 @@
 import type { ParsedCopyCampaign } from "./studio-copy-campaign";
 
+/**
+ * Headline alternates only — primary + body live in campaign ATF.
+ */
 export function StudioCopyHeadlines({ parsed }: { parsed: ParsedCopyCampaign | null }) {
-  if (!parsed?.primaryHeadline) {
+  if (!parsed?.alternateHeadlines.length) {
     return (
-      <section id="studio-copy" className="py-4">
+      <section id="studio-copy-more" className="space-y-3 py-6">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-          Copy
+          More headline options
         </p>
-        <p className="mt-3 text-sm text-zinc-500">
-          Headlines land here after copy development — they will lead your layouts and pitch.
+        <p className="text-sm text-zinc-500">
+          Alternate lines will list here after messaging runs.
         </p>
       </section>
     );
   }
 
   return (
-    <section id="studio-copy" className="space-y-8 py-4">
-      <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-          Copy
-        </p>
-        <p className="mt-2 text-xs text-zinc-500">Primary line</p>
-        <p className="mt-3 max-w-4xl text-2xl font-semibold leading-snug tracking-tight text-zinc-50 sm:text-3xl">
-          {parsed.primaryHeadline}
-        </p>
-      </div>
-      {parsed.alternateHeadlines.length > 0 ? (
-        <div>
-          <p className="text-xs font-medium text-zinc-500">Alternates</p>
-          <ul className="mt-3 space-y-3">
-            {parsed.alternateHeadlines.map((h, i) => (
-              <li
-                key={i}
-                className="border-l-2 border-zinc-700 pl-4 text-base leading-snug text-zinc-300"
-              >
-                {h}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+    <section id="studio-copy-more" className="space-y-5 py-6">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+        More headline options
+      </p>
+      <ul className="space-y-4">
+        {parsed.alternateHeadlines.map((h, i) => (
+          <li
+            key={i}
+            className="border-l-2 border-zinc-600/80 pl-5 text-lg leading-snug text-zinc-200 sm:text-xl"
+          >
+            {h}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

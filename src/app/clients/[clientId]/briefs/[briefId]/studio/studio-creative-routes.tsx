@@ -39,7 +39,7 @@ export function StudioCreativeRouteSections({
     return (
       <div className="rounded-2xl border border-zinc-800/80 bg-zinc-950/40 px-6 py-10 text-center">
         <p className="text-sm text-zinc-500">
-          Creative routes will show here after concepting runs.
+          Creative routes will show here once the campaign generates them.
         </p>
       </div>
     );

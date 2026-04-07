@@ -11,7 +11,7 @@ import {
   resetTaskReadyAction,
   retryTaskGenerationAction,
 } from "@/app/actions/workflow";
-import { STAGE_LABELS } from "@/lib/workflow-display";
+import { STAGE_LABELS, STUDIO_STAGE_LABELS } from "@/lib/workflow-display";
 import type { TaskStatus, WorkflowStage } from "@/generated/prisma/client";
 import { FieldHint, Label, Textarea } from "@/components/ui/forms";
 
@@ -20,12 +20,14 @@ function ActionButton({
   pending,
   disabled,
   variant = "dark",
+  size = "md",
   onClick,
 }: {
   children: React.ReactNode;
   pending: boolean;
   disabled?: boolean;
   variant?: "dark" | "light" | "danger";
+  size?: "md" | "lg";
   onClick: () => void;
 }) {
   const v =
@@ -34,12 +36,14 @@ function ActionButton({
       : variant === "danger"
         ? "border border-red-500/40 bg-red-950/40 text-red-100 hover:bg-red-950/60 disabled:opacity-50"
         : "border border-zinc-600 bg-zinc-950/60 text-zinc-100 hover:border-zinc-500 disabled:opacity-50";
+  const sz =
+    size === "lg" ? "rounded-xl px-6 py-3.5 text-base font-semibold" : "rounded-lg px-3.5 py-2 text-sm font-medium";
   return (
     <button
       type="button"
       disabled={disabled || pending}
       onClick={onClick}
-      className={`rounded-lg px-3.5 py-2 text-sm font-medium ${v}`}
+      className={`${sz} ${v}`}
     >
       {pending ? "…" : children}
     </button>
@@ -67,34 +71,12 @@ function Notice({
 function stageLabelForTaskId(
   taskId: string,
   tasks: { id: string; stage: WorkflowStage }[],
+  creative: boolean,
 ): string {
   const t = tasks.find((x) => x.id === taskId);
   if (!t) return taskId;
-  return STAGE_LABELS[t.stage as keyof typeof STAGE_LABELS] ?? t.stage;
-}
-
-function primaryActionLabel(stage: WorkflowStage | null | undefined): string {
-  switch (stage) {
-    case "BRIEF_INTAKE":
-      return "Continue";
-    case "STRATEGY":
-      return "Generate ideas";
-    case "IDENTITY_STRATEGY":
-    case "IDENTITY_ROUTING":
-      return "Develop identity";
-    case "CONCEPTING":
-      return "Develop concepts";
-    case "VISUAL_DIRECTION":
-      return "Create visuals";
-    case "COPY_DEVELOPMENT":
-      return "Write copy";
-    case "REVIEW":
-      return "Run review";
-    case "EXPORT":
-      return "Build campaign";
-    default:
-      return "Continue";
-  }
+  const map = creative ? STUDIO_STAGE_LABELS : STAGE_LABELS;
+  return map[t.stage as keyof typeof STAGE_LABELS] ?? t.stage;
 }
 
 export function WorkflowControls({
@@ -108,6 +90,7 @@ export function WorkflowControls({
   brandReadiness,
   timelineTasks,
   reviewApproveGate,
+  variant = "workspace",
 }: {
   clientId: string;
   briefId: string;
@@ -132,7 +115,10 @@ export function WorkflowControls({
     qualityBlocked: boolean;
     qualityReasons: string[];
   } | null;
+  /** `campaign` = single primary “Generate campaign”, minimal chrome */
+  variant?: "workspace" | "campaign";
 }) {
+  const campaign = variant === "campaign";
   const router = useRouter();
   const [pending, start] = useTransition();
   const [notice, setNotice] = useState<{
@@ -168,7 +154,7 @@ export function WorkflowControls({
 
   const nextExecutableCount = nextExecutableTaskIds.length;
   const reviewStageLabel = reviewTaskId
-    ? stageLabelForTaskId(reviewTaskId, timelineTasks)
+    ? stageLabelForTaskId(reviewTaskId, timelineTasks, campaign)
     : null;
 
   const failedTasks = timelineTasks.filter((t) => t.status === "FAILED");
@@ -188,14 +174,26 @@ export function WorkflowControls({
   return (
     <div
       id="studio-workspace"
-      className="rounded-2xl bg-zinc-900/25 px-5 py-6 sm:px-6 sm:py-7"
+      className={
+        campaign
+          ? "px-0 py-2 sm:py-4"
+          : "rounded-2xl bg-zinc-900/25 px-5 py-6 sm:px-6 sm:py-7"
+      }
     >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-        Workspace
-      </p>
-      <p className="mt-2 text-sm text-zinc-500">
-        Generate, choose, refine — one focused move at a time.
-      </p>
+      {!campaign ? (
+        <>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+            Workspace
+          </p>
+          <p className="mt-2 text-sm text-zinc-500">
+            Generate, choose, refine — one focused move at a time.
+          </p>
+        </>
+      ) : (
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+          Refinement
+        </p>
+      )}
 
       {!brandReadiness.ok &&
       nextExecutableStage != null &&
@@ -234,11 +232,12 @@ export function WorkflowControls({
           <div>
             <ActionButton
               pending={pending}
+              size={campaign ? "lg" : "md"}
               onClick={() =>
                 run(() => initializeWorkflowAction(clientId, briefId))
               }
             >
-              Start campaign workspace
+              {campaign ? "Generate campaign" : "Start campaign workspace"}
             </ActionButton>
           </div>
         ) : (
@@ -250,7 +249,7 @@ export function WorkflowControls({
                   {failedTasks.map((t) => (
                     <li key={t.id}>
                       <span className="font-medium text-red-50">
-                        {STAGE_LABELS[t.stage]}
+                        {campaign ? STUDIO_STAGE_LABELS[t.stage] : STAGE_LABELS[t.stage]}
                       </span>
                       {t.lastFailureType ? (
                         <span className="ml-1 text-red-200/70">({t.lastFailureType})</span>
@@ -282,6 +281,7 @@ export function WorkflowControls({
             <div>
               <ActionButton
                 pending={pending}
+                size={campaign ? "lg" : "md"}
                 disabled={
                   nextExecutableCount === 0 ||
                   failedTasks.length > 0 ||
@@ -294,12 +294,19 @@ export function WorkflowControls({
                   run(() => executeNextTaskAction(clientId, briefId))
                 }
               >
-                {primaryActionLabel(nextExecutableStage)}
+                {campaign ? "Generate campaign" : "Continue"}
               </ActionButton>
-              <FieldHint>
-                Moves the work forward in order. Brand guide must be complete before AI
-                stages.
-              </FieldHint>
+              {!campaign ? (
+                <FieldHint>
+                  Moves the work forward in order. Brand guide must be complete before AI
+                  stages.
+                </FieldHint>
+              ) : (
+                <p className="mt-3 max-w-xl text-sm text-zinc-500">
+                  We build the campaign in sequence behind the scenes — brand guide required
+                  before AI stages.
+                </p>
+              )}
             </div>
 
             {reviewTaskId ? (
@@ -452,7 +459,7 @@ export function WorkflowControls({
                 <p className="text-sm font-medium text-zinc-100">Refine in progress</p>
                 <p className="mt-0.5 text-xs text-zinc-500">
                   <span className="font-medium">
-                    {stageLabelForTaskId(reviseTaskId, timelineTasks)}
+                    {stageLabelForTaskId(reviseTaskId, timelineTasks, campaign)}
                   </span>{" "}
                   — reset when you&apos;re ready, then generate again.
                 </p>

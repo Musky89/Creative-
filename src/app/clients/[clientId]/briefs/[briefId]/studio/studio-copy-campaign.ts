@@ -9,6 +9,8 @@ function isRecord(x: unknown): x is Record<string, unknown> {
 export type ParsedCopyCampaign = {
   primaryHeadline: string | null;
   alternateHeadlines: string[];
+  /** First body variant for campaign messaging block */
+  bodyCopyLead: string | null;
 };
 
 export function parseCopyCampaign(content: unknown): ParsedCopyCampaign | null {
@@ -17,6 +19,11 @@ export function parseCopyCampaign(content: unknown): ParsedCopyCampaign | null {
   if (!Array.isArray(heads)) return null;
   const headlineOptions = heads.map((h) => String(h).trim()).filter(Boolean);
   if (headlineOptions.length === 0) return null;
+
+  const bodies = Array.isArray(content.bodyCopyOptions)
+    ? (content.bodyCopyOptions as unknown[]).map((x) => String(x).trim()).filter(Boolean)
+    : [];
+  const bodyCopyLead = bodies[0] ? bodies[0]!.slice(0, 420) : null;
 
   const sel = content._agenticforceSelection;
   let primaryIdx = 0;
@@ -48,5 +55,9 @@ export function parseCopyCampaign(content: unknown): ParsedCopyCampaign | null {
     }
   }
 
-  return { primaryHeadline, alternateHeadlines: alternateHeadlines.slice(0, 4) };
+  return {
+    primaryHeadline,
+    alternateHeadlines: alternateHeadlines.slice(0, 4),
+    bodyCopyLead,
+  };
 }

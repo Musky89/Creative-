@@ -3,6 +3,7 @@ import type { BriefForWorkPlan } from "@/lib/workflow/brief-work-plan";
 import {
   CREATIVE_TASK_STATUS_LABELS,
   STAGE_LABELS,
+  STUDIO_STAGE_LABELS,
   TASK_STATUS_LABELS,
   workflowStageOrderForBrief,
 } from "@/lib/workflow-display";
@@ -54,7 +55,7 @@ export function WorkflowTimeline({
     <ol className="space-y-0">
       {order.map((stage, idx) => {
         const task = byStage.get(stage);
-        const label = STAGE_LABELS[stage];
+        const label = creativeLabels ? STUDIO_STAGE_LABELS[stage] : STAGE_LABELS[stage];
         const isLast = idx === order.length - 1;
         const active =
           task?.status === "RUNNING" ||

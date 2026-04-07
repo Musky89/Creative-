@@ -25,7 +25,7 @@ export function StudioPipelineRail({
       <details className="group rounded-2xl bg-zinc-900/20 lg:sticky lg:top-6 open:bg-zinc-900/30">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-left [&::-webkit-details-marker]:hidden">
           <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">
-            Progress
+            Build steps
           </span>
           <span
             className="text-zinc-600 transition-transform group-open:rotate-180"

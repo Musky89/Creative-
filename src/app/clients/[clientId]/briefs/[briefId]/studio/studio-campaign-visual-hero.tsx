@@ -3,16 +3,25 @@
 export function StudioCampaignVisualHero({
   clientId,
   imageUrl,
+  /** Shorter hero when stacked with idea + headline above the fold */
+  compact = false,
 }: {
   clientId: string;
   imageUrl: string | null;
+  compact?: boolean;
 }) {
   return (
     <section
       id="studio-campaign-visual"
-      className="overflow-hidden rounded-3xl bg-zinc-950/40 ring-1 ring-white/5"
+      className={`overflow-hidden bg-zinc-950/30 ${compact ? "rounded-2xl" : "rounded-3xl ring-1 ring-white/5"}`}
     >
-      <div className="relative aspect-[21/9] min-h-[220px] w-full bg-zinc-950 sm:min-h-[280px] lg:aspect-[2.4/1] lg:min-h-[320px]">
+      <div
+        className={
+          compact
+            ? "relative aspect-[2.2/1] min-h-[140px] w-full bg-zinc-950 sm:min-h-[160px] lg:aspect-[2.5/1] lg:min-h-[180px]"
+            : "relative aspect-[21/9] min-h-[220px] w-full bg-zinc-950 sm:min-h-[280px] lg:aspect-[2.4/1] lg:min-h-[320px]"
+        }
+      >
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

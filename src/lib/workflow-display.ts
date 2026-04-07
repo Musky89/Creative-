@@ -39,6 +39,19 @@ export const STAGE_LABELS: Record<WorkflowStage, string> = {
   EXPORT: "Export",
 };
 
+/** Studio campaign view — creative director language */
+export const STUDIO_STAGE_LABELS: Record<WorkflowStage, string> = {
+  BRIEF_INTAKE: "Brief",
+  STRATEGY: "Campaign idea",
+  IDENTITY_STRATEGY: "Identity strategy",
+  IDENTITY_ROUTING: "Identity routes",
+  CONCEPTING: "Creative routes",
+  VISUAL_DIRECTION: "Visual world",
+  COPY_DEVELOPMENT: "Messaging",
+  REVIEW: "Brand check",
+  EXPORT: "Final assets",
+};
+
 export const TASK_STATUS_LABELS: Record<string, string> = {
   PENDING: "Pending",
   READY: "Ready",

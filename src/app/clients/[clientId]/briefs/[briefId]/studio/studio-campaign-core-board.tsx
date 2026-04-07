@@ -14,11 +14,11 @@ export function StudioCampaignCoreBoard({ core }: { core: CampaignCore | null })
         className="rounded-3xl bg-zinc-900/30 px-6 py-14 text-center sm:px-10 sm:py-16"
       >
         <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
-          Campaign core
+          Campaign idea
         </p>
         <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-zinc-500">
-          Your single-line idea, tension, and visual story will anchor everything here once
-          strategy is in place.
+          Your idea, tension, and visual story will sit here once the campaign idea is
+          generated.
         </p>
       </section>
     );
@@ -30,7 +30,7 @@ export function StudioCampaignCoreBoard({ core }: { core: CampaignCore | null })
       className="overflow-hidden rounded-3xl bg-gradient-to-b from-zinc-900/90 via-zinc-950 to-zinc-950 px-6 py-12 sm:px-12 sm:py-16"
     >
       <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
-        Campaign core
+        Campaign idea
       </p>
       <h2 className="mt-6 max-w-4xl text-3xl font-semibold leading-[1.12] tracking-tight text-zinc-50 sm:text-4xl md:text-[2.75rem]">
         {clip(core.singleLineIdea, 220)}

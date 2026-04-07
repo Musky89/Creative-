@@ -96,6 +96,8 @@ export function VisualAssetsPanel({
   compact = false,
   /** `campaign` = larger grid, less chrome, pitch-friendly copy */
   layout = "panel",
+  /** When true, omit the raw-variant grid (hero/alternates shown elsewhere). */
+  hideRawGrid = false,
 }: {
   clientId: string;
   briefId: string;
@@ -114,6 +116,7 @@ export function VisualAssetsPanel({
   /** Less top margin when nested under another card. */
   compact?: boolean;
   layout?: "panel" | "campaign";
+  hideRawGrid?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -538,6 +541,7 @@ export function VisualAssetsPanel({
         </p>
       ) : null}
 
+      {!hideRawGrid ? (
       <ul
         className={`mt-6 grid gap-5 ${isCampaign ? "sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2"} ${composedOutputs.length > 0 && !showRaw ? "hidden" : ""}`}
       >
@@ -678,6 +682,7 @@ export function VisualAssetsPanel({
           ))
         )}
       </ul>
+      ) : null}
     </div>
   );
 }

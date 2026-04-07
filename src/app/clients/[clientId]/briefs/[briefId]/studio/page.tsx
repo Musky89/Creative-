@@ -2,7 +2,10 @@ import { notFound } from "next/navigation";
 import type { ReviewStatus } from "@/generated/prisma/client";
 import { PageHeader } from "@/components/ui/section";
 import { DisclosureSection } from "@/components/ui/collapse";
-import { STAGE_LABELS, workflowStageOrderForBrief } from "@/lib/workflow-display";
+import {
+  STUDIO_STAGE_LABELS,
+  workflowStageOrderForBrief,
+} from "@/lib/workflow-display";
 import { getBriefForStudio } from "@/server/domain/briefs";
 import { assessBrandBibleReadiness } from "@/server/brand/readiness";
 import {
@@ -12,13 +15,12 @@ import {
 import { orchestrator } from "@/server/orchestrator/orchestrator-service";
 import { getReviewApproveGate } from "@/server/studio/review-approve-gate";
 import { WorkflowControls } from "@/components/workflow/workflow-controls";
-import { StudioNextCallout } from "./studio-next-callout";
 import { StudioArtifactsSection } from "./studio-artifacts-section";
 import { IdentityExportPanel } from "./identity-export-panel";
 import { getVisualGenerationReadiness } from "@/lib/studio/visual-generation-readiness";
 import { StudioCreativeRouteSections } from "./studio-creative-routes";
-import { StudioCampaignCoreBoard } from "./studio-campaign-core-board";
-import { StudioCampaignVisualHero } from "./studio-campaign-visual-hero";
+import { StudioCampaignAtf } from "./studio-campaign-atf";
+import { StudioCampaignVisualAlternates } from "./studio-campaign-visual-alternates";
 import { StudioCopyHeadlines } from "./studio-copy-headlines";
 import { parseCopyCampaign } from "./studio-copy-campaign";
 import { StudioPipelineRail } from "./studio-pipeline-rail";
@@ -44,6 +46,7 @@ import {
 import { StudioEngagementOverview } from "./studio-engagement-overview";
 import { loadCampaignCoreForBrief } from "@/server/campaign/load-campaign-core";
 import { getPrisma } from "@/server/db/prisma";
+import { computeCreativeConfidence } from "@/lib/studio/creative-confidence";
 
 function reviewStatusText(status: ReviewStatus) {
   const map: Record<ReviewStatus, string> = {
@@ -138,12 +141,6 @@ export default async function BriefStudioPage({
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
-  const taskLite = brief.tasks.map((t) => ({
-    status: t.status,
-    stage: t.stage,
-    requiresReview: t.requiresReview,
-  }));
-
   const hasIdentityArtifacts =
     workPlan.showIdentityStudio &&
     brief.tasks.some(
@@ -206,13 +203,6 @@ export default async function BriefStudioPage({
     visualDirectionTaskStatus: vdTask?.status ?? null,
     imageGenerationRelevant: workPlan.showImageGeneration,
   });
-
-  const visualDirectionAwaitingReview = vdTask?.status === "AWAITING_REVIEW";
-  const imageGenReady =
-    workPlan.showImageGeneration &&
-    !!promptPackageArtifactId &&
-    hasPromptPackage &&
-    visualGenReadiness.every((l) => l.level !== "block");
 
   const exportTask = brief.tasks.find((t) => t.stage === "EXPORT");
   const latestExportArt = exportTask?.artifacts
@@ -334,6 +324,32 @@ export default async function BriefStudioPage({
     Boolean(promptPackageArtifactId) &&
     composedHeroCandidates.length === 0;
 
+  const hasCampaignStarted =
+    hasWorkflow &&
+    (brief.tasks.some((t) => t.status !== "PENDING") ||
+      brief.tasks.some((t) => t.artifacts.length > 0));
+
+  const strategyTaskForConf = taskByStage.get("STRATEGY");
+  const latestStratArt = strategyTaskForConf?.artifacts
+    .filter((a) => a.type === "STRATEGY")
+    .sort((a, b) => b.version - a.version)[0];
+  const reviewTaskForConf = taskByStage.get("REVIEW");
+  const latestReviewArt = reviewTaskForConf?.artifacts
+    .filter((a) => a.type === "REVIEW_REPORT")
+    .sort((a, b) => b.version - a.version)[0];
+  const confidence = computeCreativeConfidence({
+    strategyContent: latestStratArt?.content ?? null,
+    conceptContent: latestConceptArt?.content ?? null,
+    copyContent: latestCopyArt?.content ?? null,
+    reviewContent: latestReviewArt?.content ?? null,
+  });
+
+  const heroAssetId =
+    composedHeroAsset?.id ??
+    (cdPickAsset?.id ?? null) ??
+    preferredRawHero?.id ??
+    null;
+
   return (
     <>
       <PageHeader
@@ -342,59 +358,81 @@ export default async function BriefStudioPage({
         tone="muted"
       />
 
-      <div className="mb-12 space-y-3">
-        <StudioEngagementOverview plan={workPlan} />
-        <StudioNextCallout
+      {workPlan.showCampaignCreative ? (
+        <StudioCampaignAtf
           clientId={clientId}
-          briefId={briefId}
-          briefPlan={briefPlan}
-          hasWorkflow={hasWorkflow}
-          reviewTaskId={reviewTaskId}
-          reviseTaskId={reviseTaskId}
-          nextExecutableStage={nextExecutableStage}
-          tasks={taskLite}
-          visualDirectionAwaitingReview={visualDirectionAwaitingReview}
-          imageGenReady={imageGenReady}
+          campaignCore={campaignCore}
+          heroImageUrl={workPlan.showImageGeneration ? heroImageUrl : null}
+          showVisualHero={workPlan.showImageGeneration}
+          primaryHeadline={parsedCopy?.primaryHeadline ?? composeDefaultHeadline}
+          cta={composeDefaultCta}
+          bodyCopyLead={parsedCopy?.bodyCopyLead ?? null}
+          confidenceScore10={confidence.score10}
+          confidenceBullets={confidence.bullets}
+          hasCampaignStarted={hasCampaignStarted}
         />
-      </div>
+      ) : (
+        <div className="mb-16 rounded-3xl bg-zinc-900/20 px-8 py-14 text-center">
+          <p className="text-lg font-medium text-zinc-200">
+            Campaign creative isn&apos;t in scope for this engagement
+          </p>
+          <p className="mt-2 text-zinc-500">
+            Adjust workstreams on the brief or use the creative record below for this job type.
+          </p>
+        </div>
+      )}
 
-      <div className="flex flex-col gap-14 lg:flex-row lg:gap-12 xl:gap-16">
-        <StudioPipelineRail
-          hasWorkflow={hasWorkflow}
-          timelineTasks={timelineTasks}
-          nextExecutableTaskIds={nextExecutableTaskIds}
-          briefPlan={briefPlan}
-        />
+      {workPlan.showCampaignCreative ? (
+        <div className="mb-12 max-w-3xl">
+          <WorkflowControls
+            clientId={clientId}
+            briefId={briefId}
+            hasWorkflow={hasWorkflow}
+            nextExecutableTaskIds={nextExecutableTaskIds}
+            nextExecutableStage={nextExecutableStage}
+            reviewTaskId={reviewTaskId}
+            reviseTaskId={reviseTaskId}
+            brandReadiness={brandReadiness}
+            timelineTasks={timelineTasks}
+            reviewApproveGate={reviewApproveGate}
+            variant="campaign"
+          />
+        </div>
+      ) : null}
 
-        <div className="min-w-0 flex-1 space-y-20 lg:space-y-24">
-          <StudioCampaignCoreBoard core={campaignCore} />
+      <div className="flex flex-col gap-16 lg:flex-row lg:gap-14 xl:gap-20">
+        <div className="order-2 space-y-4 lg:order-1 lg:w-48 lg:shrink-0 xl:w-52">
+          <p className="hidden text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-600 lg:block">
+            Behind the scenes
+          </p>
+          <StudioEngagementOverview plan={workPlan} />
+          <StudioPipelineRail
+            hasWorkflow={hasWorkflow}
+            timelineTasks={timelineTasks}
+            nextExecutableTaskIds={nextExecutableTaskIds}
+            briefPlan={briefPlan}
+          />
+        </div>
+
+        <div className="order-1 min-w-0 flex-1 space-y-20 lg:order-2 lg:space-y-28">
+          {workPlan.showCampaignCreative && workPlan.showImageGeneration ? (
+            <StudioCampaignVisualAlternates
+              clientId={clientId}
+              heroKey={heroAssetId}
+              assets={pkgAssets}
+            />
+          ) : null}
 
           {workPlan.showCampaignCreative ? (
-            <>
-              {workPlan.showImageGeneration ? (
-                <StudioCampaignVisualHero
-                  clientId={clientId}
-                  imageUrl={heroImageUrl}
-                />
-              ) : null}
+            <StudioCopyHeadlines parsed={parsedCopy} />
+          ) : null}
 
-              <StudioCopyHeadlines parsed={parsedCopy} />
-
-              <StudioCreativeRouteSections
-                parsed={parsedConcepts}
-                conceptTaskStatus={conceptTask?.status ?? null}
-              />
-            </>
-          ) : (
-            <div className="rounded-3xl bg-zinc-900/25 px-8 py-12 text-center">
-              <p className="text-sm font-medium text-zinc-200">
-                Campaign creative isn&apos;t in scope for this engagement
-              </p>
-              <p className="mt-2 text-sm text-zinc-500">
-                Focus on strategy and deliverables below — or add visual workstreams on the brief.
-              </p>
-            </div>
-          )}
+          {workPlan.showCampaignCreative ? (
+            <StudioCreativeRouteSections
+              parsed={parsedConcepts}
+              conceptTaskStatus={conceptTask?.status ?? null}
+            />
+          ) : null}
 
           {workPlan.showImageGeneration ? (
             <StudioExploreAlternatives
@@ -416,22 +454,25 @@ export default async function BriefStudioPage({
               hasBrandVisualStyle={hasBrandVisualStyle}
               showVisualGenerationModule={workPlan.showImageGeneration}
               visualLayout="campaign"
+              alwaysExpanded
             />
           ) : null}
 
           <div id="studio-workspace-anchor" className="scroll-mt-8 space-y-6">
-            <WorkflowControls
-              clientId={clientId}
-              briefId={briefId}
-              hasWorkflow={hasWorkflow}
-              nextExecutableTaskIds={nextExecutableTaskIds}
-              nextExecutableStage={nextExecutableStage}
-              reviewTaskId={reviewTaskId}
-              reviseTaskId={reviseTaskId}
-              brandReadiness={brandReadiness}
-              timelineTasks={timelineTasks}
-              reviewApproveGate={reviewApproveGate}
-            />
+            {workPlan.showCampaignCreative ? null : (
+              <WorkflowControls
+                clientId={clientId}
+                briefId={briefId}
+                hasWorkflow={hasWorkflow}
+                nextExecutableTaskIds={nextExecutableTaskIds}
+                nextExecutableStage={nextExecutableStage}
+                reviewTaskId={reviewTaskId}
+                reviseTaskId={reviseTaskId}
+                brandReadiness={brandReadiness}
+                timelineTasks={timelineTasks}
+                reviewApproveGate={reviewApproveGate}
+              />
+            )}
           </div>
 
           <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
@@ -580,7 +621,9 @@ export default async function BriefStudioPage({
                       <span className="font-medium text-zinc-200">
                         {reviewStatusText(r.status)}
                       </span>
-                      <span className="text-xs">· {STAGE_LABELS[r.taskStage]}</span>
+                      <span className="text-xs">
+                        · {STUDIO_STAGE_LABELS[r.taskStage]}
+                      </span>
                       <span className="text-xs text-zinc-500">
                         {new Date(r.createdAt).toLocaleDateString()}
                       </span>

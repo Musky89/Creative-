@@ -5,7 +5,10 @@ import type {
 import { ArtifactByType } from "@/components/artifacts/artifact-viewer";
 import { DisclosureSection } from "@/components/ui/collapse";
 import { Card } from "@/components/ui/section";
-import { STAGE_LABELS, type WorkflowStageOrder } from "@/lib/workflow-display";
+import {
+  STUDIO_STAGE_LABELS,
+  type WorkflowStageOrder,
+} from "@/lib/workflow-display";
 import type { BriefForWorkPlan } from "@/lib/workflow/brief-work-plan";
 import { getArtifactTypeForStudioStage } from "@/server/orchestrator/v1-pipeline";
 import { IdentityRouteSelectionWrapper } from "./identity-route-selection-wrapper";
@@ -50,10 +53,10 @@ export function StudioArtifactsSection({
   return (
     <section className="space-y-3">
       <h2 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-        Creative
+        Full creative record
       </h2>
       <p className="text-xs text-zinc-600">
-        Stage-by-stage records — expand a stage to review the full creative.
+        Everything the system produced — expand a section for detail.
       </p>
       <div className="space-y-2">
         {stageOrder.map((stage) => {
@@ -76,7 +79,7 @@ export function StudioArtifactsSection({
             return (
               <div key={stage} className="space-y-3">
                 <DisclosureSection
-                  title={STAGE_LABELS[stage]}
+                  title={STUDIO_STAGE_LABELS[stage]}
                   subtitle={
                     hasSpec
                       ? "Visual spec — expand to review"
@@ -111,7 +114,7 @@ export function StudioArtifactsSection({
                               >
                                 Frames &amp; finishing
                               </a>{" "}
-                              after you approve Visual direction in{" "}
+                              after you approve visual world in{" "}
                               <a href="#studio-workspace" className="text-sky-400 underline">
                                 Workspace
                               </a>
@@ -150,7 +153,7 @@ export function StudioArtifactsSection({
           }
 
           const hasAny = art;
-          const label = STAGE_LABELS[stage];
+          const label = STUDIO_STAGE_LABELS[stage];
           const sectionId =
             stage === "IDENTITY_STRATEGY"
               ? "studio-identity-strategy"
