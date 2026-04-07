@@ -21,6 +21,7 @@ import {
   formatCompositionControlBlock,
   formatCompositionLeadIn,
 } from "@/lib/visual/reference-composition-profile";
+import { formatCampaignCoreSection } from "@/lib/campaign/campaign-core";
 
 function traitsUsedFromProfile(p: BrandVisualProfileForPrompt): string[] {
   return [
@@ -219,10 +220,16 @@ export function buildVisualPromptPackage(
           .join("\n")
       : "";
 
+  const campaignBlock =
+    input.campaignCore != null
+      ? `${formatCampaignCoreSection(input.campaignCore)}\n`
+      : "";
+
   /** Composition lead-in first so every provider sees framing/angle before anti-slop copy. */
   const primaryPrompt = [
     compositionLeadIn,
     "",
+    campaignBlock,
     VISUAL_SLOP_AND_REALISM_BLOCK,
     "",
     brandDnaBlock ? `${brandDnaBlock}\n` : "",
@@ -322,10 +329,22 @@ export function buildVisualPromptPackage(
       .join("\n"),
   );
 
+  const brandAlignmentExtras: string[] = [];
+  if (brandVisualLines.length) {
+    brandAlignmentExtras.push(
+      `Brand OS visual anchors: ${brandVisualLines.join(" | ")}`,
+    );
+  }
+  if (input.campaignCore) {
+    const sli = input.campaignCore.singleLineIdea;
+    brandAlignmentExtras.push(
+      `Campaign core (must read as one idea with copy/concept): ${sli.slice(0, 220)}${sli.length > 220 ? "…" : ""}`,
+    );
+  }
   const brandAlignmentNotes = joinLines(
     "Why this fits the brand (from spec + OS):",
     spec.whyItWorksForBrand,
-    brandVisualLines.length ? [`Brand OS visual anchors: ${brandVisualLines.join(" | ")}`] : undefined,
+    brandAlignmentExtras.length ? brandAlignmentExtras : undefined,
   );
 
   const profileNeg =
@@ -373,6 +392,7 @@ export function buildVisualPromptPackage(
       assembledAt: new Date().toISOString(),
       frameworkId: spec.frameworkUsed,
       conceptName: spec.conceptName,
+      campaignCorePresent: Boolean(input.campaignCore),
       referenceGrounding: referenceGroundingBlock ? true : false,
       brandVisualDna: brandDnaBlock ? true : false,
       visualModelRef: input.visualModelRef?.trim() || null,
@@ -394,6 +414,7 @@ export function buildVisualPromptPackage(
         : undefined,
     _visualModelRef: input.visualModelRef?.trim() || null,
     _referenceCompositionProfile: referenceCompositionProfile,
+    ...(input.campaignCore ? { campaignCore: input.campaignCore } : {}),
     providerVariants: {},
   };
 
@@ -420,6 +441,7 @@ export function buildVisualPromptPackage(
     _brandVisualProfileInfluence: payload._brandVisualProfileInfluence,
     _visualModelRef: payload._visualModelRef,
     _referenceCompositionProfile: payload._referenceCompositionProfile,
+    campaignCore: payload.campaignCore,
     providerVariants: payload.providerVariants,
   });
 

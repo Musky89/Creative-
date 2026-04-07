@@ -13,6 +13,7 @@ import {
   type BrandCreativeDnaForChecks,
 } from "@/lib/brand/creative-dna-tone-checks";
 import { mergeBadOutputBlacklistIssues } from "@/lib/brand/bad-output-blacklist";
+import { strategyCampaignCoreCohesionIssues } from "@/lib/campaign/campaign-core";
 import { z } from "zod";
 
 export const prePersistQualitySchema = z.object({
@@ -552,7 +553,7 @@ export function deterministicCopyChecks(content: Record<string, unknown>): Deter
 }
 
 export function deterministicStrategyChecks(content: Record<string, unknown>): DeterministicQualityResult {
-  const issues: string[] = [];
+  const issues: string[] = [...strategyCampaignCoreCohesionIssues(content)];
   const prop = String(content.proposition ?? "");
   if (prop.length < 40) {
     issues.push("Proposition is too short to be single-minded and testable.");

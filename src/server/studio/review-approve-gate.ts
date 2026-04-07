@@ -4,6 +4,7 @@ import {
   validateArtifactContent,
 } from "@/server/orchestrator/artifact-validation";
 import { getV1PipelineRow } from "@/server/orchestrator/v1-pipeline";
+import { loadCampaignCoreForBrief } from "@/server/campaign/load-campaign-core";
 
 export type ReviewApproveGate = {
   canApprove: boolean;
@@ -36,7 +37,10 @@ export async function getReviewApproveGate(args: {
     where: { taskId: task.id, type: row.artifactType },
     orderBy: { version: "desc" },
   });
-  const structural = validateArtifactContent(row.artifactType, art?.content);
+  const campaignCore = await loadCampaignCoreForBrief(prisma, args.briefId);
+  const structural = validateArtifactContent(row.artifactType, art?.content, {
+    campaignCore,
+  });
   const quality = reviewArtifactQualityBlocksApproval(art?.content);
   const canApprove = structural.ok && !quality.blocked;
   return {

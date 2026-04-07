@@ -1,5 +1,10 @@
 import type { ArtifactType } from "@/generated/prisma/client";
 import { z } from "zod";
+import type { CampaignCore } from "@/lib/campaign/campaign-core";
+import {
+  campaignCoreDriftIssues,
+  strategyCampaignCoreCohesionIssues,
+} from "@/lib/campaign/campaign-core";
 import {
   conceptArtifactSchema,
   copyArtifactSchema,
@@ -57,6 +62,7 @@ const exportArtifactSchema = z
 export function validateArtifactContent(
   artifactType: ArtifactType,
   content: unknown,
+  options?: { campaignCore?: CampaignCore | null },
 ): ArtifactValidationResult {
   if (content === null || content === undefined) {
     return { ok: false, type: "EMPTY", message: "Artifact content is missing." };
@@ -155,6 +161,56 @@ export function validateArtifactContent(
     };
   }
 
+  if (artifactType === "STRATEGY") {
+    const stratIssues = strategyCampaignCoreCohesionIssues(stripped);
+    if (stratIssues.length > 0) {
+      return {
+        ok: false,
+        type: "VALIDATION",
+        message: `Campaign coherence: ${stratIssues[0]}`,
+        zodIssues: stratIssues.join(" | "),
+      };
+    }
+  }
+
+  const core = options?.campaignCore ?? null;
+  if (core) {
+    const drift =
+      artifactType === "CONCEPT"
+        ? campaignCoreDriftIssues({
+            artifactType: "CONCEPT",
+            content: stripped,
+            core,
+          })
+        : artifactType === "COPY"
+          ? campaignCoreDriftIssues({
+              artifactType: "COPY",
+              content: stripped,
+              core,
+            })
+          : artifactType === "VISUAL_SPEC"
+            ? campaignCoreDriftIssues({
+                artifactType: "VISUAL_SPEC",
+                content: stripped,
+                core,
+              })
+            : artifactType === "VISUAL_PROMPT_PACKAGE"
+              ? campaignCoreDriftIssues({
+                  artifactType: "VISUAL_PROMPT_PACKAGE",
+                  content: stripped,
+                  core,
+                })
+              : [];
+    if (drift.length > 0) {
+      return {
+        ok: false,
+        type: "VALIDATION",
+        message: `Campaign coherence: output drifts from Campaign Core — ${drift[0]}`,
+        zodIssues: drift.join(" | "),
+      };
+    }
+  }
+
   return { ok: true };
 }
 
@@ -191,6 +247,15 @@ export function reviewArtifactQualityBlocksApproval(content: unknown): {
   }
   if (rr.data.regenerationRecommended === true) {
     reasons.push("Regeneration was recommended for this output.");
+  }
+  if (rr.data.narrativeCoherence === "DRIFT") {
+    reasons.push("Brand Guardian: narrative drift vs Campaign Core.");
+  }
+  if (rr.data.toneCoherence === "DRIFT") {
+    reasons.push("Brand Guardian: tone drift vs Campaign Core / Brand OS.");
+  }
+  if (rr.data.visualCoherence === "DRIFT") {
+    reasons.push("Brand Guardian: visual drift vs Campaign Core / VISUAL_SPEC.");
   }
   return { blocked: reasons.length > 0, reasons };
 }

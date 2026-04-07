@@ -27,7 +27,7 @@ export const copywriterAgent: AgentDefinition<typeof copyArtifactSchema> = {
     [
       options.canonUserSection,
       "",
-      "Use upstream STRATEGY and CONCEPT as law. Execute the **selected** concept route only (winner) consistently across all copy fields.",
+      "Use upstream STRATEGY (**campaignCore** = single campaign idea all lines must prove) and CONCEPT as law. Execute the **selected** concept route only (winner) consistently across all copy fields.",
       "Let the Canon framework for that route shape rhythm and emphasis (e.g. Problem Agitation → lead with tension; Authority → lead with proof).",
       "All copy must reflect Brand Creative DNA: **voicePrinciples**, **rhythmRules**, **signatureDevices**, plus **vocabularyStyle** / **sentenceStyle**, **preferredPhrases** where natural. Never use **bannedPhrases**.",
       "headlineOptions: distinct angles, not minor word swaps.",

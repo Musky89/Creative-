@@ -66,6 +66,7 @@ import {
   reviewArtifactQualityBlocksApproval,
   validateArtifactContent,
 } from "@/server/orchestrator/artifact-validation";
+import { loadCampaignCoreForBrief } from "@/server/campaign/load-campaign-core";
 
 function toIso(d: Date | null): string | null {
   return d ? d.toISOString() : null;
@@ -567,7 +568,10 @@ export class OrchestratorService {
     });
     const nextVersion = (latest?.version ?? 0) + 1;
 
-    const validation = validateArtifactContent(row.artifactType, content);
+    const campaignCore = await loadCampaignCoreForBrief(this.db, brief.id);
+    const validation = validateArtifactContent(row.artifactType, content, {
+      campaignCore,
+    });
     const pipelineFailed = usedPlaceholder || !validation.ok;
     const contentRec = content as Record<string, unknown>;
 
@@ -797,7 +801,13 @@ export class OrchestratorService {
       row.artifactType,
     );
 
-    const structural = validateArtifactContent(row.artifactType, latestArtifact?.content);
+    const campaignCoreApprove = await loadCampaignCoreForBrief(
+      this.db,
+      task.briefId,
+    );
+    const structural = validateArtifactContent(row.artifactType, latestArtifact?.content, {
+      campaignCore: campaignCoreApprove,
+    });
     if (!structural.ok) {
       throw new OrchestratorError(
         "INVALID_ARTIFACT",
@@ -995,6 +1005,11 @@ export class OrchestratorService {
       brandVisualProfile,
     });
 
+    const briefIdForCore = taskRow?.briefId ?? null;
+    const campaignCore = briefIdForCore
+      ? await loadCampaignCoreForBrief(this.db, briefIdForCore)
+      : null;
+
     const pkg = buildVisualPromptPackage({
       sourceVisualSpecId: visualSpecArtifact.id,
       spec: parsed.data,
@@ -1005,7 +1020,20 @@ export class OrchestratorService {
       founderReferenceUrls: founderRefUrls.slice(0, 5),
       brandVisualProfile,
       visualModelRef: clientRow?.visualModelRef?.trim() || null,
+      campaignCore: campaignCore ?? undefined,
     });
+
+    const pkgValidation = validateArtifactContent(
+      "VISUAL_PROMPT_PACKAGE",
+      pkg as unknown as Record<string, unknown>,
+      { campaignCore },
+    );
+    if (!pkgValidation.ok) {
+      console.warn(
+        `[agenticforce:visual-prompt-package] skipped persist — ${formatValidationForLog(pkgValidation)}`,
+      );
+      return;
+    }
 
     const latestPkg = await this.db.artifact.findFirst({
       where: { taskId, type: "VISUAL_PROMPT_PACKAGE" },
@@ -1116,9 +1144,11 @@ export class OrchestratorService {
     if (!latestCompletedArtifact) {
       return;
     }
+    const campaignCoreUnlock = await loadCampaignCoreForBrief(this.db, briefId);
     const v = validateArtifactContent(
       completedArtifactType,
       latestCompletedArtifact.content,
+      { campaignCore: campaignCoreUnlock },
     );
     if (!v.ok) {
       console.warn(

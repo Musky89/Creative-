@@ -285,13 +285,23 @@ export function buildPlaceholderArtifactContent(
         ...base,
         objective: `[Placeholder] Strategic objective derived from: ${ctx.brief.title}`,
         audience: ctx.brief.targetAudience,
-        insight: "[Placeholder] Audience tension / opportunity statement.",
-        proposition: "[Placeholder] Single-minded proposition.",
+        insight:
+          "[Placeholder] Core audience tension the proposition must exploit — behavior-led, not demographic fluff.",
+        proposition:
+          "[Placeholder] Single-minded proposition rooted in audience tension for this brief.",
         messagePillars: [
           "[Placeholder] Pillar 1",
           "[Placeholder] Pillar 2",
           "[Placeholder] Pillar 3",
         ],
+        campaignCore: {
+          singleLineIdea:
+            "[Placeholder] Unify the proposition and audience tension into one memorable campaign idea every execution proves.",
+          emotionalTension:
+            "[Placeholder] Productive emotional conflict the work holds (e.g. indulgence vs responsibility) aligned with audience truth.",
+          visualNarrative:
+            "[Placeholder] Visual story spine: where we meet the audience, the hero moment, and how the frame resolves — matches the idea and tension.",
+        },
         strategicAngles: [
           {
             frameworkId: "transformation",
@@ -379,6 +389,11 @@ export function buildPlaceholderArtifactContent(
           "[Placeholder] Recommendation 1",
           "[Placeholder] Recommendation 2",
         ],
+        narrativeCoherence: "MIXED" as const,
+        toneCoherence: "MIXED" as const,
+        visualCoherence: "MIXED" as const,
+        campaignCoreAlignmentNotes:
+          "[Placeholder] Scaffold — Campaign Core coherence vs concept/copy/visual not evaluated without real STRATEGY.campaignCore and upstream artifacts.",
         frameworkAssessment:
           "[Placeholder] Scaffold — framework execution not evaluated.",
         frameworkExecution: "NOT_APPLICABLE" as const,

@@ -35,6 +35,7 @@ export const artDirectorAgent: AgentDefinition<typeof visualSpecArtifactSchema> 
       options.canonUserSection,
       "",
       "## Your task",
+      "0. Read upstream **STRATEGY** `campaignCore` if present — VISUAL_SPEC must execute **that** visual narrative and emotional tension together with the winning concept.",
       "1. Read upstream **CONCEPT** artifact. Execute **only** the winning route: `isSelected: true`, or match `_agenticforceSelection.winnerConceptId` to `conceptId`.",
       "2. Set `conceptName` to that route's conceptName.",
       "3. Set `frameworkUsed` to that route's `frameworkId` (must appear in the Canon list above).",

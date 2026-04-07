@@ -10,6 +10,9 @@ import type { BrandMemoryPromptSlice } from "@/server/memory/brand-memory-servic
 import { loadBrandMemoryForPrompt } from "@/server/memory/brand-memory-service";
 import { formatBrandMemorySection } from "@/server/memory/format-brand-memory-prompt";
 import { filterUpstreamToWinningConcept } from "./concept-context-filter";
+import type { CampaignCore } from "@/lib/campaign/campaign-core";
+import { formatCampaignCoreSection } from "@/lib/campaign/campaign-core";
+import { loadCampaignCoreForBrief } from "@/server/campaign/load-campaign-core";
 
 export type { BrandOperatingSystemContext };
 
@@ -27,6 +30,7 @@ export type TaskAgentContext = {
   clientId: string;
   clientName: string;
   clientIndustry: string;
+  briefId: string;
   brief: {
     title: string;
     businessObjective: string;
@@ -61,6 +65,8 @@ export type TaskAgentContext = {
   upstreamArtifacts: UpstreamArtifactSummary[];
   /** Soft bias from BrandMemory — injected below Brand Bible in prompts. */
   brandMemoryPromptSlice: BrandMemoryPromptSlice | null;
+  /** From latest STRATEGY artifact — one campaign idea for all stages. */
+  campaignCore: CampaignCore | null;
 };
 
 function asStringArray(json: unknown, maxItems: number): string[] {
@@ -145,10 +151,13 @@ export async function loadTaskAgentContext(taskId: string): Promise<{
           .slice(0, 12)
       : [];
 
+  const campaignCore = await loadCampaignCoreForBrief(prisma, brief.id);
+
   const context: TaskAgentContext = {
     clientId: client.id,
     clientName: client.name,
     clientIndustry: client.industry,
+    briefId: brief.id,
     brief: {
       title: brief.title,
       businessObjective: brief.businessObjective,
@@ -231,6 +240,7 @@ export async function loadTaskAgentContext(taskId: string): Promise<{
       : null,
     upstreamArtifacts,
     brandMemoryPromptSlice: null,
+    campaignCore,
   };
 
   const memorySlice = await loadBrandMemoryForPrompt(prisma, client.id, 10);
@@ -266,6 +276,13 @@ export function formatContextForPrompt(
     `- Name: ${work.clientName}`,
     `- Industry: ${work.clientIndustry}`,
     "",
+  ];
+
+  if (work.campaignCore) {
+    lines.push(formatCampaignCoreSection(work.campaignCore), "");
+  }
+
+  lines.push(
     "## Brief",
     `- Title: ${work.brief.title}`,
     `- Business objective: ${work.brief.businessObjective}`,
@@ -276,7 +293,7 @@ export function formatContextForPrompt(
     `- Deliverables: ${work.brief.deliverablesSummary || "(none listed)"}`,
     `- Constraints: ${work.brief.constraintsSummary || "(none listed)"}`,
     `- Deadline: ${work.brief.deadlineIso}`,
-  ];
+  );
 
   if (work.brief.cdImprovementDirectives.length > 0) {
     lines.push(

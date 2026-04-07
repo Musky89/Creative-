@@ -186,9 +186,15 @@ export function extractStrategyMemory(args: {
   const fwIds = angles
     .map((a) => (isRecord(a) ? String(a.frameworkId ?? "").trim() : ""))
     .filter(Boolean);
+  const cc = isRecord(args.strategy.campaignCore)
+    ? args.strategy.campaignCore
+    : null;
   const blob = [
     String(args.strategy.insight ?? ""),
     String(args.strategy.proposition ?? ""),
+    cc ? String(cc.singleLineIdea ?? "") : "",
+    cc ? String(cc.emotionalTension ?? "") : "",
+    cc ? String(cc.visualNarrative ?? "") : "",
     ...angles.map((a) => (isRecord(a) ? String(a.angle ?? "") : "")),
   ].join(" ");
   const keywords = tokenizeKeywords(blob, 10);

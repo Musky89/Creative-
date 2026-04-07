@@ -4,6 +4,7 @@ import type { BrandOperatingSystemContext } from "@/server/brand/brand-os-prompt
 import type { SelectedVisualReference } from "@/server/visual-reference/select-references";
 import type { BrandVisualProfileForPrompt } from "@/server/visual-identity/merge-brand-visual-profile";
 import type { ReferenceCompositionProfile } from "@/lib/visual/reference-composition-profile";
+import type { CampaignCore } from "@/lib/campaign/campaign-core";
 
 /** Creative Canon framework summary for assembly (no full agent context required). */
 export type FrameworkAssemblyContext = {
@@ -27,6 +28,8 @@ export type BuildVisualPromptPackageInput = {
   brandVisualProfile?: BrandVisualProfileForPrompt | null;
   /** Future LoRA / fine-tune id — echoed into package metadata for providers. */
   visualModelRef?: string | null;
+  /** When set, woven into prompts so frames match the agreed campaign spine. */
+  campaignCore?: CampaignCore | null;
 };
 
 /** Provider-ready strings — adapters fill these; no API calls. */
@@ -57,6 +60,7 @@ export type VisualPromptPackagePayload = {
   _brandVisualProfileInfluence?: { profileId: string; traitsUsed: string[] };
   _visualModelRef?: string | null;
   _referenceCompositionProfile?: ReferenceCompositionProfile;
+  campaignCore?: CampaignCore;
   /** Per-provider adapted bundles for `generateVisualAssetFromPromptPackage` (future). */
   providerVariants: Partial<
     Record<VisualPromptProviderTarget, ProviderReadyPromptBundle>

@@ -32,7 +32,7 @@ export const creativeDirectorAgent: AgentDefinition<typeof conceptArtifactSchema
       [
         options.canonUserSection,
         "",
-        "Read the brief, Brand Bible, **Brand Creative DNA**, STRATEGY artifact (including strategicAngles), and upstream work.",
+        "Read the brief, Brand Bible, **Brand Creative DNA**, STRATEGY artifact (**campaignCore** is law — one idea, one tension, one visual narrative), strategicAngles, and upstream work.",
         "",
         "Output **exactly one concept per framework** in the SELECTED Creative Canon section — the list length is 3–4; your `concepts` array length must equal that count. Each `frameworkId` appears **once**.",
         "Each concept:",
@@ -47,7 +47,7 @@ export const creativeDirectorAgent: AgentDefinition<typeof conceptArtifactSchema
         "- emotionalCenter: the single feeling state the route owns.",
         "- whyBeatsCategoryNorm: sharp edge vs what 'everyone in the category' does.",
         "- whyCouldFail: honest risk if execution slips.",
-        "- distinctVisualWorld: concrete world for film/photo/design — must diverge from sibling concepts.",
+        "- distinctVisualWorld: concrete world for film/photo/design — must diverge from sibling concepts but **still express the same campaignCore** (no alternate big idea).",
         "",
         "Then fill pairwiseDifferentiation comparing every pair: where they overlap, how they differ, which is stronger for **this** brief (per pair), plus aggregateOverlap, strongestConceptIndex, differentiationSummary.",
         "",

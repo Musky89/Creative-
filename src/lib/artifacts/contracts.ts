@@ -3,6 +3,7 @@
  * Zod is the single source of shape truth for agent outputs.
  */
 import { z } from "zod";
+import { campaignCoreSchema } from "@/lib/campaign/campaign-core";
 import { referenceCompositionProfileSchema } from "@/lib/visual/reference-composition-profile";
 
 /** Matches Prisma `VisualPromptProviderTarget` — image adapters (no generation yet). */
@@ -60,6 +61,8 @@ export const visualPromptPackageArtifactSchema = z.object({
   /** Future: LoRA / fine-tuned checkpoint id (passed to provider when implemented). */
   _visualModelRef: z.string().nullable().optional(),
   _referenceCompositionProfile: referenceCompositionProfileSchema.optional(),
+  /** Echo of STRATEGY campaignCore for traceability and Studio. */
+  campaignCore: campaignCoreSchema.optional(),
   providerVariants: z
     .object({
       GENERIC: providerReadyBundleSchema.optional(),
@@ -215,6 +218,8 @@ export const strategyArtifactSchema = z.object({
   insight: z.string().min(1),
   proposition: z.string().min(1),
   messagePillars: z.array(z.string().min(1)).min(1).max(8),
+  /** North star: one idea, tension, and visual spine for the whole campaign. */
+  campaignCore: campaignCoreSchema,
   /** Strategic angles explicitly tied to Creative Canon framework ids (from selection). */
   strategicAngles: z
     .array(
@@ -390,6 +395,11 @@ export const reviewReportArtifactSchema = z.object({
   verdict: z.string().min(1),
   issues: z.array(z.string()).max(20),
   recommendations: z.array(z.string().min(1)).max(12),
+  /** Campaign Core (from STRATEGY): one-idea coherence across concept, copy, visual. */
+  narrativeCoherence: z.enum(["ALIGNED", "MIXED", "DRIFT"]),
+  toneCoherence: z.enum(["ALIGNED", "MIXED", "DRIFT"]),
+  visualCoherence: z.enum(["ALIGNED", "MIXED", "DRIFT"]),
+  campaignCoreAlignmentNotes: z.string().min(40),
   /** How well Creative Canon frameworks were executed in concept + copy. */
   frameworkAssessment: z.string().min(1),
   frameworkExecution: z.enum(["STRONG", "MIXED", "WEAK", "NOT_APPLICABLE"]),
@@ -470,6 +480,7 @@ export const ARTIFACT_SHAPE_HINTS = {
   "insight": string,
   "proposition": string,
   "messagePillars": string[] (min 1, max 8),
+  "campaignCore": { "singleLineIdea", "emotionalTension", "visualNarrative" } — one campaign spine for all downstream stages,
   "strategicAngles": { "frameworkId": string, "angle": string }[] (exactly 3) — each frameworkId must match a provided Creative Canon id
 }`,
   CONCEPT: `{
@@ -507,6 +518,10 @@ export const ARTIFACT_SHAPE_HINTS = {
   "verdict": string,
   "issues": string[],
   "recommendations": string[],
+  "narrativeCoherence": "ALIGNED" | "MIXED" | "DRIFT",
+  "toneCoherence": "ALIGNED" | "MIXED" | "DRIFT",
+  "visualCoherence": "ALIGNED" | "MIXED" | "DRIFT",
+  "campaignCoreAlignmentNotes": string (min ~40),
   "frameworkAssessment": string,
   "frameworkExecution": "STRONG" | "MIXED" | "WEAK" | "NOT_APPLICABLE",
   "qualityVerdict": "STRONG" | "ACCEPTABLE" | "WEAK",

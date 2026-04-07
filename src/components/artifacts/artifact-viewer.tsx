@@ -583,6 +583,30 @@ export function StrategyArtifactCard({
           <StringList items={pillars} empty="No pillars listed." />
         </div>
       </div>
+      {isRecord(content.campaignCore) ? (
+        <div className="mt-6 rounded-xl border border-amber-900/35 bg-amber-950/15 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-200/90">
+            Campaign core
+          </p>
+          <p className="mt-1 text-xs text-amber-100/70">
+            One idea for concept, copy, visuals, and layout — downstream stages use this as law.
+          </p>
+          <div className="mt-3 space-y-3 text-sm text-zinc-200">
+            <Field
+              label="Single-line idea"
+              value={asString(content.campaignCore.singleLineIdea) || "—"}
+            />
+            <Field
+              label="Emotional tension"
+              value={asString(content.campaignCore.emotionalTension) || "—"}
+            />
+            <Field
+              label="Visual narrative"
+              value={asString(content.campaignCore.visualNarrative) || "—"}
+            />
+          </div>
+        </div>
+      ) : null}
       {Array.isArray(angles) && angles.length > 0 ? (
         <div className="mt-6 space-y-3">
           <p className="text-xs font-medium text-zinc-500">
@@ -1318,6 +1342,31 @@ export function ReviewReportArtifactCard({ content }: { content: unknown }) {
           value={asString(content.scoreSummary) || "—"}
         />
         <Field label="Verdict" value={asString(content.verdict) || "—"} />
+        {typeof content.narrativeCoherence === "string" ? (
+          <div className="rounded-lg border border-cyan-900/40 bg-cyan-950/20 p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-300/90">
+              Campaign coherence (vs Campaign Core)
+            </p>
+            <div className="mt-2 grid gap-2 text-sm text-cyan-100/90 sm:grid-cols-3">
+              <div>
+                <span className="text-xs text-cyan-200/70">Narrative</span>
+                <p className="font-medium">{content.narrativeCoherence}</p>
+              </div>
+              <div>
+                <span className="text-xs text-cyan-200/70">Tone</span>
+                <p className="font-medium">{asString(content.toneCoherence)}</p>
+              </div>
+              <div>
+                <span className="text-xs text-cyan-200/70">Visual</span>
+                <p className="font-medium">{asString(content.visualCoherence)}</p>
+              </div>
+            </div>
+            <Field
+              label="Alignment notes"
+              value={asString(content.campaignCoreAlignmentNotes) || "—"}
+            />
+          </div>
+        ) : null}
         {fe ? (
           <div>
             <p className="text-xs font-medium text-zinc-500">

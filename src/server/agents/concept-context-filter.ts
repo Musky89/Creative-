@@ -54,5 +54,5 @@ export function filterUpstreamToWinningConcept(
     content: filteredContent,
   };
 
-  return { ...context, upstreamArtifacts };
+  return { ...context, upstreamArtifacts, campaignCore: context.campaignCore };
 }
