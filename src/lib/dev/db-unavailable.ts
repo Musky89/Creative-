@@ -25,6 +25,7 @@ export function isDatabaseLikelyUnavailableError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const m = error.message;
   return (
+    m.includes("DATABASE_URL is not set") ||
     m.includes("Can't reach database server") ||
     m.includes("P1001") ||
     m.includes("P1017") ||
