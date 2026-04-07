@@ -29,9 +29,14 @@ export async function buildAgentRunInput(
 
   const agent = getAgentForStage(stage);
   const systemPrompt = agent?.buildSystemPrompt(promptOptions) ?? "";
+  const winnerOnly =
+    stage === "VISUAL_DIRECTION" || stage === "COPY_DEVELOPMENT";
   const userPrompt = agent
-    ? agent.buildUserPrompt(formatContextForPrompt(context), promptOptions)
-    : formatContextForPrompt(context);
+    ? agent.buildUserPrompt(
+        formatContextForPrompt(context, { conceptWinnerOnly: winnerOnly }),
+        promptOptions,
+      )
+    : formatContextForPrompt(context, { conceptWinnerOnly: winnerOnly });
 
   return {
     _agenticforceAgentRun: true,

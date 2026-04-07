@@ -1,0 +1,2 @@
+ALTER TABLE "Brief" ADD COLUMN "cdReworkCount" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Brief" ADD COLUMN "cdLastImprovementDirectives" JSONB NOT NULL DEFAULT '[]';

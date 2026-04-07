@@ -3,8 +3,26 @@
 import { revalidatePath } from "next/cache";
 import type { VisualPromptProviderTarget } from "@/generated/prisma/client";
 import { getPrisma } from "@/server/db/prisma";
-import { generateVisualAssetFromPromptPackage } from "@/server/visual-generation/generate-visual-asset-from-prompt-package";
+import {
+  generateVisualAssetFromPromptPackage,
+  generateVisualVariantsFromPromptPackage,
+} from "@/server/visual-generation/generate-visual-asset-from-prompt-package";
 import { recordVisualMemoryFromSpecArtifact } from "@/server/visual-review/visual-memory-hook";
+import { composeCampaignAsset } from "@/server/visual-finishing/compose-campaign-asset";
+import { composeFinalOutput } from "@/server/visual-finishing/final-output-composer";
+import type { FinalOutputFormatId } from "@/lib/visual-finishing/final-output-formats";
+import { getDefaultCtaForBrief, getDefaultHeadlineForBrief } from "@/server/visual-finishing/headline-from-brief";
+import { recordBrandMemoryEvent } from "@/server/memory/brand-memory-service";
+import {
+  extractCampaignPatternMemory,
+  extractVisualMemory,
+} from "@/server/memory/extract-memory";
+import { visualSpecArtifactSchema } from "@/lib/artifacts/contracts";
+import { extractVisualIdentityFromAsset } from "@/server/visual-identity/extract-visual-identity";
+import {
+  mergeBrandVisualProfileOnPreferredSelection,
+  mergeBrandVisualProfileOnRejection,
+} from "@/server/visual-identity/merge-brand-visual-profile";
 
 function studioPath(clientId: string, briefId: string) {
   return `/clients/${clientId}/briefs/${briefId}/studio`;
@@ -14,6 +32,7 @@ const TARGETS: VisualPromptProviderTarget[] = [
   "GENERIC",
   "GEMINI_IMAGE",
   "GPT_IMAGE",
+  "FAL_IMAGE",
 ];
 
 async function assertAssetInBrief(
@@ -61,20 +80,44 @@ export async function generateVisualAssetAction(
   }
 
   try {
-    const result = await generateVisualAssetFromPromptPackage(prisma, {
+    const c = critique?.trim() || null;
+    if (c) {
+      const result = await generateVisualAssetFromPromptPackage(prisma, {
+        promptPackageArtifactId,
+        clientId,
+        briefId,
+        providerTarget: target,
+        critique: c,
+      });
+      revalidatePath(studioPath(clientId, briefId));
+      if (result.status === "FAILED") {
+        return { error: result.error ?? "Generation failed." };
+      }
+      return { ok: true as const, assetId: result.id, variantCount: 1 };
+    }
+
+    const batch = await generateVisualVariantsFromPromptPackage(prisma, {
       promptPackageArtifactId,
       clientId,
       briefId,
       providerTarget: target,
-      critique: critique?.trim() || null,
+      critique: null,
     });
 
     revalidatePath(studioPath(clientId, briefId));
 
-    if (result.status === "FAILED") {
-      return { error: result.error ?? "Generation failed." };
+    const failed = batch.results.filter((r) => r.status === "FAILED");
+    if (failed.length === batch.results.length) {
+      return {
+        error: failed[0]?.error ?? "All variant generations failed.",
+      };
     }
-    return { ok: true as const, assetId: result.id };
+    return {
+      ok: true as const,
+      assetId: batch.results.find((r) => r.status === "COMPLETED")?.id,
+      variantCount: batch.results.filter((r) => r.status === "COMPLETED").length,
+      resolvedTarget: batch.resolvedTarget,
+    };
   } catch (e) {
     revalidatePath(studioPath(clientId, briefId));
     return { error: e instanceof Error ? e.message : "Generation failed." };
@@ -105,18 +148,23 @@ export async function selectPreferredVisualAssetAction(
   await prisma.$transaction(async (tx) => {
     await tx.visualAsset.updateMany({
       where: { sourceArtifactId: a.sourceArtifactId },
-      data: { isPreferred: false },
+      data: { isPreferred: false, isSecondary: false },
     });
     await tx.visualAsset.update({
       where: { id: assetId },
-      data: { isPreferred: true, founderRejected: false },
+      data: {
+        isPreferred: true,
+        isSecondary: false,
+        founderRejected: false,
+        autoRejected: false,
+      },
     });
   });
 
-  const review = await prisma.visualAssetReview.findUnique({
+  const reviewFull = await prisma.visualAssetReview.findUnique({
     where: { visualAssetId: assetId },
   });
-  const evalBody = review?.evaluation as
+  const evalBody = reviewFull?.evaluation as
     | { regenerationRecommended?: boolean; qualityVerdict?: string }
     | undefined;
   const stillWeak =
@@ -129,10 +177,246 @@ export async function selectPreferredVisualAssetAction(
       outcome: "APPROVED",
       stillWeakAfterRegen: stillWeak,
     });
+
+    const specArt = await prisma.artifact.findUnique({ where: { id: specId } });
+    const specRaw =
+      specArt?.content && typeof specArt.content === "object"
+        ? (specArt.content as Record<string, unknown>)
+        : null;
+    if (specRaw) {
+      const ev = reviewFull?.evaluation;
+      const ext = extractVisualMemory({
+        spec: specRaw,
+        asset: {
+          promptUsed: a.promptUsed,
+          autoRejected: a.autoRejected,
+          founderRejected: a.founderRejected,
+          evaluation:
+            ev && typeof ev === "object" ? (ev as Record<string, unknown>) : null,
+        },
+        outcome: "APPROVED",
+      });
+      await recordBrandMemoryEvent(prisma, {
+        clientId,
+        type: "VISUAL",
+        frameworkId: String(specRaw.frameworkUsed ?? "").trim() || null,
+        summary: ext.summary,
+        attributes: ext.attributes,
+        outcome: "APPROVED",
+        strengthScore: stillWeak ? 0.55 : 0.88,
+      });
+
+      const strippedSpec = { ...specRaw };
+      for (const k of Object.keys(strippedSpec)) {
+        if (k.startsWith("_")) delete strippedSpec[k];
+      }
+      const specParsed = visualSpecArtifactSchema.safeParse(strippedSpec);
+      if (specParsed.success) {
+        const ev2 = reviewFull?.evaluation;
+        const extracted = extractVisualIdentityFromAsset({
+          visualSpec: specParsed.data,
+          promptUsed: a.promptUsed,
+          promptPackageSnippet: String(
+            (a.sourceArtifact.content as Record<string, unknown>).primaryPrompt ?? "",
+          ),
+          evaluation:
+            ev2 && typeof ev2 === "object" ? (ev2 as Record<string, unknown>) : null,
+        });
+        await mergeBrandVisualProfileOnPreferredSelection(prisma, {
+          clientId,
+          extracted,
+        });
+      }
+    }
   }
 
   revalidatePath(studioPath(clientId, briefId));
   return { ok: true as const };
+}
+
+export async function composeCampaignAssetAction(
+  clientId: string,
+  briefId: string,
+  promptPackageArtifactId: string,
+  sourceVisualAssetId?: string | null,
+  headline?: string | null,
+) {
+  const prisma = getPrisma();
+  const brief = await prisma.brief.findFirst({
+    where: { id: briefId, clientId },
+    include: { client: { include: { brandBible: true } } },
+  });
+  if (!brief) {
+    return { error: "Brief not found." };
+  }
+
+  let sourceId = sourceVisualAssetId?.trim() || null;
+  if (!sourceId) {
+    const pref = await prisma.visualAsset.findFirst({
+      where: {
+        briefId,
+        clientId,
+        sourceArtifactId: promptPackageArtifactId,
+        status: "COMPLETED",
+        isPreferred: true,
+      },
+    });
+    sourceId = pref?.id ?? null;
+  }
+  if (!sourceId) {
+    return {
+      error: "Select a preferred visual first, or pass sourceVisualAssetId.",
+    };
+  }
+
+  let hl = headline?.trim() || null;
+  if (!hl) {
+    hl = await getDefaultHeadlineForBrief(briefId);
+  }
+  if (!hl) {
+    return {
+      error: "No headline — add copy in COPY stage or pass headline to compose.",
+    };
+  }
+
+  const bb = brief.client.brandBible;
+
+  try {
+    const { id } = await composeCampaignAsset({
+      sourceVisualAssetId: sourceId,
+      clientId,
+      briefId,
+      headline: hl,
+      brandBible: bb
+        ? {
+            colorPhilosophy: bb.colorPhilosophy,
+            visualStyle: bb.visualStyle,
+            compositionStyle: bb.compositionStyle,
+          }
+        : null,
+    });
+    const campExt = extractCampaignPatternMemory({
+      format: "Campaign (quick finish)",
+      variantLabel: "COMPOSED",
+      headline: hl,
+      ctaText: null,
+      logoUrl: null,
+    });
+    await recordBrandMemoryEvent(prisma, {
+      clientId,
+      type: "CAMPAIGN_PATTERN",
+      frameworkId: null,
+      summary: campExt.summary,
+      attributes: campExt.attributes,
+      outcome: "SELECTED",
+      strengthScore: 0.88,
+    });
+    revalidatePath(studioPath(clientId, briefId));
+    return { ok: true as const, assetId: id };
+  } catch (e) {
+    revalidatePath(studioPath(clientId, briefId));
+    return { error: e instanceof Error ? e.message : "Compose failed." };
+  }
+}
+
+export async function composeFinalOutputAction(
+  clientId: string,
+  briefId: string,
+  promptPackageArtifactId: string,
+  options: {
+    format: FinalOutputFormatId;
+    sourceVisualAssetId?: string | null;
+    headline?: string | null;
+    ctaText?: string | null;
+    logoUrl?: string | null;
+  },
+) {
+  const prisma = getPrisma();
+  const brief = await prisma.brief.findFirst({
+    where: { id: briefId, clientId },
+    include: { client: { include: { brandBible: true } } },
+  });
+  if (!brief) {
+    return { error: "Brief not found." };
+  }
+
+  let sourceId = options.sourceVisualAssetId?.trim() || null;
+  if (!sourceId) {
+    const pref = await prisma.visualAsset.findFirst({
+      where: {
+        briefId,
+        clientId,
+        sourceArtifactId: promptPackageArtifactId,
+        status: "COMPLETED",
+        isPreferred: true,
+      },
+    });
+    sourceId = pref?.id ?? null;
+  }
+  if (!sourceId) {
+    return {
+      error: "Select a preferred visual first, or pass sourceVisualAssetId.",
+    };
+  }
+
+  let hl = options.headline?.trim() || null;
+  if (!hl) {
+    hl = await getDefaultHeadlineForBrief(briefId);
+  }
+  if (!hl) {
+    return {
+      error: "No headline — add copy in COPY stage or pass headline.",
+    };
+  }
+
+  let cta = options.ctaText?.trim() || null;
+  if (!cta && options.format !== "CAMPAIGN_DEFAULT") {
+    cta = await getDefaultCtaForBrief(briefId);
+  }
+
+  const bb = brief.client.brandBible;
+
+  try {
+    const { id, variantLabel } = await composeFinalOutput({
+      sourceVisualAssetId: sourceId,
+      clientId,
+      briefId,
+      headline: hl,
+      ctaText: cta,
+      logoUrl: options.logoUrl?.trim() || null,
+      format: options.format,
+      brandBible: bb
+        ? {
+            colorPhilosophy: bb.colorPhilosophy,
+            visualStyle: bb.visualStyle,
+            compositionStyle: bb.compositionStyle,
+          }
+        : null,
+    });
+    const fmtLabel =
+      options.format === "CAMPAIGN_DEFAULT" ? "Campaign default" : options.format;
+    const campExt = extractCampaignPatternMemory({
+      format: fmtLabel,
+      variantLabel,
+      headline: hl,
+      ctaText: cta,
+      logoUrl: options.logoUrl,
+    });
+    await recordBrandMemoryEvent(prisma, {
+      clientId,
+      type: "CAMPAIGN_PATTERN",
+      frameworkId: null,
+      summary: campExt.summary,
+      attributes: campExt.attributes,
+      outcome: "SELECTED",
+      strengthScore: 0.92,
+    });
+    revalidatePath(studioPath(clientId, briefId));
+    return { ok: true as const, assetId: id, variantLabel };
+  } catch (e) {
+    revalidatePath(studioPath(clientId, briefId));
+    return { error: e instanceof Error ? e.message : "Compose failed." };
+  }
 }
 
 export async function rejectVisualAssetAction(
@@ -161,12 +445,70 @@ export async function rejectVisualAssetAction(
     data: { founderRejected: true, isPreferred: false },
   });
 
+  const reviewReject = await prisma.visualAssetReview.findUnique({
+    where: { visualAssetId: assetId },
+  });
+
   if (specId) {
     await recordVisualMemoryFromSpecArtifact(prisma, {
       clientId,
       specArtifactId: specId,
       outcome: "REJECTED",
     });
+
+    const specArt = await prisma.artifact.findUnique({ where: { id: specId } });
+    const specRaw =
+      specArt?.content && typeof specArt.content === "object"
+        ? (specArt.content as Record<string, unknown>)
+        : null;
+    if (specRaw) {
+      const ev = reviewReject?.evaluation;
+      const ext = extractVisualMemory({
+        spec: specRaw,
+        asset: {
+          promptUsed: a.promptUsed,
+          autoRejected: a.autoRejected,
+          founderRejected: true,
+          evaluation:
+            ev && typeof ev === "object" ? (ev as Record<string, unknown>) : null,
+        },
+        outcome: "REJECTED",
+      });
+      await recordBrandMemoryEvent(prisma, {
+        clientId,
+        type: "VISUAL",
+        frameworkId: String(specRaw.frameworkUsed ?? "").trim() || null,
+        summary: ext.summary,
+        attributes: ext.attributes,
+        outcome: "REJECTED",
+        strengthScore: a.autoRejected ? 0.62 : 0.48,
+      });
+
+      const strippedSpec = { ...specRaw };
+      for (const k of Object.keys(strippedSpec)) {
+        if (k.startsWith("_")) delete strippedSpec[k];
+      }
+      const specParsed = visualSpecArtifactSchema.safeParse(strippedSpec);
+      if (specParsed.success) {
+        const evR = reviewReject?.evaluation;
+        const extracted = extractVisualIdentityFromAsset({
+          visualSpec: specParsed.data,
+          promptUsed: a.promptUsed,
+          promptPackageSnippet: String(
+            (a.sourceArtifact.content as Record<string, unknown>).primaryPrompt ?? "",
+          ),
+          evaluation:
+            evR && typeof evR === "object" ? (evR as Record<string, unknown>) : null,
+        });
+        await mergeBrandVisualProfileOnRejection(prisma, {
+          clientId,
+          negativeHints: [
+            ...extracted.negativeTraits,
+            `founder rejected frame (${a.autoRejected ? "auto-filter" : "manual"})`,
+          ],
+        });
+      }
+    }
   }
 
   revalidatePath(studioPath(clientId, briefId));

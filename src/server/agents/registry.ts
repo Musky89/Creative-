@@ -47,6 +47,8 @@ export function getArtifactShapeHint(stage: WorkflowStage): string {
       return ARTIFACT_SHAPE_HINTS.COPY;
     case "REVIEW":
       return ARTIFACT_SHAPE_HINTS.REVIEW_REPORT;
+    case "EXPORT":
+      return ARTIFACT_SHAPE_HINTS.CREATIVE_DIRECTOR_FINAL;
     default:
       return "{}";
   }

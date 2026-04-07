@@ -21,8 +21,18 @@ export async function getClient(id: string) {
   });
 }
 
-export async function createClient(data: { name: string; industry: string }) {
-  return getPrisma().client.create({ data });
+export async function createClient(data: {
+  name: string;
+  industry: string;
+  isDemoClient?: boolean;
+}) {
+  return getPrisma().client.create({
+    data: {
+      name: data.name,
+      industry: data.industry,
+      isDemoClient: data.isDemoClient ?? false,
+    },
+  });
 }
 
 export const getClientCached = cache(async (id: string) => {

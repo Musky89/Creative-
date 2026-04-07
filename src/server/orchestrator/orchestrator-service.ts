@@ -17,6 +17,8 @@ import { brandBibleToOperatingSystem } from "@/server/brand/brand-bible-operatin
 import { getPrisma } from "@/server/db/prisma";
 import { visualSpecArtifactSchema } from "@/lib/artifacts/contracts";
 import { buildVisualPromptPackage } from "@/server/visual-prompt/assemble-visual-prompt-package";
+import { selectVisualReferences } from "@/server/visual-reference/select-references";
+import { loadBrandVisualProfileForPrompt } from "@/server/visual-identity/merge-brand-visual-profile";
 import {
   arePrerequisitesSatisfied,
   statusMapFromTasks,
@@ -33,13 +35,44 @@ import {
   isBlockedForInitialUnlock,
 } from "./task-state";
 import type { WorkflowStateResponse, WorkflowTaskSnapshot } from "./types";
-import {
-  buildV1PipelineRows,
-  getV1PipelineRow,
-  stageOrderIndex,
-} from "./v1-pipeline";
+import { getV1PipelineRow, stageOrderIndex } from "./v1-pipeline";
 import { buildPlaceholderArtifactContent } from "./scaffold/placeholder-stage-output";
 import { recordArtifactOutcomeAndPerformance } from "@/server/canon/outcomes";
+import { runCreativeDirectorJudge } from "@/server/agents/creative-director-judge";
+import { runStrategistJudge } from "@/server/agents/strategist-judge";
+import { runCopyHeadlineJudge } from "@/server/agents/copy-judge";
+import { mergeStrategySelectionIntoArtifact } from "@/server/orchestrator/strategy-selection";
+import { mergeCopyHeadlineSelectionIntoArtifact } from "@/server/orchestrator/copy-headline-selection";
+import {
+  buildCreativeDirectorDecisionPersisted,
+  runCreativeDirectorFinalForExportTask,
+} from "@/server/agents/creative-director-final-runner";
+import {
+  applyCreativeDirectorReworkLoop,
+  applyCreativeDirectorVisualPick,
+} from "@/server/orchestrator/creative-director-rework";
+import {
+  ensureConceptIds,
+  mergeConceptSelectionIntoArtifact,
+} from "@/server/orchestrator/concept-selection";
+import { formatContextForPrompt, loadTaskAgentContext } from "@/server/agents/context";
+import {
+  recordBrandMemoryEvent,
+  recordConceptJudgeMemories,
+  recordCopyJudgeMemories,
+  recordStrategyJudgeMemories,
+} from "@/server/memory/brand-memory-service";
+import { extractPipelineFailureMemory } from "@/server/memory/extract-memory";
+import {
+  recordBrandMemoryOnArtifactApproval,
+  recordBrandMemoryOnReviewRevisionRequested,
+} from "@/server/memory/record-from-artifact";
+import {
+  formatValidationForLog,
+  reviewArtifactQualityBlocksApproval,
+  validateArtifactContent,
+} from "@/server/orchestrator/artifact-validation";
+import { loadCampaignCoreForBrief } from "@/server/campaign/load-campaign-core";
 
 function toIso(d: Date | null): string | null {
   return d ? d.toISOString() : null;
@@ -66,6 +99,8 @@ function toTaskSnapshot(t: Task): WorkflowTaskSnapshot {
     requiresReview: t.requiresReview,
     startedAt: toIso(t.startedAt),
     completedAt: toIso(t.completedAt),
+    lastFailureReason: t.lastFailureReason ?? null,
+    lastFailureType: t.lastFailureType ?? null,
   };
 }
 
@@ -86,8 +121,8 @@ export class OrchestratorService {
       );
     }
 
-    const plan = buildV1GraphInsertPlan(briefId, brief.identityWorkflowEnabled);
-    const expectedLen = buildV1PipelineRows(brief.identityWorkflowEnabled).length;
+    const plan = buildV1GraphInsertPlan(briefId, brief);
+    const expectedLen = plan.tasks.length;
 
     await this.db.$transaction(async (tx) => {
       const created = await tx.task.createManyAndReturn({
@@ -135,8 +170,7 @@ export class OrchestratorService {
 
     const ordered = [...tasks].sort(
       (a, b) =>
-        stageOrderIndex(a.stage, brief.identityWorkflowEnabled) -
-        stageOrderIndex(b.stage, brief.identityWorkflowEnabled),
+        stageOrderIndex(a.stage, brief) - stageOrderIndex(b.stage, brief),
     );
     const statusById = statusMapFromTasks(tasks);
 
@@ -194,11 +228,19 @@ export class OrchestratorService {
       );
     }
     await this.startTask(nextId);
-    const { artifactId, usedPlaceholder } = await this.completeTask(
-      nextId,
-      options?.artifactPayload,
-    );
-    return { taskId: nextId, artifactId, usedPlaceholder };
+    const result = await this.completeTask(nextId, options?.artifactPayload);
+    if (result.pipelineFailed) {
+      throw new OrchestratorError(
+        "PIPELINE_FAILED",
+        "Stage failed: output was invalid or generation failed. Use Retry generation, then Run next step again.",
+        400,
+      );
+    }
+    return {
+      taskId: nextId,
+      artifactId: result.artifactId,
+      usedPlaceholder: result.usedPlaceholder,
+    };
   }
 
   async startTask(taskId: string): Promise<Task> {
@@ -274,7 +316,11 @@ export class OrchestratorService {
   async completeTask(
     taskId: string,
     artifactPayload?: Record<string, unknown>,
-  ): Promise<{ artifactId: string; usedPlaceholder: boolean }> {
+  ): Promise<{
+    artifactId: string;
+    usedPlaceholder: boolean;
+    pipelineFailed: boolean;
+  }> {
     const task = await this.db.task.findUnique({ where: { id: taskId } });
     if (!task) {
       throw new OrchestratorError("NOT_FOUND", `Task not found: ${taskId}`, 404);
@@ -284,7 +330,7 @@ export class OrchestratorService {
     const brief = await this.db.brief.findUniqueOrThrow({
       where: { id: task.briefId },
     });
-    const row = getV1PipelineRow(task.stage, brief.identityWorkflowEnabled);
+    const row = getV1PipelineRow(task.stage, brief);
 
     let usedPlaceholder: boolean;
     let content: Record<string, unknown>;
@@ -335,6 +381,86 @@ export class OrchestratorService {
           ...(agentResult.partialMeta ?? {}),
         };
       }
+    } else if (task.stage === "EXPORT" && row.artifactType === "EXPORT") {
+      if (brief.cdReworkCount >= 1) {
+        usedPlaceholder = false;
+        const decision = {
+          verdict: "APPROVE" as const,
+          rationale:
+            "Automatic pass: Creative Director final rework budget (one retry) was already consumed. Ship the latest copy and visuals; founder may still reject manually in Studio.",
+          selectedAssets: {
+            visualAssetId: null as string | null,
+            copyVariant: "Latest COPY artifact after rework pass",
+          },
+          improvementDirectives: [] as string[],
+          finalPass: true,
+        };
+        content = {
+          exportStatus: "CREATIVE_DIRECTOR_APPROVED",
+          formats: ["markdown", "json"],
+          finalVerdict: "APPROVE",
+          selectedVisualAssetId: null,
+          selectedCopyVariant: decision.selectedAssets.copyVariant,
+          rationale: decision.rationale,
+          improvementDirectives: [],
+          metadata: { creativeDirectorFinal: "synthetic_second_pass_cap" },
+          _creativeDirectorDecision: decision,
+          _agenticforceSource: "system",
+        };
+        agentRunMetadata = {
+          generationPath: "creative_director_final_second_pass_cap",
+          usedPlaceholderFallback: false,
+        };
+      } else {
+      const cd = await runCreativeDirectorFinalForExportTask(taskId);
+      if (cd.ok) {
+        usedPlaceholder = false;
+        const decision = buildCreativeDirectorDecisionPersisted(cd.output, {
+          finalPass: brief.cdReworkCount >= 1,
+        });
+        content = {
+          exportStatus:
+            cd.output.finalVerdict === "APPROVE"
+              ? "CREATIVE_DIRECTOR_APPROVED"
+              : "CREATIVE_DIRECTOR_REWORK",
+          formats: ["markdown", "json"],
+          finalVerdict: cd.output.finalVerdict,
+          selectedVisualAssetId: cd.output.selectedVisualAssetId,
+          selectedCopyVariant: cd.output.selectedCopyVariant,
+          rationale: cd.output.rationale,
+          improvementDirectives: cd.output.improvementDirectives,
+          metadata: {
+            creativeDirectorFinal: cd.output,
+          },
+          _creativeDirectorDecision: decision,
+          _agenticforceSource: "llm",
+          _agenticforceModel: {
+            provider: cd.providerId,
+            model: cd.model,
+          },
+        };
+        agentRunMetadata = {
+          provider: cd.providerId,
+          model: cd.model,
+          generationPath: "creative_director_final",
+          usedPlaceholderFallback: false,
+        };
+      } else {
+        usedPlaceholder = true;
+        content = {
+          ...buildPlaceholderArtifactContent(task.stage, row.artifactType, {
+            brief,
+          }),
+          _agenticforceSource: "placeholder_fallback",
+          _agenticforceLlmError: cd.error,
+          exportStatus: "CREATIVE_DIRECTOR_SKIPPED",
+        };
+        agentRunMetadata = {
+          usedPlaceholderFallback: true,
+          llmError: cd.error,
+        };
+      }
+      }
     } else {
       usedPlaceholder = true;
       content = buildPlaceholderArtifactContent(task.stage, row.artifactType, {
@@ -342,11 +468,232 @@ export class OrchestratorService {
       });
     }
 
+    if (task.stage === "STRATEGY" && row.artifactType === "STRATEGY") {
+      const angles = content.strategicAngles;
+      if (Array.isArray(angles) && angles.length >= 3) {
+        const anglesPayload = angles.slice(0, 3).map((a) => {
+          const o =
+            a && typeof a === "object"
+              ? (a as Record<string, unknown>)
+              : ({} as Record<string, unknown>);
+          return {
+            frameworkId: String(o.frameworkId ?? "").trim(),
+            angle: String(o.angle ?? "").trim(),
+          };
+        });
+        if (anglesPayload.every((x) => x.frameworkId && x.angle)) {
+          const { context } = await loadTaskAgentContext(taskId);
+          const formatted = formatContextForPrompt(context);
+          const judge = await runStrategistJudge({
+            anglesJson: anglesPayload,
+            formattedContext: formatted,
+          });
+          content = mergeStrategySelectionIntoArtifact(
+            content as Record<string, unknown>,
+            judge,
+          ) as Record<string, unknown>;
+          await recordStrategyJudgeMemories(this.db, {
+            clientId: brief.clientId,
+            content: content as Record<string, unknown>,
+          });
+        }
+      }
+    }
+
+    if (task.stage === "COPY_DEVELOPMENT" && row.artifactType === "COPY") {
+      const heads = content.headlineOptions;
+      if (Array.isArray(heads) && heads.length >= 5) {
+        const headlines = heads
+          .map((h) => String(h).trim())
+          .filter((h) => h.length > 0);
+        if (headlines.length >= 5) {
+          const { context } = await loadTaskAgentContext(taskId);
+          const formatted = formatContextForPrompt(context, {
+            conceptWinnerOnly: true,
+          });
+          const judge = await runCopyHeadlineJudge({
+            headlines,
+            formattedContext: formatted,
+          });
+          content = mergeCopyHeadlineSelectionIntoArtifact(
+            content as Record<string, unknown>,
+            judge,
+            headlines,
+          ) as Record<string, unknown>;
+          await recordCopyJudgeMemories(this.db, {
+            clientId: brief.clientId,
+            content: content as Record<string, unknown>,
+            headlines,
+          });
+        }
+      }
+    }
+
+    if (task.stage === "CONCEPTING" && row.artifactType === "CONCEPT") {
+      const withIds = ensureConceptIds(content) as Record<string, unknown>;
+      const conceptsArr = withIds.concepts;
+      if (Array.isArray(conceptsArr)) {
+        const judgePayload = conceptsArr.map((c, i) => {
+          const o =
+            c && typeof c === "object"
+              ? (c as Record<string, unknown>)
+              : ({} as Record<string, unknown>);
+          const id =
+            typeof o.conceptId === "string" && o.conceptId.trim()
+              ? o.conceptId.trim()
+              : `concept-${i}`;
+          return {
+            conceptId: id,
+            frameworkId: o.frameworkId,
+            conceptName: o.conceptName,
+            hook: o.hook,
+            rationale: o.rationale,
+            distinctivenessVsCategory: o.distinctivenessVsCategory,
+            whyBeatsCategoryNorm: o.whyBeatsCategoryNorm,
+            visualDirection: o.visualDirection,
+            distinctVisualWorld: o.distinctVisualWorld,
+            coreTension: o.coreTension,
+            emotionalCenter: o.emotionalCenter,
+            whyItWorksForBrand: o.whyItWorksForBrand,
+          };
+        });
+        const { context } = await loadTaskAgentContext(taskId);
+        const formatted = formatContextForPrompt(context);
+        const judge = await runCreativeDirectorJudge({
+          conceptsJson: judgePayload,
+          formattedContext: formatted,
+        });
+        content = mergeConceptSelectionIntoArtifact(withIds, judge) as Record<
+          string,
+          unknown
+        >;
+
+        await recordConceptJudgeMemories(this.db, {
+          clientId: brief.clientId,
+          content: content as Record<string, unknown>,
+          judgeScores: judge.scores,
+          rejectionReasons: judge.rejectionReasons,
+        });
+      }
+    }
+
     const latest = await this.db.artifact.findFirst({
       where: { taskId, type: row.artifactType },
       orderBy: { version: "desc" },
     });
     const nextVersion = (latest?.version ?? 0) + 1;
+
+    const campaignCore = await loadCampaignCoreForBrief(this.db, brief.id);
+    const validation = validateArtifactContent(row.artifactType, content, {
+      campaignCore,
+    });
+    const pipelineFailed = usedPlaceholder || !validation.ok;
+    const contentRec = content as Record<string, unknown>;
+
+    let failureType: string | null = null;
+    let failureReason: string | null = null;
+    if (pipelineFailed) {
+      if (usedPlaceholder) {
+        failureType = "LLM";
+        failureReason =
+          typeof contentRec._agenticforceLlmError === "string" &&
+          contentRec._agenticforceLlmError.trim()
+            ? String(contentRec._agenticforceLlmError).trim()
+            : "Generation failed or fell back to placeholder — output is not valid for review.";
+      } else if (!validation.ok) {
+        failureType =
+          validation.type === "PLACEHOLDER"
+            ? "PLACEHOLDER"
+            : validation.type === "EMPTY"
+              ? "EMPTY"
+              : "VALIDATION";
+        failureReason = validation.zodIssues
+          ? `${validation.message} (${validation.zodIssues})`
+          : validation.message;
+      }
+      const failContent = {
+        ...content,
+        _pipelineFailure: true,
+        _pipelineFailureType: failureType,
+        _pipelineFailureReason: failureReason,
+      };
+      console.error(
+        `[agenticforce:pipeline] task=${taskId} stage=${task.stage} FAILED type=${failureType} ${formatValidationForLog(validation)}`,
+      );
+
+      const failedArtifact = await this.db.$transaction(async (tx) => {
+        const artifact = await tx.artifact.create({
+          data: {
+            taskId,
+            type: row.artifactType,
+            content: failContent as Prisma.InputJsonValue,
+            version: nextVersion,
+          },
+        });
+        await tx.task.update({
+          where: { id: taskId },
+          data: {
+            status: "FAILED",
+            completedAt: null,
+            lastFailureType: failureType,
+            lastFailureReason: failureReason,
+          },
+        });
+        if (task.agentType) {
+          const lastRun = await tx.agentRun.findFirst({
+            where: { taskId },
+            orderBy: { createdAt: "desc" },
+          });
+          if (lastRun) {
+            const finishedAt = Date.now();
+            const duration =
+              task.startedAt != null
+                ? Math.max(0, finishedAt - task.startedAt.getTime())
+                : null;
+            await tx.agentRun.update({
+              where: { id: lastRun.id },
+              data: {
+                output: failContent as Prisma.InputJsonValue,
+                duration,
+                metadata: {
+                  pipelineFailed: true,
+                  failureType,
+                  failureReason,
+                  ...(agentRunMetadata && typeof agentRunMetadata === "object"
+                    ? agentRunMetadata
+                    : {}),
+                } as Prisma.InputJsonValue,
+              },
+            });
+          }
+        }
+        return artifact;
+      });
+
+      try {
+        const ext = extractPipelineFailureMemory({
+          stageLabel: String(task.stage).replace(/_/g, " "),
+          failureType: failureType ?? "UNKNOWN",
+          failureReason: failureReason ?? "Pipeline failure",
+        });
+        await recordBrandMemoryEvent(this.db, {
+          clientId: brief.clientId,
+          type: "TONE",
+          frameworkId: null,
+          summary: ext.summary,
+          attributes: ext.attributes,
+          outcome: "FAILED",
+          strengthScore: 0.35,
+        });
+      } catch (memErr) {
+        console.error(
+          "[agenticforce:pipeline] brand memory record failed",
+          memErr,
+        );
+      }
+
+      return { artifactId: failedArtifact.id, usedPlaceholder, pipelineFailed: true as const };
+    }
 
     const nextStatus: TaskStatus = task.requiresReview
       ? "AWAITING_REVIEW"
@@ -367,6 +714,8 @@ export class OrchestratorService {
         data: {
           status: nextStatus,
           completedAt: nextStatus === "COMPLETED" ? new Date() : null,
+          lastFailureType: null,
+          lastFailureReason: null,
         },
       });
 
@@ -399,21 +748,82 @@ export class OrchestratorService {
     });
 
     if (nextStatus === "COMPLETED") {
-      await this.unlockDependentTasks(taskId);
+      await this.unlockDependentTasks(taskId, row.artifactType);
     }
 
-    return { artifactId: result.id, usedPlaceholder };
+    if (
+      task.stage === "EXPORT" &&
+      row.artifactType === "EXPORT" &&
+      !usedPlaceholder &&
+      content &&
+      typeof content.finalVerdict === "string" &&
+      !content._agenticforceUserPayload
+    ) {
+      const fv = content.finalVerdict as string;
+      const selId =
+        typeof content.selectedVisualAssetId === "string"
+          ? content.selectedVisualAssetId
+          : null;
+      const dirs = Array.isArray(content.improvementDirectives)
+        ? (content.improvementDirectives as unknown[]).map((x) => String(x))
+        : [];
+
+      await applyCreativeDirectorVisualPick(this.db, {
+        briefId: brief.id,
+        selectedVisualAssetId: selId,
+      });
+
+      const freshBrief = await this.db.brief.findUniqueOrThrow({
+        where: { id: brief.id },
+      });
+      const reworkCount = freshBrief.cdReworkCount;
+
+      if (fv === "APPROVE") {
+        await this.db.brief.update({
+          where: { id: brief.id },
+          data: { cdLastImprovementDirectives: [], cdReworkCount: 0 },
+        });
+      } else if (fv === "REWORK" && reworkCount === 0) {
+        await this.db.brief.update({
+          where: { id: brief.id },
+          data: {
+            cdReworkCount: 1,
+            cdLastImprovementDirectives: dirs,
+          },
+        });
+        const out = {
+          finalVerdict: fv as "APPROVE" | "REWORK",
+          selectedVisualAssetId: selId,
+          selectedCopyVariant: String(content.selectedCopyVariant ?? ""),
+          rationale: String(content.rationale ?? ""),
+          improvementDirectives: dirs,
+        };
+        await applyCreativeDirectorReworkLoop(this.db, {
+          briefId: brief.id,
+          clientId: brief.clientId,
+          output: out,
+        });
+      } else if (fv === "REWORK" && reworkCount >= 1) {
+        await this.db.brief.update({
+          where: { id: brief.id },
+          data: { cdLastImprovementDirectives: [] },
+        });
+      }
+    }
+
+    return { artifactId: result.id, usedPlaceholder, pipelineFailed: false as const };
   }
 
   async approveTask(
     taskId: string,
     feedback?: string,
     reviewerLabel?: string | null,
+    options?: { approveAnyway?: boolean },
   ): Promise<WorkflowStateResponse> {
     const task = await this.db.task.findUnique({
       where: { id: taskId },
       include: {
-        brief: { select: { clientId: true, identityWorkflowEnabled: true } },
+        brief: true,
       },
     });
     if (!task) {
@@ -421,15 +831,36 @@ export class OrchestratorService {
     }
     assertTaskIsAwaitingReview(task.status);
 
-    const row = getV1PipelineRow(
-      task.stage,
-      task.brief.identityWorkflowEnabled,
-    );
+    const row = getV1PipelineRow(task.stage, task.brief);
     const latestArtifact = await findLatestArtifactForPipelineRow(
       this.db,
       taskId,
       row.artifactType,
     );
+
+    const campaignCoreApprove = await loadCampaignCoreForBrief(
+      this.db,
+      task.briefId,
+    );
+    const structural = validateArtifactContent(row.artifactType, latestArtifact?.content, {
+      campaignCore: campaignCoreApprove,
+    });
+    if (!structural.ok) {
+      throw new OrchestratorError(
+        "INVALID_ARTIFACT",
+        "This output is not valid and cannot be approved",
+        400,
+      );
+    }
+
+    const qualityGate = reviewArtifactQualityBlocksApproval(latestArtifact?.content);
+    if (qualityGate.blocked && !options?.approveAnyway) {
+      throw new OrchestratorError(
+        "QUALITY_GATE",
+        `This output is not valid and cannot be approved — ${qualityGate.reasons.join(" ")} Regenerate or check "Approve anyway (not recommended)".`,
+        400,
+      );
+    }
 
     await this.db.$transaction(async (tx) => {
       await tx.reviewItem.create({
@@ -447,6 +878,8 @@ export class OrchestratorService {
         data: {
           status: "COMPLETED",
           completedAt: new Date(),
+          lastFailureType: null,
+          lastFailureReason: null,
         },
       });
     });
@@ -457,6 +890,11 @@ export class OrchestratorService {
         artifactId: latestArtifact.id,
         artifactContent: latestArtifact.content,
         outcome: "APPROVED",
+      });
+      await recordBrandMemoryOnArtifactApproval(this.db, {
+        clientId: task.brief.clientId,
+        stage: task.stage,
+        content: latestArtifact.content,
       });
     }
 
@@ -469,7 +907,7 @@ export class OrchestratorService {
       );
     }
 
-    await this.unlockDependentTasks(taskId);
+    await this.unlockDependentTasks(taskId, row.artifactType);
     return this.getWorkflowState(task.briefId);
   }
 
@@ -488,7 +926,7 @@ export class OrchestratorService {
     const task = await this.db.task.findUnique({
       where: { id: taskId },
       include: {
-        brief: { select: { clientId: true, identityWorkflowEnabled: true } },
+        brief: true,
       },
     });
     if (!task) {
@@ -496,10 +934,7 @@ export class OrchestratorService {
     }
     assertTaskIsAwaitingReview(task.status);
 
-    const row = getV1PipelineRow(
-      task.stage,
-      task.brief.identityWorkflowEnabled,
-    );
+    const row = getV1PipelineRow(task.stage, task.brief);
     const latestArtifact = await findLatestArtifactForPipelineRow(
       this.db,
       taskId,
@@ -533,6 +968,11 @@ export class OrchestratorService {
         artifactContent: latestArtifact.content,
         outcome: "REVISED",
       });
+      await recordBrandMemoryOnReviewRevisionRequested(this.db, {
+        clientId: task.brief.clientId,
+        stage: task.stage,
+        content: latestArtifact.content,
+      });
     }
 
     return this.getWorkflowState(task.briefId);
@@ -564,13 +1004,73 @@ export class OrchestratorService {
     }
     const brandOs = brandBibleToOperatingSystem(bb);
 
+    const [brandVisualProfile, clientRow] = await Promise.all([
+      loadBrandVisualProfileForPrompt(this.db, clientId),
+      this.db.client.findUnique({
+        where: { id: clientId },
+        select: { visualModelRef: true, name: true },
+      }),
+    ]);
+
+    const taskRow = await this.db.task.findUnique({
+      where: { id: taskId },
+      select: { briefId: true },
+    });
+    const briefRow = taskRow
+      ? await this.db.brief.findUnique({
+          where: { id: taskRow.briefId },
+          select: { visualReferenceOverrides: true },
+        })
+      : null;
+    const overrideRaw = briefRow?.visualReferenceOverrides;
+    const founderRefUrls: string[] = [];
+    if (Array.isArray(overrideRaw)) {
+      for (const x of overrideRaw) {
+        const s = String(x).trim();
+        if (s.startsWith("http://") || s.startsWith("https://")) {
+          founderRefUrls.push(s);
+        }
+      }
+    }
+
+    const selectedReferences = await selectVisualReferences(this.db, {
+      clientId,
+      clientName: clientRow?.name ?? null,
+      spec: parsed.data,
+      brandOs,
+      extraImageUrls: founderRefUrls,
+      brandVisualProfile,
+    });
+
+    const briefIdForCore = taskRow?.briefId ?? null;
+    const campaignCore = briefIdForCore
+      ? await loadCampaignCoreForBrief(this.db, briefIdForCore)
+      : null;
+
     const pkg = buildVisualPromptPackage({
       sourceVisualSpecId: visualSpecArtifact.id,
       spec: parsed.data,
       brandOs,
       founderDirection: founderFeedback?.trim() || undefined,
       framework: null,
+      selectedReferences,
+      founderReferenceUrls: founderRefUrls.slice(0, 5),
+      brandVisualProfile,
+      visualModelRef: clientRow?.visualModelRef?.trim() || null,
+      campaignCore: campaignCore ?? undefined,
     });
+
+    const pkgValidation = validateArtifactContent(
+      "VISUAL_PROMPT_PACKAGE",
+      pkg as unknown as Record<string, unknown>,
+      { campaignCore },
+    );
+    if (!pkgValidation.ok) {
+      console.warn(
+        `[agenticforce:visual-prompt-package] skipped persist — ${formatValidationForLog(pkgValidation)}`,
+      );
+      return;
+    }
 
     const latestPkg = await this.db.artifact.findFirst({
       where: { taskId, type: "VISUAL_PROMPT_PACKAGE" },
@@ -607,6 +1107,34 @@ export class OrchestratorService {
         status: "READY",
         startedAt: null,
         completedAt: null,
+        lastFailureType: null,
+        lastFailureReason: null,
+      },
+    });
+  }
+
+  /**
+   * After a failed generation: clear failure markers and set READY for another run.
+   */
+  async retryTaskGeneration(taskId: string): Promise<Task> {
+    const task = await this.db.task.findUnique({ where: { id: taskId } });
+    if (!task) {
+      throw new OrchestratorError("NOT_FOUND", `Task not found: ${taskId}`, 404);
+    }
+    if (task.status !== "FAILED") {
+      throw new OrchestratorError(
+        "INVALID_TASK_STATUS",
+        "Retry is only for tasks in FAILED state.",
+      );
+    }
+    return this.db.task.update({
+      where: { id: taskId },
+      data: {
+        status: "READY",
+        startedAt: null,
+        completedAt: null,
+        lastFailureType: null,
+        lastFailureReason: null,
       },
     });
   }
@@ -615,7 +1143,10 @@ export class OrchestratorService {
    * After a prerequisite reaches COMPLETED, promote dependents from PENDING to READY
    * when all of their prerequisites are COMPLETED.
    */
-  async unlockDependentTasks(completedTaskId: string): Promise<void> {
+  async unlockDependentTasks(
+    completedTaskId: string,
+    completedArtifactType: ArtifactType,
+  ): Promise<void> {
     const dependents = await this.db.taskDependency.findMany({
       where: { dependsOnTaskId: completedTaskId },
     });
@@ -630,6 +1161,38 @@ export class OrchestratorService {
 
     const briefId = tasks[0]?.briefId;
     if (!briefId) return;
+
+    const completedTask = await this.db.task.findUnique({
+      where: { id: completedTaskId },
+      include: { brief: true },
+    });
+    if (!completedTask || completedTask.status !== "COMPLETED") {
+      return;
+    }
+    const completedRow = getV1PipelineRow(completedTask.stage, completedTask.brief);
+    if (completedRow.artifactType !== completedArtifactType) {
+      return;
+    }
+    const latestCompletedArtifact = await findLatestArtifactForPipelineRow(
+      this.db,
+      completedTaskId,
+      completedArtifactType,
+    );
+    if (!latestCompletedArtifact) {
+      return;
+    }
+    const campaignCoreUnlock = await loadCampaignCoreForBrief(this.db, briefId);
+    const v = validateArtifactContent(
+      completedArtifactType,
+      latestCompletedArtifact.content,
+      { campaignCore: campaignCoreUnlock },
+    );
+    if (!v.ok) {
+      console.warn(
+        `[agenticforce:pipeline] unlock blocked for dependents of ${completedTaskId}: ${formatValidationForLog(v)}`,
+      );
+      return;
+    }
 
     const allBriefTasks = await this.db.task.findMany({
       where: { briefId },

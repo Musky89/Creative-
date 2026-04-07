@@ -88,15 +88,14 @@ export function getHeuristicFrameworkIds(
     }
     const dedup = [...new Set(ids)];
     const picked =
-      dedup.length >= 2
-        ? dedup.slice(0, 4)
+      dedup.length >= 3
+        ? dedup.slice(0, 3)
         : [
             "transformation",
             "problem-agitation",
             "aspirational-identity",
-            "cultural-relevance",
           ];
-    return picked.slice(0, 4);
+    return picked.slice(0, 3);
   }
 
   if (stage === "CONCEPTING") {
@@ -207,25 +206,38 @@ export async function selectFrameworksForTask(
 
   const pool = [...new Set([...heuristicIds, ...CANON_FRAMEWORKS.map((f) => f.id)])];
   const perfMap = await loadClientPerformanceMap(context.clientId);
+  const memPref = context.brandMemoryPromptSlice?.preferredFrameworks ?? [];
+  const memAvoid = context.brandMemoryPromptSlice?.avoidFrameworkIds ?? [];
 
   const scored = pool.map((id) => {
     const hIdx = heuristicIds.indexOf(id);
     const heuristicRank = hIdx >= 0 ? hIdx : null;
     const row = perfMap.get(id);
-    const score = scoreFrameworkPerformance(row, heuristicRank);
+    let score = scoreFrameworkPerformance(row, heuristicRank);
+    if (memPref.includes(id)) score += 1.35;
+    if (memAvoid.includes(id)) score -= 1.85;
     return { id, score };
   });
 
   scored.sort((a, b) => b.score - a.score);
 
-  const chosen = scored.slice(0, 4).map((s) => s.id);
+  const maxPick = stage === "CONCEPTING" ? 10 : 4;
+  let chosen = scored.slice(0, maxPick).map((s) => s.id);
   const hasHeuristic = chosen.some((id) => heuristicIds.includes(id));
   if (!hasHeuristic && heuristicIds[0]) {
-    chosen.pop();
-    chosen.unshift(heuristicIds[0]);
+    chosen = [...new Set([heuristicIds[0], ...chosen])].slice(0, maxPick);
   }
 
-  return getFrameworksByIds([...new Set(chosen)].slice(0, 4));
+  let uniqueChosen = [...new Set(chosen)].slice(0, maxPick);
+  if (stage === "CONCEPTING" && uniqueChosen.length < 6) {
+    for (const id of CANON_FRAMEWORKS.map((f) => f.id)) {
+      if (uniqueChosen.length >= 6) break;
+      if (!uniqueChosen.includes(id)) uniqueChosen.push(id);
+    }
+    uniqueChosen = uniqueChosen.slice(0, maxPick);
+  }
+
+  return getFrameworksByIds(uniqueChosen);
 }
 
 /** Format selected frameworks for system/user prompts. */

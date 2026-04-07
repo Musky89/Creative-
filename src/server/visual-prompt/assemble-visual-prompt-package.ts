@@ -12,6 +12,27 @@ import type {
   BuildVisualPromptPackageInput,
   VisualPromptPackagePayload,
 } from "./types";
+import { VISUAL_SLOP_AND_REALISM_BLOCK } from "@/server/visual-reference/slop-grounding-prompt";
+import { formatBrandVisualDnaSection } from "@/server/visual-identity/format-brand-visual-dna-prompt";
+import type { BrandVisualProfileForPrompt } from "@/server/visual-identity/merge-brand-visual-profile";
+import {
+  buildReferenceCompositionProfile,
+  campaignCompositionNegativeLines,
+  formatCompositionControlBlock,
+  formatCompositionLeadIn,
+} from "@/lib/visual/reference-composition-profile";
+import { formatCampaignCoreSection } from "@/lib/campaign/campaign-core";
+
+function traitsUsedFromProfile(p: BrandVisualProfileForPrompt): string[] {
+  return [
+    ...p.lightingPatterns.slice(0, 3),
+    ...p.compositionPatterns.slice(0, 3),
+    ...p.colorSignatures.slice(0, 2),
+    ...p.texturePatterns.slice(0, 2),
+    ...p.framingRules.slice(0, 2),
+    ...p.styleKeywords.slice(0, 3),
+  ];
+}
 
 function joinLines(title: string, body: string, extra?: string[]): string {
   const parts = [title, body.trim()];
@@ -40,6 +61,58 @@ function mergeAvoid(
  *
  * Future: `generateVisualAssetFromPromptPackage(artifactId, provider)` reads `providerVariants`.
  */
+function formatReferenceGroundingBlock(
+  input: BuildVisualPromptPackageInput,
+): { text: string; used: { id: string; label: string; imageUrl?: string }[] } {
+  const used: { id: string; label: string; imageUrl?: string }[] = [];
+  const lines: string[] = [];
+
+  const refs = input.selectedReferences ?? [];
+  for (const r of refs) {
+    used.push({ id: r.id, label: r.label, imageUrl: r.imageUrl });
+    const meta =
+      r.metadata && typeof r.metadata === "object" && !Array.isArray(r.metadata)
+        ? (r.metadata as Record<string, unknown>)
+        : {};
+    const mood = typeof meta.mood === "string" ? meta.mood.trim() : "";
+    const comp = typeof meta.composition === "string" ? meta.composition.trim() : "";
+    const light = typeof meta.lighting === "string" ? meta.lighting.trim() : "";
+    const tagStr = Array.isArray(meta.tags)
+      ? (meta.tags as unknown[]).map((t) => String(t)).filter(Boolean).join(", ")
+      : "";
+    lines.push(
+      `- **${r.label}** (${r.category})${mood ? ` — mood: ${mood}` : ""}${comp ? `; composition: ${comp}` : ""}${light ? `; lighting: ${light}` : ""}${tagStr ? `; tags: ${tagStr}` : ""}`,
+    );
+    if (r.imageUrl?.trim()) {
+      lines.push(`  Reference still URL (style anchor — emulate feel, do not copy IP): ${r.imageUrl.trim()}`);
+    }
+  }
+
+  const founderUrls = (input.founderReferenceUrls ?? [])
+    .map((u) => u.trim())
+    .filter((u) => u.length > 4)
+    .slice(0, 5);
+  for (let i = 0; i < founderUrls.length; i++) {
+    lines.push(
+      `- **Founder reference ${i + 1}:** ${founderUrls[i]} — match lighting scale, lens character, and campaign realism; do not reproduce logos or trademarks from the reference unless they are the client's own marks and the brief requires it.`,
+    );
+  }
+
+  if (lines.length === 0) {
+    return { text: "", used: [] };
+  }
+
+  return {
+    text: [
+      "REFERENCE GROUNDING (campaign-realism anchors):",
+      "Inspired by the following real-world photography / campaign cues — **emulate lighting, lensing, and art-direction discipline**, not subject-for-subject copying:",
+      ...lines,
+      "Composition constraints from references: favor believable camera height, natural depth separation, and motivated negative space consistent with the cues above.",
+    ].join("\n"),
+    used,
+  };
+}
+
 export function buildVisualPromptPackage(
   input: BuildVisualPromptPackageInput,
   defaultTarget: VisualPromptProviderTarget = "GENERIC",
@@ -105,6 +178,29 @@ export function buildVisualPromptPackage(
       ? `Founder direction (must respect): ${founderDirection.trim()}`
       : "";
 
+  const refIntent =
+    spec.referenceIntent?.trim() &&
+    `Reference intent (real-world genre to emulate): ${spec.referenceIntent.trim()}`;
+  const refHints =
+    spec.referenceStyleHints?.length &&
+    `Reference style hints: ${spec.referenceStyleHints.join(" · ")}`;
+
+  const { text: referenceGroundingBlock, used: visualRefsUsed } =
+    formatReferenceGroundingBlock(input);
+
+  const refList = input.selectedReferences ?? [];
+  const referenceCompositionProfile = buildReferenceCompositionProfile(refList);
+  const compositionControlBlock = formatCompositionControlBlock(referenceCompositionProfile);
+  const compositionLeadIn = formatCompositionLeadIn(referenceCompositionProfile);
+  const compositionNegLines = campaignCompositionNegativeLines(referenceCompositionProfile);
+
+  const brandDnaBlock = formatBrandVisualDnaSection(
+    input.brandVisualProfile ?? null,
+  );
+  const traitsUsedForInfluence = input.brandVisualProfile
+    ? traitsUsedFromProfile(input.brandVisualProfile)
+    : [];
+
   const seed =
     spec.optionalPromptSeed?.trim() &&
     `Supporting seed (do not override spec specifics): ${spec.optionalPromptSeed.trim()}`;
@@ -124,7 +220,19 @@ export function buildVisualPromptPackage(
           .join("\n")
       : "";
 
+  const campaignBlock =
+    input.campaignCore != null
+      ? `${formatCampaignCoreSection(input.campaignCore)}\n`
+      : "";
+
+  /** Composition lead-in first so every provider sees framing/angle before anti-slop copy. */
   const primaryPrompt = [
+    compositionLeadIn,
+    "",
+    campaignBlock,
+    VISUAL_SLOP_AND_REALISM_BLOCK,
+    "",
+    brandDnaBlock ? `${brandDnaBlock}\n` : "",
     `Objective: ${spec.visualObjective}`,
     `Concept route: ${spec.conceptName}.`,
     frameworkLine,
@@ -132,6 +240,11 @@ export function buildVisualPromptPackage(
     emotionalContext,
     categoryTaste,
     founderBlock,
+    refIntent,
+    refHints,
+    referenceGroundingBlock
+      ? `\n${referenceGroundingBlock}\n\n${compositionControlBlock}`
+      : `\n${compositionControlBlock}`,
     `Distinctiveness: ${spec.distinctivenessNotes}`,
     seed,
   ]
@@ -148,6 +261,12 @@ export function buildVisualPromptPackage(
     "Composition:",
     spec.composition,
     [
+      "Reference-derived control (must align with COMPOSITION CONTROL in primary prompt):",
+      `- Framing: ${referenceCompositionProfile.framingType.replace(/-/g, " ")}`,
+      `- Placement: ${referenceCompositionProfile.subjectPlacement.replace(/-/g, " ")}`,
+      `- Angle: ${referenceCompositionProfile.cameraAngle.replace(/-/g, " ")}`,
+      `- Background: ${referenceCompositionProfile.backgroundTreatment.replace(/-/g, " ")}`,
+      `- Negative space: ${referenceCompositionProfile.negativeSpaceUsage}`,
       brandOs.compositionStyle.trim()
         ? `Align with brand composition bias: ${brandOs.compositionStyle.trim()}`
         : "",
@@ -198,14 +317,40 @@ export function buildVisualPromptPackage(
 
   const referenceInstructions = joinLines(
     "Reference discipline:",
-    spec.referenceLogic,
+    [
+      spec.referenceLogic,
+      refIntent || "",
+      refHints || "",
+      referenceGroundingBlock || refList.length
+        ? "Ground execution in REFERENCE GROUNDING + COMPOSITION CONTROL (campaign photo realism, deliberate framing)."
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
   );
 
+  const brandAlignmentExtras: string[] = [];
+  if (brandVisualLines.length) {
+    brandAlignmentExtras.push(
+      `Brand OS visual anchors: ${brandVisualLines.join(" | ")}`,
+    );
+  }
+  if (input.campaignCore) {
+    const sli = input.campaignCore.singleLineIdea;
+    brandAlignmentExtras.push(
+      `Campaign core (must read as one idea with copy/concept): ${sli.slice(0, 220)}${sli.length > 220 ? "…" : ""}`,
+    );
+  }
   const brandAlignmentNotes = joinLines(
     "Why this fits the brand (from spec + OS):",
     spec.whyItWorksForBrand,
-    brandVisualLines.length ? [`Brand OS visual anchors: ${brandVisualLines.join(" | ")}`] : undefined,
+    brandAlignmentExtras.length ? brandAlignmentExtras : undefined,
   );
+
+  const profileNeg =
+    input.brandVisualProfile?.negativeTraits.map(
+      (t) => `Brand visual DNA avoid: ${t}`,
+    ) ?? [];
 
   const boundaryLines = [
     ...brandOs.emotionalBoundaries,
@@ -216,9 +361,13 @@ export function buildVisualPromptPackage(
     ...(brandOs.tasteMustNotFeelLike.trim()
       ? [`Must NOT feel like: ${brandOs.tasteMustNotFeelLike.trim()}`]
       : []),
+    ...profileNeg.slice(0, 12),
   ];
 
-  const negativePrompt = mergeAvoid(spec, boundaryLines);
+  const negativePrompt = mergeAvoid(spec, [
+    ...boundaryLines,
+    ...compositionNegLines.map((x) => `Composition discipline: ${x}`),
+  ]);
 
   const shotVariants = [
     `Wide establishing consistent with: ${spec.composition.slice(0, 120)}${spec.composition.length > 120 ? "…" : ""}`,
@@ -243,7 +392,29 @@ export function buildVisualPromptPackage(
       assembledAt: new Date().toISOString(),
       frameworkId: spec.frameworkUsed,
       conceptName: spec.conceptName,
+      campaignCorePresent: Boolean(input.campaignCore),
+      referenceGrounding: referenceGroundingBlock ? true : false,
+      brandVisualDna: brandDnaBlock ? true : false,
+      visualModelRef: input.visualModelRef?.trim() || null,
+      referenceCompositionSummary: {
+        framingType: referenceCompositionProfile.framingType,
+        cameraAngle: referenceCompositionProfile.cameraAngle,
+        subjectPlacement: referenceCompositionProfile.subjectPlacement,
+        backgroundTreatment: referenceCompositionProfile.backgroundTreatment,
+        realismBias: referenceCompositionProfile.realismBias,
+      },
     },
+    _visualReferencesUsed: visualRefsUsed.length ? visualRefsUsed : undefined,
+    _brandVisualProfileInfluence:
+      input.brandVisualProfile && traitsUsedForInfluence.length
+        ? {
+            profileId: input.brandVisualProfile.id,
+            traitsUsed: traitsUsedForInfluence,
+          }
+        : undefined,
+    _visualModelRef: input.visualModelRef?.trim() || null,
+    _referenceCompositionProfile: referenceCompositionProfile,
+    ...(input.campaignCore ? { campaignCore: input.campaignCore } : {}),
     providerVariants: {},
   };
 
@@ -266,6 +437,11 @@ export function buildVisualPromptPackage(
     brandAlignmentNotes: payload.brandAlignmentNotes,
     optionalShotVariants: payload.optionalShotVariants,
     optionalPromptMetadata: payload.optionalPromptMetadata,
+    _visualReferencesUsed: payload._visualReferencesUsed,
+    _brandVisualProfileInfluence: payload._brandVisualProfileInfluence,
+    _visualModelRef: payload._visualModelRef,
+    _referenceCompositionProfile: payload._referenceCompositionProfile,
+    campaignCore: payload.campaignCore,
     providerVariants: payload.providerVariants,
   });
 

@@ -15,13 +15,73 @@ export function IdentityExportPanel({
   clientId,
   briefId,
   hasIdentityArtifacts,
+  presentation = "default",
 }: {
   clientId: string;
   briefId: string;
   hasIdentityArtifacts: boolean;
+  presentation?: "default" | "studio";
 }) {
   const q = `clientId=${encodeURIComponent(clientId)}`;
   const base = `/api/export/briefs/${briefId}/identity?${q}`;
+  const studio = presentation === "studio";
+
+  if (studio) {
+    return (
+      <Card className="border-emerald-800/40 bg-emerald-950/15">
+        <p className="text-xs font-medium uppercase tracking-wide text-emerald-400/90">
+          Identity
+        </p>
+        {!hasIdentityArtifacts ? (
+          <p className="mt-3 text-sm text-emerald-100/80">
+            Finish identity strategy and routes first — then you can pull a pack from here.
+          </p>
+        ) : (
+          <p className="mt-3 text-sm text-emerald-100/80">
+            One download with everything we have so far — strategy, routes, and layout-ready
+            assets.
+          </p>
+        )}
+        <div
+          className={`mt-4 flex flex-wrap gap-2 ${!hasIdentityArtifacts ? "pointer-events-none opacity-45" : ""}`}
+        >
+          <a
+            href={`${base}&format=zip`}
+            className="inline-flex rounded-full bg-emerald-600/90 px-5 py-2.5 text-sm font-medium text-white hover:bg-emerald-500"
+          >
+            Download pack
+          </a>
+        </div>
+        {hasIdentityArtifacts ? (
+          <details className="mt-4 text-sm text-emerald-200/70">
+            <summary className="cursor-pointer select-none text-emerald-300/90 hover:text-emerald-200">
+              Other formats
+            </summary>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <a
+                href={`${base}&format=pdf`}
+                className="rounded-lg border border-emerald-800/50 px-3 py-1.5 text-xs hover:border-emerald-600"
+              >
+                PDF
+              </a>
+              <a
+                href={`${base}&format=markdown`}
+                className="rounded-lg border border-emerald-800/50 px-3 py-1.5 text-xs hover:border-emerald-600"
+              >
+                Document
+              </a>
+              <a
+                href={`${base}&format=json`}
+                className="rounded-lg border border-emerald-800/50 px-3 py-1.5 text-xs hover:border-emerald-600"
+              >
+                Structured
+              </a>
+            </div>
+          </details>
+        ) : null}
+      </Card>
+    );
+  }
 
   return (
     <Card className="border-emerald-800/50 bg-emerald-950/20">

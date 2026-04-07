@@ -19,6 +19,7 @@ export const identityDirectorAgent: AgentDefinition<
       "**Every route** must include: coreTension, emotionalCenter, whyBeatsCategoryNorm, whyCouldFail, distinctVisualWorld (mark world / applications / photography bias — ownable vs siblings).",
       "**pairwiseDifferentiation:** For n routes, `pairComparisons` must have EXACTLY n*(n-1)/2 entries covering every unordered pair (indices 0..n-1). Each: leftIndex, rightIndex, overlapNotes, howTheyDiffer, strongerRouteThisPair (left | right | tie — meaning the first/second index in that row's semantic pair). Also aggregateOverlap, strongestRouteIndex, weakestRouteIndex, differentiationSummary.",
       "Reject AI-slop patterns in avoidList (generic globes, random geometric animals, meaningless nodes, 'futuristic swoosh').",
+      "**Apply Brand Creative DNA** (cultural codes, visual philosophy, tension) when you describe distinctVisualWorld and symbolic logic.",
       BRAND_OS_MANDATORY_RULES,
       "Respond with a single JSON object only — no markdown, no preamble.",
       "Keys: frameworkUsed, routes[], routeDifferentiationSummary, pairwiseDifferentiation, optional logoExplorationReadiness.",

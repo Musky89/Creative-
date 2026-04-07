@@ -11,7 +11,7 @@ export function adaptGeminiImage(
   const prompt = [
     pkg.primaryPrompt,
     "",
-    "Constraints:",
+    "Constraints (honor CAMPAIGN COMPOSITION at the top of the scene block first):",
     `- Composition: ${pkg.compositionInstructions}`,
     `- Lighting: ${pkg.lightingInstructions}`,
     `- Palette: ${pkg.colorInstructions}`,

@@ -1,4 +1,5 @@
 import type { TaskStatus, WorkflowStage } from "@/generated/prisma/client";
+import type { BriefForWorkPlan } from "@/lib/workflow/brief-work-plan";
 import { STAGE_LABELS, workflowStageOrderForBrief } from "@/lib/workflow-display";
 
 export type BriefTaskLite = {
@@ -17,10 +18,10 @@ export type BriefWorkflowHeadline =
   | { kind: "waiting" };
 
 export function firstReadyStage(
-  identityWorkflowEnabled: boolean,
+  briefPlan: BriefForWorkPlan,
   tasks: BriefTaskLite[],
 ): WorkflowStage | null {
-  const order = workflowStageOrderForBrief(identityWorkflowEnabled);
+  const order = workflowStageOrderForBrief(briefPlan);
   const byStage = new Map(tasks.map((t) => [t.stage, t] as const));
   for (const stage of order) {
     const t = byStage.get(stage);
@@ -30,7 +31,7 @@ export function firstReadyStage(
 }
 
 export function briefWorkflowHeadline(
-  identityWorkflowEnabled: boolean,
+  briefPlan: BriefForWorkPlan,
   tasks: BriefTaskLite[],
 ): BriefWorkflowHeadline {
   if (tasks.length === 0) return { kind: "no_workflow" };
@@ -39,7 +40,7 @@ export function briefWorkflowHeadline(
   const revise = tasks.find((t) => t.status === "REVISE_REQUIRED");
   if (revise) return { kind: "revise", stage: revise.stage };
   if (tasks.some((t) => t.status === "RUNNING")) return { kind: "running" };
-  const readyStage = firstReadyStage(identityWorkflowEnabled, tasks);
+  const readyStage = firstReadyStage(briefPlan, tasks);
   if (readyStage) return { kind: "ready", stage: readyStage };
   if (tasks.every((t) => t.status === "COMPLETED")) return { kind: "complete" };
   return { kind: "waiting" };

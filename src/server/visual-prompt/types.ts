@@ -1,6 +1,10 @@
 import type { VisualPromptProviderTarget } from "@/generated/prisma/client";
 import type { VisualSpecArtifact } from "@/lib/artifacts/contracts";
 import type { BrandOperatingSystemContext } from "@/server/brand/brand-os-prompt";
+import type { SelectedVisualReference } from "@/server/visual-reference/select-references";
+import type { BrandVisualProfileForPrompt } from "@/server/visual-identity/merge-brand-visual-profile";
+import type { ReferenceCompositionProfile } from "@/lib/visual/reference-composition-profile";
+import type { CampaignCore } from "@/lib/campaign/campaign-core";
 
 /** Creative Canon framework summary for assembly (no full agent context required). */
 export type FrameworkAssemblyContext = {
@@ -16,6 +20,16 @@ export type BuildVisualPromptPackageInput = {
   /** Latest founder approval/revision feedback for the visual-direction task, if any. */
   founderDirection?: string;
   framework?: FrameworkAssemblyContext | null;
+  /** Library references selected for this package (deterministic). */
+  selectedReferences?: SelectedVisualReference[];
+  /** Founder-supplied reference image URLs (brief-level); described in prompt when present. */
+  founderReferenceUrls?: string[];
+  /** Learned visual DNA (soft lock); null if none yet. */
+  brandVisualProfile?: BrandVisualProfileForPrompt | null;
+  /** Future LoRA / fine-tune id — echoed into package metadata for providers. */
+  visualModelRef?: string | null;
+  /** When set, woven into prompts so frames match the agreed campaign spine. */
+  campaignCore?: CampaignCore | null;
 };
 
 /** Provider-ready strings — adapters fill these; no API calls. */
@@ -42,6 +56,11 @@ export type VisualPromptPackagePayload = {
   brandAlignmentNotes: string;
   optionalShotVariants?: string[];
   optionalPromptMetadata?: Record<string, unknown>;
+  _visualReferencesUsed?: { id: string; label: string; imageUrl?: string }[];
+  _brandVisualProfileInfluence?: { profileId: string; traitsUsed: string[] };
+  _visualModelRef?: string | null;
+  _referenceCompositionProfile?: ReferenceCompositionProfile;
+  campaignCore?: CampaignCore;
   /** Per-provider adapted bundles for `generateVisualAssetFromPromptPackage` (future). */
   providerVariants: Partial<
     Record<VisualPromptProviderTarget, ProviderReadyPromptBundle>

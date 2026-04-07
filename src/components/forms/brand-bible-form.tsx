@@ -148,8 +148,9 @@ export function BrandBibleForm({
       <div className="border-t border-zinc-100 pt-6">
         <h3 className="text-sm font-semibold text-zinc-900">Brand Operating System</h3>
         <p className="mt-1 text-xs text-zinc-500">
-          Structured rules injected into all agent prompts (language, emotion, creative patterns,
-          visual language).
+          Structured rules injected into all agent prompts. <strong>Creative DNA</strong> is the
+          non-negotiable voice/rhythm layer; taste engine below adds precision phrases and category
+          guardrails.
         </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <EnumSelect
@@ -257,6 +258,93 @@ export function BrandBibleForm({
               defaultValue={jsonArrayToLines(initial?.narrativeStyles)}
             />
             <FieldHint>One per line.</FieldHint>
+          </div>
+        </div>
+        <div className="mt-6 space-y-4 border-t border-zinc-100 pt-6">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+            Creative DNA
+          </h4>
+          <p className="text-xs text-zinc-500">
+            Imperative voice rules, rhythm, devices, and culture codes — formatted as{" "}
+            <strong>BRAND CREATIVE DNA — NON-NEGOTIABLE RULES</strong> in agent prompts.
+          </p>
+          <div>
+            <Label htmlFor="voicePrinciples">Voice principles</Label>
+            <Textarea
+              id="voicePrinciples"
+              name="voicePrinciples"
+              rows={3}
+              defaultValue={jsonArrayToLines(initial?.voicePrinciples)}
+            />
+            <FieldHint>One per line (e.g. “Speak in invitations, not commands”).</FieldHint>
+          </div>
+          <div>
+            <Label htmlFor="rhythmRules">Rhythm rules</Label>
+            <Textarea
+              id="rhythmRules"
+              name="rhythmRules"
+              rows={2}
+              defaultValue={jsonArrayToLines(initial?.rhythmRules)}
+            />
+            <FieldHint>One per line.</FieldHint>
+          </div>
+          <div>
+            <Label htmlFor="signatureDevices">Signature devices</Label>
+            <Textarea
+              id="signatureDevices"
+              name="signatureDevices"
+              rows={2}
+              defaultValue={jsonArrayToLines(initial?.signatureDevices)}
+            />
+            <FieldHint>Structures the copy must perform — one per line.</FieldHint>
+          </div>
+          <div>
+            <Label htmlFor="culturalCodes">Cultural codes</Label>
+            <Textarea
+              id="culturalCodes"
+              name="culturalCodes"
+              rows={2}
+              defaultValue={jsonArrayToLines(initial?.culturalCodes)}
+            />
+            <FieldHint>One per line.</FieldHint>
+          </div>
+          <div>
+            <Label htmlFor="emotionalRange">Emotional range</Label>
+            <Textarea
+              id="emotionalRange"
+              name="emotionalRange"
+              rows={2}
+              defaultValue={initial?.emotionalRange ?? ""}
+            />
+            <FieldHint>Allowed spectrum — not only primary emotion.</FieldHint>
+          </div>
+          <div>
+            <Label htmlFor="metaphorStyle">Metaphor style</Label>
+            <Textarea
+              id="metaphorStyle"
+              name="metaphorStyle"
+              rows={2}
+              defaultValue={initial?.metaphorStyle ?? ""}
+            />
+          </div>
+          <div>
+            <Label htmlFor="visualPhilosophy">Visual philosophy</Label>
+            <Textarea
+              id="visualPhilosophy"
+              name="visualPhilosophy"
+              rows={2}
+              defaultValue={initial?.visualPhilosophy ?? ""}
+            />
+          </div>
+          <div>
+            <Label htmlFor="brandTension">Brand tension (creative line)</Label>
+            <Textarea
+              id="brandTension"
+              name="brandTension"
+              rows={2}
+              defaultValue={initial?.brandTension ?? ""}
+            />
+            <FieldHint>e.g. Premium vs accessible — shown in prompts as a must-hold tension.</FieldHint>
           </div>
         </div>
       </div>
