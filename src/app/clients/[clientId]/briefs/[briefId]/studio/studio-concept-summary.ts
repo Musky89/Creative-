@@ -7,6 +7,7 @@ export type ConceptRouteBrief = {
   hook: string;
   frameworkId: string;
   isSelected?: boolean;
+  isAlternate?: boolean;
   isRejected?: boolean;
 };
 
@@ -44,6 +45,7 @@ export function parseConceptPack(content: unknown): ParsedConceptPack | null {
       hook: String(c.hook ?? ""),
       frameworkId: String(c.frameworkId ?? ""),
       isSelected: c.isSelected === true,
+      isAlternate: c.isAlternate === true,
       isRejected: c.isRejected === true,
     };
   });
@@ -59,9 +61,13 @@ export function parseConceptPack(content: unknown): ParsedConceptPack | null {
     })();
 
   const rejected = routes.filter((r) => r.isRejected === true);
-  const alternatives = routes.filter(
-    (r) => r.conceptId !== winner?.conceptId && !r.isRejected,
-  );
+  const taggedAlternates = routes.filter((r) => r.isAlternate === true);
+  const alternatives =
+    taggedAlternates.length > 0
+      ? taggedAlternates
+      : routes.filter(
+          (r) => r.conceptId !== winner?.conceptId && r.isRejected !== true,
+        );
 
   return { routes, winner, alternatives, rejected };
 }

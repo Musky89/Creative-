@@ -535,13 +535,43 @@ export function StrategyArtifactCard({
           <p className="text-xs font-medium text-zinc-500">
             Strategic angles (Creative Canon)
           </p>
+          {isRecord(content._agenticforceSelection) &&
+          asString(
+            (content._agenticforceSelection as Record<string, unknown>).stage,
+          ) === "STRATEGY" ? (
+            <div className="mb-3 rounded-lg border border-sky-800/40 bg-sky-950/25 p-3 text-xs text-sky-100/90">
+              <p className="font-semibold uppercase tracking-wide text-sky-300/90">
+                Creative selection
+              </p>
+              <p className="mt-2 leading-relaxed">
+                {asString(
+                  (content._agenticforceSelection as Record<string, unknown>)
+                    .selectionRationale,
+                ) || "—"}
+              </p>
+            </div>
+          ) : null}
           {angles.map((a, i) => {
             if (!isRecord(a)) return null;
             const fid = asString(a.frameworkId);
             const ang = asString(a.angle);
             if (!fid) return null;
+            const primary = a.isSelectedPrimary === true;
+            const alt = a.isAlternate === true;
             return (
               <div key={i} className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {primary ? (
+                    <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200 ring-1 ring-emerald-500/30">
+                      Primary
+                    </span>
+                  ) : null}
+                  {alt ? (
+                    <span className="rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200 ring-1 ring-amber-500/25">
+                      Alternate
+                    </span>
+                  ) : null}
+                </div>
                 <FrameworkStrip
                   frameworkId={fid}
                   title="Framework"
@@ -590,17 +620,30 @@ export function ConceptArtifactCard({
                 {asString(selection.winnerConceptId) || "—"}
               </span>
             </p>
+            {Array.isArray(selection.alternateConceptIds) &&
+            selection.alternateConceptIds.length > 0 ? (
+              <p className="mt-1 text-xs text-teal-200/85">
+                Alternates:{" "}
+                {selection.alternateConceptIds.map((x) => String(x)).join(", ")}
+              </p>
+            ) : null}
+            {typeof selection.judgeSummary === "string" &&
+            selection.judgeSummary.trim() ? (
+              <p className="mt-2 text-xs leading-relaxed text-teal-100/80">
+                {selection.judgeSummary.trim()}
+              </p>
+            ) : null}
             {Array.isArray(selection.rejectedConceptIds) &&
             selection.rejectedConceptIds.length > 0 ? (
-              <p className="mt-1 text-xs text-teal-200/80">
-                Rejected:{" "}
+              <p className="mt-1 text-xs text-zinc-500">
+                Not surfaced ({selection.rejectedConceptIds.length}):{" "}
                 {selection.rejectedConceptIds.map((x) => String(x)).join(", ")}
               </p>
             ) : null}
             {isRecord(selection.scores) ? (
               <p className="mt-2 text-xs text-zinc-400">
-                Scores persisted per conceptId in{" "}
-                <code className="text-zinc-300">_agenticforceSelection.scores</code>
+                Scores (distinctiveness, brand fit, clarity, emotion, non-generic) per{" "}
+                <code className="text-zinc-300">conceptId</code>
               </p>
             ) : null}
           </div>
@@ -669,14 +712,19 @@ export function ConceptArtifactCard({
           </div>
         ) : null}
         <div className="mt-6 space-y-3">
-          {concepts.map((raw, i) => {
-            if (!isRecord(raw)) return null;
+          {concepts
+            .map((raw, i) => ({ raw, i }))
+            .filter(({ raw }) => {
+              if (!isRecord(raw)) return false;
+              return raw.isRejected !== true;
+            })
+            .map(({ raw, i }) => {
             const fid = asString(raw.frameworkId);
             const conceptTitle =
               asString(raw.conceptName) || `Concept ${i + 1}`;
             const cid = asString(raw.conceptId);
             const sel = raw.isSelected === true;
-            const rej = raw.isRejected === true;
+            const alt = raw.isAlternate === true;
             return (
               <DisclosureSection
                 key={cid || i}
@@ -685,13 +733,13 @@ export function ConceptArtifactCard({
                   [
                     fid ? "Creative Canon route" : undefined,
                     cid ? `id: ${cid}` : undefined,
-                    sel ? "SELECTED" : undefined,
-                    rej ? "REJECTED" : undefined,
+                    sel ? "PRIMARY" : undefined,
+                    alt ? "ALTERNATE" : undefined,
                   ]
                     .filter(Boolean)
                     .join(" · ") || undefined
                 }
-                defaultOpen={i === 0}
+                defaultOpen={sel || i === 0}
               >
                 {fid ? (
                   <div className="mb-4">
@@ -754,6 +802,33 @@ export function ConceptArtifactCard({
               </DisclosureSection>
             );
           })}
+          {concepts.some(
+            (c) => isRecord(c) && c.isRejected === true,
+          ) ? (
+            <DisclosureSection
+              title="Other routes (not surfaced)"
+              subtitle="Kept on file — lower-ranked in creative selection"
+              defaultOpen={false}
+            >
+              <ul className="space-y-2 text-sm text-zinc-500">
+                {concepts.map((raw, i) => {
+                  if (!isRecord(raw) || raw.isRejected !== true) return null;
+                  return (
+                    <li key={asString(raw.conceptId) || i}>
+                      <span className="font-medium text-zinc-400">
+                        {asString(raw.conceptName) || `Concept ${i + 1}`}
+                      </span>
+                      {raw.hook ? (
+                        <p className="mt-0.5 text-xs text-zinc-600">
+                          {asString(raw.hook)}
+                        </p>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            </DisclosureSection>
+          ) : null}
         </div>
       </Card>
     );
@@ -1042,6 +1117,33 @@ export function CopyArtifactCard({
 }) {
   if (!isRecord(content)) return <JsonFallback content={content} />;
   const fw = asString(content.frameworkUsed);
+  const headlineSel = isRecord(content._agenticforceSelection)
+    ? (content._agenticforceSelection as Record<string, unknown>)
+    : null;
+  const copyHeadlineSelection =
+    headlineSel && headlineSel.stage === "COPY_HEADLINES" ? headlineSel : null;
+  const headlines = Array.isArray(content.headlineOptions)
+    ? (content.headlineOptions as unknown[]).map((x) => String(x))
+    : [];
+  const primaryIdx =
+    copyHeadlineSelection &&
+    typeof copyHeadlineSelection.primaryHeadlineIndex === "number"
+      ? Math.min(
+          Math.max(0, Math.floor(copyHeadlineSelection.primaryHeadlineIndex)),
+          Math.max(0, headlines.length - 1),
+        )
+      : 0;
+  const altIdxs: number[] = Array.isArray(
+    copyHeadlineSelection?.alternateHeadlineIndices,
+  )
+    ? (copyHeadlineSelection!.alternateHeadlineIndices as unknown[])
+        .map((x) => Math.floor(Number(x)))
+        .filter((n) => !Number.isNaN(n) && n >= 0 && n < headlines.length)
+    : [];
+  const surfacedHeadlineIdxs = new Set<number>([primaryIdx, ...altIdxs]);
+  const otherHeadlineIdxs = headlines
+    .map((_, i) => i)
+    .filter((i) => !surfacedHeadlineIdxs.has(i));
   return (
     <Card>
       <SectionTitle>Copy</SectionTitle>
@@ -1055,13 +1157,58 @@ export function CopyArtifactCard({
           />
         </div>
       ) : null}
+      {copyHeadlineSelection &&
+      typeof copyHeadlineSelection.selectionRationale === "string" ? (
+        <div className="mt-4 rounded-lg border border-violet-800/40 bg-violet-950/25 p-3 text-xs text-violet-100/90">
+          <p className="font-semibold uppercase tracking-wide text-violet-300/90">
+            Headline selection
+          </p>
+          <p className="mt-2 leading-relaxed">
+            {copyHeadlineSelection.selectionRationale}
+          </p>
+        </div>
+      ) : null}
       <div className="mt-4 space-y-4">
         <div>
-          <p className="text-xs font-medium text-zinc-500">Headline options</p>
-          <StringList
-            items={content.headlineOptions}
-            empty="No headlines."
-          />
+          <p className="text-xs font-medium text-zinc-500">Headlines (selected)</p>
+          <ul className="mt-2 space-y-3">
+            {headlines[primaryIdx] ? (
+              <li className="rounded-lg border border-emerald-900/40 bg-emerald-950/20 p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-300/90">
+                  Primary
+                </p>
+                <p className="mt-1 text-sm text-zinc-200">{headlines[primaryIdx]}</p>
+              </li>
+            ) : null}
+            {altIdxs.map((idx) =>
+              headlines[idx] ? (
+                <li
+                  key={idx}
+                  className="rounded-lg border border-amber-900/35 bg-amber-950/15 p-3"
+                >
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-300/90">
+                    Alternate
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-200">{headlines[idx]}</p>
+                </li>
+              ) : null,
+            )}
+          </ul>
+          {otherHeadlineIdxs.length > 0 ? (
+            <DisclosureSection
+              title="Other headline candidates"
+              subtitle={`${otherHeadlineIdxs.length} not surfaced by default`}
+              defaultOpen={false}
+            >
+              <ul className="mt-2 space-y-2 text-sm text-zinc-500">
+                {otherHeadlineIdxs.map((idx) => (
+                  <li key={idx} className="text-zinc-400">
+                    {headlines[idx]}
+                  </li>
+                ))}
+              </ul>
+            </DisclosureSection>
+          ) : null}
         </div>
         <div>
           <p className="text-xs font-medium text-zinc-500">Body copy options</p>
