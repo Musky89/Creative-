@@ -159,7 +159,7 @@ All responses are JSON: success `{ ok: true, data }`, errors `{ ok: false, error
 | `POST` | `/api/orchestrator/tasks/[taskId]/request-revision` | Body `{ "feedback": "..." }` (required); `AWAITING_REVIEW` → `REVISE_REQUIRED`. |
 | `POST` | `/api/orchestrator/tasks/[taskId]/reset-ready` | `REVISE_REQUIRED` → `READY` (clears run timestamps). |
 
-Implementation lives under [`src/server/orchestrator/`](src/server/orchestrator/). Placeholder artifact content is in [`src/server/orchestrator/scaffold/`](src/server/orchestrator/scaffold/) — not AI output.
+Implementation lives under [`src/server/orchestrator/`](src/server/orchestrator/). Deterministic placeholder artifact payloads (when the LLM path fails or no agent is registered) live in [`src/server/orchestrator/fallbacks/`](src/server/orchestrator/fallbacks/) — not model output.
 
 ---
 

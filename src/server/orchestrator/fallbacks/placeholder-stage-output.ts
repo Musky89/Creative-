@@ -1,7 +1,12 @@
 /**
- * TEMPORARY SCAFFOLD — NOT AI OUTPUT
+ * Deterministic placeholder JSON for orchestrator completion when no real model output exists.
  *
- * Deterministic placeholder JSON aligned with Zod artifact contracts for offline / no-LLM runs.
+ * Used from `OrchestratorService.completeTask` when:
+ * - The stage agent fails (missing keys, API error, parse failure) → merged with `_agenticforceSource: "placeholder_fallback"`.
+ * - EXPORT creative-director final fails → same.
+ * - There is no registered agent for the task stage → bare placeholder (still production path for e.g. INTAKE-only flows).
+ *
+ * This is not model output; payloads include `_agenticforcePlaceholder` for inspection.
  */
 
 import type { ArtifactType, WorkflowStage } from "@/generated/prisma/client";
@@ -445,16 +450,4 @@ export function buildPlaceholderArtifactContent(
         note: "Unknown artifact type for placeholder factory.",
       };
   }
-}
-
-export function buildPlaceholderAgentRunInput(
-  ctx: PlaceholderContext,
-  stage: WorkflowStage,
-): Record<string, unknown> {
-  return {
-    ...SCAFFOLD_MARKER,
-    kind: "orchestrator_scaffold_input",
-    briefId: ctx.brief.id,
-    stage,
-  };
 }

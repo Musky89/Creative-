@@ -36,7 +36,7 @@ import {
 } from "./task-state";
 import type { WorkflowStateResponse, WorkflowTaskSnapshot } from "./types";
 import { getV1PipelineRow, stageOrderIndex } from "./v1-pipeline";
-import { buildPlaceholderArtifactContent } from "./scaffold/placeholder-stage-output";
+import { buildPlaceholderArtifactContent } from "./fallbacks/placeholder-stage-output";
 import { recordArtifactOutcomeAndPerformance } from "@/server/canon/outcomes";
 import { runCreativeDirectorJudge } from "@/server/agents/creative-director-judge";
 import { runStrategistJudge } from "@/server/agents/strategist-judge";
