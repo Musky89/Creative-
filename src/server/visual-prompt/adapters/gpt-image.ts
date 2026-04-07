@@ -9,9 +9,9 @@ export function adaptGptImage(
   pkg: VisualPromptPackagePayload,
 ): ProviderReadyPromptBundle {
   const prompt = [
-    "Generate a single image matching this art direction.",
-    "",
     pkg.primaryPrompt,
+    "",
+    "Generate a single image matching this art direction.",
     "",
     "Follow these instructions exactly:",
     `1) Composition: ${pkg.compositionInstructions}`,

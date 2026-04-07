@@ -2,6 +2,9 @@
 
 import { useActionState } from "react";
 import { saveBriefVisualReferenceUrlsAction } from "@/app/actions/brief-visual-references";
+import type { CompositionGuidanceSummary } from "@/lib/visual/reference-composition-profile";
+
+export type { CompositionGuidanceSummary };
 
 export type PromptPackageRef = {
   id: string;
@@ -16,11 +19,13 @@ export function StudioVisualReferencesPanel({
   briefId,
   packageRefs,
   savedUrls,
+  compositionGuidance,
 }: {
   clientId: string;
   briefId: string;
   packageRefs: PromptPackageRef[];
   savedUrls: string[];
+  compositionGuidance?: CompositionGuidanceSummary | null;
 }) {
   const [state, formAction, pending] = useActionState(
     async (_prev: FormState, fd: FormData) => {
@@ -39,6 +44,50 @@ export function StudioVisualReferencesPanel({
         below with labels — re-approve <strong className="text-teal-50">Visual direction</strong> to rebuild
         after changing custom URLs.
       </p>
+
+      {compositionGuidance ? (
+        <div className="mt-3 rounded-lg border border-teal-800/40 bg-zinc-950/60 px-3 py-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-teal-200/85">
+            Composition guidance
+          </p>
+          <p className="mt-1 text-[11px] leading-relaxed text-zinc-300">
+            Derived from the references on this visual prompt package — these rules are enforced in the
+            generation prompt.
+          </p>
+          <dl className="mt-2 grid gap-1.5 text-[11px] text-zinc-200 sm:grid-cols-2">
+            <div>
+              <dt className="text-zinc-500">Framing</dt>
+              <dd className="font-medium capitalize text-teal-100/95">
+                {compositionGuidance.framing}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-zinc-500">Camera angle</dt>
+              <dd className="font-medium capitalize text-teal-100/95">
+                {compositionGuidance.cameraAngle}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-zinc-500">Subject placement</dt>
+              <dd className="font-medium capitalize text-teal-100/95">
+                {compositionGuidance.subjectPlacement}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-zinc-500">Background</dt>
+              <dd className="font-medium capitalize text-teal-100/95">
+                {compositionGuidance.backgroundTreatment}
+              </dd>
+            </div>
+            <div className="sm:col-span-2">
+              <dt className="text-zinc-500">Realism target</dt>
+              <dd className="font-medium capitalize text-teal-100/95">
+                {compositionGuidance.realismBias}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      ) : null}
 
       {packageRefs.length > 0 ? (
         <ul className="mt-3 flex flex-wrap gap-3">

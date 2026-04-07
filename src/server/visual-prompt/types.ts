@@ -3,6 +3,7 @@ import type { VisualSpecArtifact } from "@/lib/artifacts/contracts";
 import type { BrandOperatingSystemContext } from "@/server/brand/brand-os-prompt";
 import type { SelectedVisualReference } from "@/server/visual-reference/select-references";
 import type { BrandVisualProfileForPrompt } from "@/server/visual-identity/merge-brand-visual-profile";
+import type { ReferenceCompositionProfile } from "@/lib/visual/reference-composition-profile";
 
 /** Creative Canon framework summary for assembly (no full agent context required). */
 export type FrameworkAssemblyContext = {
@@ -55,6 +56,7 @@ export type VisualPromptPackagePayload = {
   _visualReferencesUsed?: { id: string; label: string; imageUrl?: string }[];
   _brandVisualProfileInfluence?: { profileId: string; traitsUsed: string[] };
   _visualModelRef?: string | null;
+  _referenceCompositionProfile?: ReferenceCompositionProfile;
   /** Per-provider adapted bundles for `generateVisualAssetFromPromptPackage` (future). */
   providerVariants: Partial<
     Record<VisualPromptProviderTarget, ProviderReadyPromptBundle>

@@ -32,6 +32,10 @@ import {
   briefRecordToWorkPlan,
   resolveBriefWorkPlan,
 } from "@/lib/workflow/brief-work-plan";
+import {
+  compositionGuidanceSummary,
+  referenceCompositionProfileSchema,
+} from "@/lib/visual/reference-composition-profile";
 import { StudioEngagementOverview } from "./studio-engagement-overview";
 
 function reviewStatusText(status: ReviewStatus) {
@@ -169,6 +173,14 @@ export default async function BriefStudioPage({
   const promptPackageRefs = promptPkgArtifact
     ? parsePromptPackageRefs(promptPkgArtifact.content)
     : [];
+
+  const compositionGuidance = (() => {
+    const c = promptPkgArtifact?.content;
+    if (!c || typeof c !== "object") return null;
+    const raw = (c as Record<string, unknown>)._referenceCompositionProfile;
+    const p = referenceCompositionProfileSchema.safeParse(raw);
+    return p.success ? compositionGuidanceSummary(p.data) : null;
+  })();
 
   const overrideRaw = brief.visualReferenceOverrides;
   const savedReferenceUrls = Array.isArray(overrideRaw)
@@ -543,6 +555,7 @@ export default async function BriefStudioPage({
             hasPromptPackage={hasPromptPackage}
             promptPackageArtifactId={promptPackageArtifactId}
             promptPackageRefs={promptPackageRefs}
+            compositionGuidance={compositionGuidance}
             savedReferenceUrls={savedReferenceUrls}
             visualAssets={visualAssetsForStudio}
             readinessLines={visualGenReadiness}

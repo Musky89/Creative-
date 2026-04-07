@@ -15,6 +15,12 @@ import type {
 import { VISUAL_SLOP_AND_REALISM_BLOCK } from "@/server/visual-reference/slop-grounding-prompt";
 import { formatBrandVisualDnaSection } from "@/server/visual-identity/format-brand-visual-dna-prompt";
 import type { BrandVisualProfileForPrompt } from "@/server/visual-identity/merge-brand-visual-profile";
+import {
+  buildReferenceCompositionProfile,
+  campaignCompositionNegativeLines,
+  formatCompositionControlBlock,
+  formatCompositionLeadIn,
+} from "@/lib/visual/reference-composition-profile";
 
 function traitsUsedFromProfile(p: BrandVisualProfileForPrompt): string[] {
   return [
@@ -181,6 +187,12 @@ export function buildVisualPromptPackage(
   const { text: referenceGroundingBlock, used: visualRefsUsed } =
     formatReferenceGroundingBlock(input);
 
+  const refList = input.selectedReferences ?? [];
+  const referenceCompositionProfile = buildReferenceCompositionProfile(refList);
+  const compositionControlBlock = formatCompositionControlBlock(referenceCompositionProfile);
+  const compositionLeadIn = formatCompositionLeadIn(referenceCompositionProfile);
+  const compositionNegLines = campaignCompositionNegativeLines(referenceCompositionProfile);
+
   const brandDnaBlock = formatBrandVisualDnaSection(
     input.brandVisualProfile ?? null,
   );
@@ -207,7 +219,10 @@ export function buildVisualPromptPackage(
           .join("\n")
       : "";
 
+  /** Composition lead-in first so every provider sees framing/angle before anti-slop copy. */
   const primaryPrompt = [
+    compositionLeadIn,
+    "",
     VISUAL_SLOP_AND_REALISM_BLOCK,
     "",
     brandDnaBlock ? `${brandDnaBlock}\n` : "",
@@ -220,7 +235,9 @@ export function buildVisualPromptPackage(
     founderBlock,
     refIntent,
     refHints,
-    referenceGroundingBlock ? `\n${referenceGroundingBlock}` : "",
+    referenceGroundingBlock
+      ? `\n${referenceGroundingBlock}\n\n${compositionControlBlock}`
+      : `\n${compositionControlBlock}`,
     `Distinctiveness: ${spec.distinctivenessNotes}`,
     seed,
   ]
@@ -237,6 +254,12 @@ export function buildVisualPromptPackage(
     "Composition:",
     spec.composition,
     [
+      "Reference-derived control (must align with COMPOSITION CONTROL in primary prompt):",
+      `- Framing: ${referenceCompositionProfile.framingType.replace(/-/g, " ")}`,
+      `- Placement: ${referenceCompositionProfile.subjectPlacement.replace(/-/g, " ")}`,
+      `- Angle: ${referenceCompositionProfile.cameraAngle.replace(/-/g, " ")}`,
+      `- Background: ${referenceCompositionProfile.backgroundTreatment.replace(/-/g, " ")}`,
+      `- Negative space: ${referenceCompositionProfile.negativeSpaceUsage}`,
       brandOs.compositionStyle.trim()
         ? `Align with brand composition bias: ${brandOs.compositionStyle.trim()}`
         : "",
@@ -291,8 +314,8 @@ export function buildVisualPromptPackage(
       spec.referenceLogic,
       refIntent || "",
       refHints || "",
-      referenceGroundingBlock
-        ? "Ground execution in the REFERENCE GROUNDING block above (campaign photo realism)."
+      referenceGroundingBlock || refList.length
+        ? "Ground execution in REFERENCE GROUNDING + COMPOSITION CONTROL (campaign photo realism, deliberate framing)."
         : "",
     ]
       .filter(Boolean)
@@ -322,7 +345,10 @@ export function buildVisualPromptPackage(
     ...profileNeg.slice(0, 12),
   ];
 
-  const negativePrompt = mergeAvoid(spec, boundaryLines);
+  const negativePrompt = mergeAvoid(spec, [
+    ...boundaryLines,
+    ...compositionNegLines.map((x) => `Composition discipline: ${x}`),
+  ]);
 
   const shotVariants = [
     `Wide establishing consistent with: ${spec.composition.slice(0, 120)}${spec.composition.length > 120 ? "…" : ""}`,
@@ -350,6 +376,13 @@ export function buildVisualPromptPackage(
       referenceGrounding: referenceGroundingBlock ? true : false,
       brandVisualDna: brandDnaBlock ? true : false,
       visualModelRef: input.visualModelRef?.trim() || null,
+      referenceCompositionSummary: {
+        framingType: referenceCompositionProfile.framingType,
+        cameraAngle: referenceCompositionProfile.cameraAngle,
+        subjectPlacement: referenceCompositionProfile.subjectPlacement,
+        backgroundTreatment: referenceCompositionProfile.backgroundTreatment,
+        realismBias: referenceCompositionProfile.realismBias,
+      },
     },
     _visualReferencesUsed: visualRefsUsed.length ? visualRefsUsed : undefined,
     _brandVisualProfileInfluence:
@@ -360,6 +393,7 @@ export function buildVisualPromptPackage(
           }
         : undefined,
     _visualModelRef: input.visualModelRef?.trim() || null,
+    _referenceCompositionProfile: referenceCompositionProfile,
     providerVariants: {},
   };
 
@@ -385,6 +419,7 @@ export function buildVisualPromptPackage(
     _visualReferencesUsed: payload._visualReferencesUsed,
     _brandVisualProfileInfluence: payload._brandVisualProfileInfluence,
     _visualModelRef: payload._visualModelRef,
+    _referenceCompositionProfile: payload._referenceCompositionProfile,
     providerVariants: payload.providerVariants,
   });
 

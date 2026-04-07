@@ -10,6 +10,7 @@ import type { VisualGenReadinessLine } from "@/lib/studio/visual-generation-read
 import { StudioFirstImageCta } from "./studio-first-image-cta";
 import {
   StudioVisualReferencesPanel,
+  type CompositionGuidanceSummary,
   type PromptPackageRef,
 } from "./studio-visual-references";
 
@@ -51,6 +52,7 @@ export function StudioExploreAlternatives({
   hasPromptPackage,
   promptPackageArtifactId,
   promptPackageRefs,
+  compositionGuidance,
   savedReferenceUrls,
   visualAssets,
   readinessLines,
@@ -67,6 +69,7 @@ export function StudioExploreAlternatives({
   hasPromptPackage: boolean;
   promptPackageArtifactId: string | null;
   promptPackageRefs: PromptPackageRef[];
+  compositionGuidance?: CompositionGuidanceSummary | null;
   savedReferenceUrls: string[];
   visualAssets: AssetRow[];
   readinessLines: VisualGenReadinessLine[];
@@ -195,6 +198,7 @@ export function StudioExploreAlternatives({
               briefId={briefId}
               packageRefs={promptPackageRefs}
               savedUrls={savedReferenceUrls}
+              compositionGuidance={compositionGuidance ?? null}
             />
             <p className="text-sm font-semibold text-zinc-100">Generate frames</p>
             <p className="mt-1 text-xs text-zinc-500">

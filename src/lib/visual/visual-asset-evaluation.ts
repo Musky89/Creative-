@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { visualSpecArtifactSchema } from "@/lib/artifacts/contracts";
+import {
+  compositionProfilePromptIssues,
+  type ReferenceCompositionProfile,
+} from "@/lib/visual/reference-composition-profile";
 
 /**
  * Structured visual QA output (persisted on VisualAssetReview.evaluation).
@@ -64,6 +68,7 @@ export function deterministicVisualAssetEvaluation(args: {
   promptUsed: string;
   negativePromptUsed?: string;
   spec: z.infer<typeof visualSpecArtifactSchema> | null;
+  compositionProfile?: ReferenceCompositionProfile | null;
 }): Pick<
   VisualAssetEvaluation,
   | "avoidListRespected"
@@ -79,6 +84,12 @@ export function deterministicVisualAssetEvaluation(args: {
 > {
   const issues: string[] = [];
   const p = norm(args.promptUsed);
+
+  if (args.compositionProfile) {
+    issues.push(
+      ...compositionProfilePromptIssues(args.promptUsed, args.compositionProfile),
+    );
+  }
 
   for (const h of SLOP_HINTS) {
     if (p.includes(h)) {

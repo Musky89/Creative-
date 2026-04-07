@@ -3,6 +3,7 @@
  * Zod is the single source of shape truth for agent outputs.
  */
 import { z } from "zod";
+import { referenceCompositionProfileSchema } from "@/lib/visual/reference-composition-profile";
 
 /** Matches Prisma `VisualPromptProviderTarget` — image adapters (no generation yet). */
 export const visualPromptProviderTargetSchema = z.enum([
@@ -58,6 +59,7 @@ export const visualPromptPackageArtifactSchema = z.object({
     .optional(),
   /** Future: LoRA / fine-tuned checkpoint id (passed to provider when implemented). */
   _visualModelRef: z.string().nullable().optional(),
+  _referenceCompositionProfile: referenceCompositionProfileSchema.optional(),
   providerVariants: z
     .object({
       GENERIC: providerReadyBundleSchema.optional(),

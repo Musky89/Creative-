@@ -7,6 +7,7 @@ import {
   visualAssetEvaluationSchema,
   type VisualAssetEvaluation,
 } from "@/lib/visual/visual-asset-evaluation";
+import { referenceCompositionProfileSchema } from "@/lib/visual/reference-composition-profile";
 import { detectVisualSlop } from "@/lib/visual/slop-detection";
 import {
   VISUAL_REALISM_REJECT_THRESHOLD,
@@ -194,10 +195,18 @@ export async function evaluateAndPersistVisualAsset(
     }
   }
 
+  const rawProfile = pkgContent._referenceCompositionProfile;
+  const parsedProfile =
+    rawProfile && typeof rawProfile === "object"
+      ? referenceCompositionProfileSchema.safeParse(rawProfile)
+      : null;
+  const compositionProfile = parsedProfile?.success ? parsedProfile.data : null;
+
   const det = deterministicVisualAssetEvaluation({
     promptUsed: asset.promptUsed,
     negativePromptUsed: asset.negativePromptUsed,
     spec,
+    compositionProfile,
   });
 
   let imageBuf: Buffer | null = null;
