@@ -60,9 +60,8 @@ export async function StudioBrandVisualIdentityPanel({
         {profile.confirmationCount}
       </p>
       {client?.visualModelRef ? (
-        <p className="mt-2 rounded border border-cyan-800/50 bg-cyan-950/40 px-2 py-1 text-[10px] text-cyan-100/85">
-          Model ref reserved: <code className="text-cyan-50">{client.visualModelRef}</code> (LoRA path
-          pending)
+        <p className="mt-2 rounded border border-emerald-800/45 bg-emerald-950/30 px-2 py-1.5 text-[11px] text-emerald-100/90">
+          Brand visual style is active — new generations can follow this look automatically when enabled.
         </p>
       ) : null}
       <dl className="mt-3 space-y-2 text-xs text-zinc-300">

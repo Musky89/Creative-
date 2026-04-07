@@ -84,6 +84,7 @@ export function VisualAssetsPanel({
   briefId,
   promptPackageArtifactId,
   assets,
+  hasBrandVisualStyle = false,
   critiqueRegenLimit,
   packageAssetLimit,
   composeDefaultHeadline,
@@ -94,6 +95,8 @@ export function VisualAssetsPanel({
   briefId: string;
   promptPackageArtifactId: string;
   assets: AssetRow[];
+  /** True when client has a taught style and FAL_KEY is set. */
+  hasBrandVisualStyle?: boolean;
   critiqueRegenLimit: number;
   packageAssetLimit: number;
   /** First headline from COPY for compose default. */
@@ -296,9 +299,12 @@ export function VisualAssetsPanel({
             onChange={(e) => setTarget(e.target.value)}
             className="mt-1 rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-2 text-sm text-zinc-100"
           >
-            <option value="GENERIC">Auto (Gemini first, then OpenAI)</option>
+            <option value="GENERIC">Auto (brand style via fal when taught, else Gemini → OpenAI)</option>
             <option value="GPT_IMAGE">OpenAI</option>
             <option value="GEMINI_IMAGE">Google Imagen</option>
+            <option value="FAL_IMAGE" disabled={!hasBrandVisualStyle}>
+              Brand style (fal) {!hasBrandVisualStyle ? "— teach style first" : ""}
+            </option>
           </select>
         </div>
         <div className="min-w-[220px] flex-1">

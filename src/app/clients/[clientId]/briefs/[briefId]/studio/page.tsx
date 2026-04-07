@@ -25,6 +25,8 @@ import { parseConceptPack } from "./studio-concept-summary";
 import { getDefaultHeadlineForBrief } from "@/server/visual-finishing/headline-from-brief";
 import { StudioBrandLearningPanel } from "./studio-brand-learning";
 import { StudioBrandVisualIdentityPanel } from "./studio-brand-visual-identity";
+import { StudioBrandVisualStylePanel } from "./studio-brand-visual-style";
+import { getClientVisualTrainingCandidates } from "@/server/domain/client-visual-training-candidates";
 
 function reviewStatusText(status: ReviewStatus) {
   const map: Record<ReviewStatus, string> = {
@@ -50,10 +52,14 @@ export default async function BriefStudioPage({
     brief.client.brandBible ?? null,
   );
 
-  const [canonHighlight, preferredFrameworkIds] = await Promise.all([
+  const [canonHighlight, preferredFrameworkIds, trainingCandidates] = await Promise.all([
     getClientCanonHighlights(clientId),
     getTopPreferredFrameworkIds(clientId, 4),
+    getClientVisualTrainingCandidates(clientId),
   ]);
+
+  const hasBrandVisualStyle =
+    !!brief.client.visualModelRef?.trim() && !!process.env.FAL_KEY?.trim();
 
   const hasWorkflow = brief.tasks.length > 0;
   let nextExecutableTaskIds: string[] = [];
@@ -329,6 +335,8 @@ export default async function BriefStudioPage({
 
           <StudioBrandVisualIdentityPanel clientId={clientId} />
 
+          <StudioBrandVisualStylePanel clientId={clientId} assets={trainingCandidates} />
+
           <Card className="border-zinc-800/90 bg-zinc-900/40">
             <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
               Context
@@ -427,6 +435,7 @@ export default async function BriefStudioPage({
             creativeDirectorDecision={cdDecision}
             composeDefaultHeadline={composeDefaultHeadline}
             defaultOpen={exploreAlternativesDefaultOpen}
+            hasBrandVisualStyle={hasBrandVisualStyle}
           />
 
           <DisclosureSection

@@ -57,6 +57,7 @@ export function StudioExploreAlternatives({
   creativeDirectorDecision,
   composeDefaultHeadline,
   defaultOpen,
+  hasBrandVisualStyle,
 }: {
   clientId: string;
   briefId: string;
@@ -71,6 +72,7 @@ export function StudioExploreAlternatives({
   creativeDirectorDecision: Record<string, unknown> | null;
   composeDefaultHeadline: string | null;
   defaultOpen: boolean;
+  hasBrandVisualStyle: boolean;
 }) {
   const canGenerate =
     hasPromptPackage &&
@@ -179,6 +181,12 @@ export function StudioExploreAlternatives({
             <p className="mt-1 text-xs text-zinc-500">
               Keys: GEMINI / Google or OpenAI. Storage under <code className="text-zinc-400">storage/</code>.
             </p>
+            {hasBrandVisualStyle ? (
+              <p className="mt-2 rounded-lg border border-emerald-800/50 bg-emerald-950/25 px-3 py-2 text-xs text-emerald-100/90">
+                Using brand visual style ✓ — new batches automatically follow your taught look when fal.ai
+                is enabled (pick “Brand style (fal)” in Provider to force it).
+              </p>
+            ) : null}
             {canGenerate ? (
               <StudioFirstImageCta
                 clientId={clientId}
@@ -191,6 +199,7 @@ export function StudioExploreAlternatives({
               clientId={clientId}
               briefId={briefId}
               promptPackageArtifactId={promptPackageArtifactId}
+              hasBrandVisualStyle={hasBrandVisualStyle}
               critiqueRegenLimit={MAX_CRITIQUE_REGENERATIONS_PER_PACKAGE}
               packageAssetLimit={MAX_VISUAL_ASSETS_PER_PACKAGE}
               composeDefaultHeadline={composeDefaultHeadline}
