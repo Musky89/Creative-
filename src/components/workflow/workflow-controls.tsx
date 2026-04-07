@@ -482,44 +482,38 @@ export function WorkflowControls({
     </p>
   ) : null;
 
-  const mainStack = (
+  /** Single root so id="studio-workspace" is unique (duplicate IDs break anchors and hydration). */
+  return (
     <div id="studio-workspace" className={shellClass}>
-      {headerBlock}
-      {!director ? brandGateNotice : null}
-      {noticeBlock}
-      <div className="mt-6 flex flex-col gap-4">
-        {director ? (
-          <>
+      {director ? (
+        <>
+          <StudioDirectorHero
+            score10={directorScore10}
+            verdictLine={directorVerdictLine || "—"}
+          >
+            <div className="w-full max-w-lg space-y-4">
+              {generateRow}
+              {brandGateNotice}
+            </div>
+          </StudioDirectorHero>
+          {noticeBlock}
+          <div className="mt-6 flex flex-col gap-4">
             {reviewBlock}
             {reviseBlock}
-          </>
-        ) : (
-          <>
+          </div>
+        </>
+      ) : (
+        <>
+          {headerBlock}
+          {brandGateNotice}
+          {noticeBlock}
+          <div className="mt-6 flex flex-col gap-4">
             {generateRow}
             {reviewBlock}
             {reviseBlock}
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
-
-  if (director) {
-    return (
-      <>
-        <StudioDirectorHero
-          score10={directorScore10}
-          verdictLine={directorVerdictLine || "—"}
-        >
-          <div className="w-full max-w-lg space-y-4">
-            {generateRow}
-            {brandGateNotice}
-          </div>
-        </StudioDirectorHero>
-        {mainStack}
-      </>
-    );
-  }
-
-  return mainStack;
 }
