@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   approveTaskAction,
   executeNextTaskAction,
   initializeWorkflowAction,
   requestRevisionAction,
   resetTaskReadyAction,
+  retryTaskGenerationAction,
 } from "@/app/actions/workflow";
 import { STAGE_LABELS } from "@/lib/workflow-display";
-import type { WorkflowStage } from "@/generated/prisma/client";
+import type { TaskStatus, WorkflowStage } from "@/generated/prisma/client";
 import { Card } from "@/components/ui/section";
 import { FieldHint, Label, Textarea } from "@/components/ui/forms";
 
@@ -83,6 +84,7 @@ export function WorkflowControls({
   reviseTaskId,
   brandReadiness,
   timelineTasks,
+  reviewApproveGate,
 }: {
   clientId: string;
   briefId: string;
@@ -93,7 +95,20 @@ export function WorkflowControls({
   reviewTaskId: string | null;
   reviseTaskId: string | null;
   brandReadiness: { ok: boolean; missing: string[] };
-  timelineTasks: { id: string; stage: WorkflowStage }[];
+  timelineTasks: {
+    id: string;
+    stage: WorkflowStage;
+    status: TaskStatus;
+    lastFailureReason?: string | null;
+    lastFailureType?: string | null;
+  }[];
+  reviewApproveGate: {
+    canApprove: boolean;
+    structuralOk: boolean;
+    structuralMessage: string | null;
+    qualityBlocked: boolean;
+    qualityReasons: string[];
+  } | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -105,6 +120,11 @@ export function WorkflowControls({
   const approveNoteRef = useRef<HTMLTextAreaElement>(null);
   const revisionRef = useRef<HTMLTextAreaElement>(null);
   const reviewerRef = useRef<HTMLInputElement>(null);
+  const [approveAnyway, setApproveAnyway] = useState(false);
+
+  useEffect(() => {
+    setApproveAnyway(false);
+  }, [reviewTaskId]);
 
   const refresh = () => router.refresh();
 
@@ -127,6 +147,20 @@ export function WorkflowControls({
   const reviewStageLabel = reviewTaskId
     ? stageLabelForTaskId(reviewTaskId, timelineTasks)
     : null;
+
+  const failedTasks = timelineTasks.filter((t) => t.status === "FAILED");
+  const approveDisabled =
+    !!reviewTaskId &&
+    (!reviewApproveGate ||
+      !reviewApproveGate.structuralOk ||
+      (reviewApproveGate.qualityBlocked && !approveAnyway));
+
+  const approveTooltip =
+    reviewApproveGate && !reviewApproveGate.structuralOk
+      ? reviewApproveGate.structuralMessage ?? "Output is not valid for approval."
+      : reviewApproveGate?.qualityBlocked && !approveAnyway
+        ? reviewApproveGate.qualityReasons.join(" ")
+        : undefined;
 
   return (
     <Card id="review">
@@ -184,11 +218,48 @@ export function WorkflowControls({
           </div>
         ) : (
           <>
+            {failedTasks.length > 0 ? (
+              <div className="rounded-lg border border-red-500/35 bg-red-950/35 px-3 py-3">
+                <p className="text-sm font-medium text-red-100">Stage failed</p>
+                <ul className="mt-2 space-y-2 text-xs text-red-100/85">
+                  {failedTasks.map((t) => (
+                    <li key={t.id}>
+                      <span className="font-medium text-red-50">
+                        {STAGE_LABELS[t.stage]}
+                      </span>
+                      {t.lastFailureType ? (
+                        <span className="ml-1 text-red-200/70">({t.lastFailureType})</span>
+                      ) : null}
+                      {t.lastFailureReason ? (
+                        <p className="mt-0.5 text-red-100/80">{t.lastFailureReason}</p>
+                      ) : (
+                        <p className="mt-0.5 text-red-200/70">
+                          Generation or validation failed — use Retry, then Run next step.
+                        </p>
+                      )}
+                      <div className="mt-2">
+                        <ActionButton
+                          pending={pending}
+                          variant="light"
+                          onClick={() =>
+                            run(() => retryTaskGenerationAction(clientId, briefId, t.id))
+                          }
+                        >
+                          Retry generation
+                        </ActionButton>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
             <div>
               <ActionButton
                 pending={pending}
                 disabled={
                   nextExecutableCount === 0 ||
+                  failedTasks.length > 0 ||
                   (!brandReadiness.ok &&
                     nextExecutableStage != null &&
                     nextExecutableStage !== "BRIEF_INTAKE" &&
@@ -239,6 +310,23 @@ export function WorkflowControls({
                 </div>
 
                 <div className="mt-4 space-y-3">
+                  {reviewApproveGate && !reviewApproveGate.structuralOk ? (
+                    <Notice variant="error">
+                      <p className="font-medium">Cannot approve — invalid output</p>
+                      <p className="mt-1 text-sm opacity-90">
+                        {reviewApproveGate.structuralMessage}
+                      </p>
+                    </Notice>
+                  ) : null}
+                  {reviewApproveGate?.qualityBlocked ? (
+                    <Notice variant="info">
+                      <p className="font-medium">Quality gate</p>
+                      <p className="mt-1 text-sm opacity-90">
+                        {reviewApproveGate.qualityReasons.join(" ")} Regenerate, or approve with
+                        override below (not recommended).
+                      </p>
+                    </Notice>
+                  ) : null}
                   <div>
                     <Label htmlFor="approveFeedback">
                       Approval note (optional)
@@ -250,22 +338,40 @@ export function WorkflowControls({
                       placeholder="Optional context for the record"
                     />
                   </div>
-                  <ActionButton
-                    pending={pending}
-                    onClick={() =>
-                      run(() =>
-                        approveTaskAction(
-                          clientId,
-                          briefId,
-                          reviewTaskId,
-                          approveNoteRef.current?.value?.trim() || undefined,
-                          reviewerRef.current?.value?.trim() || undefined,
-                        ),
-                      )
-                    }
-                  >
-                    Approve task
-                  </ActionButton>
+                  {reviewApproveGate?.qualityBlocked && reviewApproveGate.structuralOk ? (
+                    <label className="flex cursor-pointer items-start gap-2 text-xs text-amber-100/90">
+                      <input
+                        type="checkbox"
+                        checked={approveAnyway}
+                        onChange={(e) => setApproveAnyway(e.target.checked)}
+                        className="mt-0.5 rounded border-zinc-600"
+                      />
+                      <span>
+                        Approve anyway (not recommended) — bypasses weak / regen-recommended
+                        quality signals.
+                      </span>
+                    </label>
+                  ) : null}
+                  <div title={approveTooltip}>
+                    <ActionButton
+                      pending={pending}
+                      disabled={approveDisabled}
+                      onClick={() =>
+                        run(() =>
+                          approveTaskAction(
+                            clientId,
+                            briefId,
+                            reviewTaskId,
+                            approveNoteRef.current?.value?.trim() || undefined,
+                            reviewerRef.current?.value?.trim() || undefined,
+                            approveAnyway,
+                          ),
+                        )
+                      }
+                    >
+                      Approve task
+                    </ActionButton>
+                  </div>
                 </div>
 
                 <div className="mt-6 border-t border-zinc-800 pt-4">

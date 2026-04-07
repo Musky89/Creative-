@@ -57,6 +57,11 @@ import {
   recordBrandMemoryOnArtifactApproval,
   recordBrandMemoryOnReviewRevisionRequested,
 } from "@/server/memory/record-from-artifact";
+import {
+  formatValidationForLog,
+  reviewArtifactQualityBlocksApproval,
+  validateArtifactContent,
+} from "@/server/orchestrator/artifact-validation";
 
 function toIso(d: Date | null): string | null {
   return d ? d.toISOString() : null;
@@ -83,6 +88,8 @@ function toTaskSnapshot(t: Task): WorkflowTaskSnapshot {
     requiresReview: t.requiresReview,
     startedAt: toIso(t.startedAt),
     completedAt: toIso(t.completedAt),
+    lastFailureReason: t.lastFailureReason ?? null,
+    lastFailureType: t.lastFailureType ?? null,
   };
 }
 
@@ -210,11 +217,19 @@ export class OrchestratorService {
       );
     }
     await this.startTask(nextId);
-    const { artifactId, usedPlaceholder } = await this.completeTask(
-      nextId,
-      options?.artifactPayload,
-    );
-    return { taskId: nextId, artifactId, usedPlaceholder };
+    const result = await this.completeTask(nextId, options?.artifactPayload);
+    if (result.pipelineFailed) {
+      throw new OrchestratorError(
+        "PIPELINE_FAILED",
+        "Stage failed: output was invalid or generation failed. Use Retry generation, then Run next step again.",
+        400,
+      );
+    }
+    return {
+      taskId: nextId,
+      artifactId: result.artifactId,
+      usedPlaceholder: result.usedPlaceholder,
+    };
   }
 
   async startTask(taskId: string): Promise<Task> {
@@ -290,7 +305,11 @@ export class OrchestratorService {
   async completeTask(
     taskId: string,
     artifactPayload?: Record<string, unknown>,
-  ): Promise<{ artifactId: string; usedPlaceholder: boolean }> {
+  ): Promise<{
+    artifactId: string;
+    usedPlaceholder: boolean;
+    pipelineFailed: boolean;
+  }> {
     const task = await this.db.task.findUnique({ where: { id: taskId } });
     if (!task) {
       throw new OrchestratorError("NOT_FOUND", `Task not found: ${taskId}`, 404);
@@ -492,6 +511,93 @@ export class OrchestratorService {
     });
     const nextVersion = (latest?.version ?? 0) + 1;
 
+    const validation = validateArtifactContent(row.artifactType, content);
+    const pipelineFailed = usedPlaceholder || !validation.ok;
+    const contentRec = content as Record<string, unknown>;
+
+    let failureType: string | null = null;
+    let failureReason: string | null = null;
+    if (pipelineFailed) {
+      if (usedPlaceholder) {
+        failureType = "LLM";
+        failureReason =
+          typeof contentRec._agenticforceLlmError === "string" &&
+          contentRec._agenticforceLlmError.trim()
+            ? String(contentRec._agenticforceLlmError).trim()
+            : "Generation failed or fell back to placeholder — output is not valid for review.";
+      } else if (!validation.ok) {
+        failureType =
+          validation.type === "PLACEHOLDER"
+            ? "PLACEHOLDER"
+            : validation.type === "EMPTY"
+              ? "EMPTY"
+              : "VALIDATION";
+        failureReason = validation.zodIssues
+          ? `${validation.message} (${validation.zodIssues})`
+          : validation.message;
+      }
+      const failContent = {
+        ...content,
+        _pipelineFailure: true,
+        _pipelineFailureType: failureType,
+        _pipelineFailureReason: failureReason,
+      };
+      console.error(
+        `[agenticforce:pipeline] task=${taskId} stage=${task.stage} FAILED type=${failureType} ${formatValidationForLog(validation)}`,
+      );
+
+      const failedArtifact = await this.db.$transaction(async (tx) => {
+        const artifact = await tx.artifact.create({
+          data: {
+            taskId,
+            type: row.artifactType,
+            content: failContent as Prisma.InputJsonValue,
+            version: nextVersion,
+          },
+        });
+        await tx.task.update({
+          where: { id: taskId },
+          data: {
+            status: "FAILED",
+            completedAt: null,
+            lastFailureType: failureType,
+            lastFailureReason: failureReason,
+          },
+        });
+        if (task.agentType) {
+          const lastRun = await tx.agentRun.findFirst({
+            where: { taskId },
+            orderBy: { createdAt: "desc" },
+          });
+          if (lastRun) {
+            const finishedAt = Date.now();
+            const duration =
+              task.startedAt != null
+                ? Math.max(0, finishedAt - task.startedAt.getTime())
+                : null;
+            await tx.agentRun.update({
+              where: { id: lastRun.id },
+              data: {
+                output: failContent as Prisma.InputJsonValue,
+                duration,
+                metadata: {
+                  pipelineFailed: true,
+                  failureType,
+                  failureReason,
+                  ...(agentRunMetadata && typeof agentRunMetadata === "object"
+                    ? agentRunMetadata
+                    : {}),
+                } as Prisma.InputJsonValue,
+              },
+            });
+          }
+        }
+        return artifact;
+      });
+
+      return { artifactId: failedArtifact.id, usedPlaceholder, pipelineFailed: true as const };
+    }
+
     const nextStatus: TaskStatus = task.requiresReview
       ? "AWAITING_REVIEW"
       : "COMPLETED";
@@ -511,6 +617,8 @@ export class OrchestratorService {
         data: {
           status: nextStatus,
           completedAt: nextStatus === "COMPLETED" ? new Date() : null,
+          lastFailureType: null,
+          lastFailureReason: null,
         },
       });
 
@@ -543,7 +651,7 @@ export class OrchestratorService {
     });
 
     if (nextStatus === "COMPLETED") {
-      await this.unlockDependentTasks(taskId);
+      await this.unlockDependentTasks(taskId, row.artifactType);
     }
 
     if (
@@ -606,13 +714,14 @@ export class OrchestratorService {
       }
     }
 
-    return { artifactId: result.id, usedPlaceholder };
+    return { artifactId: result.id, usedPlaceholder, pipelineFailed: false as const };
   }
 
   async approveTask(
     taskId: string,
     feedback?: string,
     reviewerLabel?: string | null,
+    options?: { approveAnyway?: boolean },
   ): Promise<WorkflowStateResponse> {
     const task = await this.db.task.findUnique({
       where: { id: taskId },
@@ -632,6 +741,24 @@ export class OrchestratorService {
       row.artifactType,
     );
 
+    const structural = validateArtifactContent(row.artifactType, latestArtifact?.content);
+    if (!structural.ok) {
+      throw new OrchestratorError(
+        "INVALID_ARTIFACT",
+        "This output is not valid and cannot be approved",
+        400,
+      );
+    }
+
+    const qualityGate = reviewArtifactQualityBlocksApproval(latestArtifact?.content);
+    if (qualityGate.blocked && !options?.approveAnyway) {
+      throw new OrchestratorError(
+        "QUALITY_GATE",
+        `This output is not valid and cannot be approved — ${qualityGate.reasons.join(" ")} Regenerate or check "Approve anyway (not recommended)".`,
+        400,
+      );
+    }
+
     await this.db.$transaction(async (tx) => {
       await tx.reviewItem.create({
         data: {
@@ -648,6 +775,8 @@ export class OrchestratorService {
         data: {
           status: "COMPLETED",
           completedAt: new Date(),
+          lastFailureType: null,
+          lastFailureReason: null,
         },
       });
     });
@@ -675,7 +804,7 @@ export class OrchestratorService {
       );
     }
 
-    await this.unlockDependentTasks(taskId);
+    await this.unlockDependentTasks(taskId, row.artifactType);
     return this.getWorkflowState(task.briefId);
   }
 
@@ -856,6 +985,34 @@ export class OrchestratorService {
         status: "READY",
         startedAt: null,
         completedAt: null,
+        lastFailureType: null,
+        lastFailureReason: null,
+      },
+    });
+  }
+
+  /**
+   * After a failed generation: clear failure markers and set READY for another run.
+   */
+  async retryTaskGeneration(taskId: string): Promise<Task> {
+    const task = await this.db.task.findUnique({ where: { id: taskId } });
+    if (!task) {
+      throw new OrchestratorError("NOT_FOUND", `Task not found: ${taskId}`, 404);
+    }
+    if (task.status !== "FAILED") {
+      throw new OrchestratorError(
+        "INVALID_TASK_STATUS",
+        "Retry is only for tasks in FAILED state.",
+      );
+    }
+    return this.db.task.update({
+      where: { id: taskId },
+      data: {
+        status: "READY",
+        startedAt: null,
+        completedAt: null,
+        lastFailureType: null,
+        lastFailureReason: null,
       },
     });
   }
@@ -864,7 +1021,10 @@ export class OrchestratorService {
    * After a prerequisite reaches COMPLETED, promote dependents from PENDING to READY
    * when all of their prerequisites are COMPLETED.
    */
-  async unlockDependentTasks(completedTaskId: string): Promise<void> {
+  async unlockDependentTasks(
+    completedTaskId: string,
+    completedArtifactType: ArtifactType,
+  ): Promise<void> {
     const dependents = await this.db.taskDependency.findMany({
       where: { dependsOnTaskId: completedTaskId },
     });
@@ -879,6 +1039,36 @@ export class OrchestratorService {
 
     const briefId = tasks[0]?.briefId;
     if (!briefId) return;
+
+    const completedTask = await this.db.task.findUnique({
+      where: { id: completedTaskId },
+      include: { brief: true },
+    });
+    if (!completedTask || completedTask.status !== "COMPLETED") {
+      return;
+    }
+    const completedRow = getV1PipelineRow(completedTask.stage, completedTask.brief);
+    if (completedRow.artifactType !== completedArtifactType) {
+      return;
+    }
+    const latestCompletedArtifact = await findLatestArtifactForPipelineRow(
+      this.db,
+      completedTaskId,
+      completedArtifactType,
+    );
+    if (!latestCompletedArtifact) {
+      return;
+    }
+    const v = validateArtifactContent(
+      completedArtifactType,
+      latestCompletedArtifact.content,
+    );
+    if (!v.ok) {
+      console.warn(
+        `[agenticforce:pipeline] unlock blocked for dependents of ${completedTaskId}: ${formatValidationForLog(v)}`,
+      );
+      return;
+    }
 
     const allBriefTasks = await this.db.task.findMany({
       where: { briefId },

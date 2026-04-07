@@ -37,12 +37,31 @@ export async function approveTaskAction(
   taskId: string,
   feedback?: string,
   reviewerLabel?: string | null,
+  approveAnyway?: boolean,
 ) {
   try {
-    await orchestrator.approveTask(taskId, feedback, reviewerLabel);
+    await orchestrator.approveTask(taskId, feedback, reviewerLabel, {
+      approveAnyway: approveAnyway === true,
+    });
   } catch (e) {
     return {
       error: e instanceof Error ? e.message : "Failed to approve task.",
+    };
+  }
+  revalidatePath(studioPath(clientId, briefId));
+  return { ok: true as const };
+}
+
+export async function retryTaskGenerationAction(
+  clientId: string,
+  briefId: string,
+  taskId: string,
+) {
+  try {
+    await orchestrator.retryTaskGeneration(taskId);
+  } catch (e) {
+    return {
+      error: e instanceof Error ? e.message : "Failed to reset task for retry.",
     };
   }
   revalidatePath(studioPath(clientId, briefId));

@@ -11,6 +11,7 @@ import {
   getTopPreferredFrameworkIds,
 } from "@/server/canon/client-canon-ui";
 import { orchestrator } from "@/server/orchestrator/orchestrator-service";
+import { getReviewApproveGate } from "@/server/studio/review-approve-gate";
 import { WorkflowControls } from "@/components/workflow/workflow-controls";
 import { WorkflowTimeline } from "@/components/workflow/workflow-timeline";
 import { StudioNextCallout } from "./studio-next-callout";
@@ -75,6 +76,8 @@ export default async function BriefStudioPage({
     stage: t.stage,
     status: t.status,
     requiresReview: t.requiresReview,
+    lastFailureReason: t.lastFailureReason,
+    lastFailureType: t.lastFailureType,
   }));
 
   if (hasWorkflow) {
@@ -85,6 +88,8 @@ export default async function BriefStudioPage({
       stage: t.stage,
       status: t.status,
       requiresReview: t.requiresReview,
+      lastFailureReason: t.lastFailureReason,
+      lastFailureType: t.lastFailureType,
     }));
   }
 
@@ -105,6 +110,12 @@ export default async function BriefStudioPage({
     if (t.status === "AWAITING_REVIEW" && !reviewTaskId) reviewTaskId = t.id;
     if (t.status === "REVISE_REQUIRED" && !reviseTaskId) reviseTaskId = t.id;
   }
+
+  const reviewApproveGate = await getReviewApproveGate({
+    clientId,
+    briefId,
+    reviewTaskId,
+  });
 
   const allReviews = brief.tasks.flatMap((t) =>
     t.reviewItems.map((r) => ({ ...r, taskStage: t.stage })),
@@ -352,6 +363,7 @@ export default async function BriefStudioPage({
             reviseTaskId={reviseTaskId}
             brandReadiness={brandReadiness}
             timelineTasks={timelineTasks}
+            reviewApproveGate={reviewApproveGate}
           />
 
           <StudioBrandLearningPanel clientId={clientId} />
