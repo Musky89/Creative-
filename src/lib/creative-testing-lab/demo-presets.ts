@@ -3,8 +3,9 @@
  * (HTTPS) so compose/FAL can fetch without uploading. Replace `loraRef` with your
  * Fal-trained adapter when ready.
  *
- * Logos: Wikimedia Commons (raster thumbnails). Heroes: Unsplash (generic category
- * imagery aligned to each demo — not official brand photography).
+ * Logos: Wikimedia Commons (raster thumbnails). Heroes + mood board: Unsplash
+ * (license-friendly stock aligned by *category* — not official brand photography).
+ * We do not scrape brand sites; swap URLs for client-approved CDN assets when ready.
  */
 
 import type { ProductionMode } from "../production-engine/modes";
@@ -13,7 +14,7 @@ import type { LabExecutionPathUi } from "./run-history";
 
 export const LAB_DEMO_PRESETS_STORAGE_KEY = "creative-testing-lab-demo-presets-version";
 /** Bump when built-in demo content changes so localStorage re-merges seeded presets. */
-export const LAB_DEMO_PRESETS_VERSION = 2;
+export const LAB_DEMO_PRESETS_VERSION = 3;
 
 export type LabFullPreset = {
   id: string;
@@ -259,6 +260,11 @@ export const LAB_SEEDED_DEMO_PRESETS: LabFullPreset[] = [
       extraRefs: [
         { id: "ref-nike-1", name: "Training / grit", url: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=600&q=80" },
         { id: "ref-nike-2", name: "Track texture", url: "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=600&q=80" },
+        { id: "ref-nike-3", name: "Gym floor / iron", url: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&q=80" },
+        { id: "ref-nike-4", name: "Weight room mood", url: "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=600&q=80" },
+        { id: "ref-nike-5", name: "Studio fitness", url: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&q=80" },
+        { id: "ref-nike-6", name: "Tread / cardio", url: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&q=80" },
+        { id: "ref-nike-7", name: "Athlete silhouette energy", url: "https://images.unsplash.com/photo-1593079831268-3381b0db4a77?w=600&q=80" },
       ],
     },
     loraTrainingNote:
@@ -287,6 +293,10 @@ export const LAB_SEEDED_DEMO_PRESETS: LabFullPreset[] = [
       tertiaryUrl: "https://images.unsplash.com/photo-1491933382434-500287f9b54b?w=900&q=80",
       extraRefs: [
         { id: "ref-apple-1", name: "Desk still life", url: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=600&q=80" },
+        { id: "ref-apple-2", name: "Laptop minimal", url: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&q=80" },
+        { id: "ref-apple-3", name: "Clean workspace", url: "https://images.unsplash.com/photo-1522199710521-72d69614c702?w=600&q=80" },
+        { id: "ref-apple-4", name: "Dev desk neutral", url: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&q=80" },
+        { id: "ref-apple-5", name: "Abstract light gray", url: "https://images.unsplash.com/photo-1491933382434-500287f9b54b?w=600&q=80" },
       ],
     },
     loraTrainingNote:
@@ -315,6 +325,11 @@ export const LAB_SEEDED_DEMO_PRESETS: LabFullPreset[] = [
       tertiaryUrl: "https://images.unsplash.com/photo-1528821128474-27f963b062bf?w=900&q=80",
       extraRefs: [
         { id: "ref-coke-1", name: "Chilled can", url: "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=600&q=80" },
+        { id: "ref-coke-2", name: "Cold drink pour", url: "https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=600&q=80" },
+        { id: "ref-coke-3", name: "Summer fruit red", url: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=600&q=80" },
+        { id: "ref-coke-4", name: "Red cocktail bar", url: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=600&q=80" },
+        { id: "ref-coke-5", name: "Beach refreshment", url: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=600&q=80" },
+        { id: "ref-coke-6", name: "Ice / summer tone", url: "https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=600&q=80" },
       ],
     },
     loraTrainingNote:
