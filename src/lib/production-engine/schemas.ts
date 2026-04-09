@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PRODUCTION_MODES } from "./types";
+import { PRODUCTION_MODES } from "./modes";
 
 const productionModeSchema = z.enum(PRODUCTION_MODES);
 

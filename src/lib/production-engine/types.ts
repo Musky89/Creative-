@@ -2,17 +2,10 @@
  * Creative Production Engine — shared types (no platform/orchestrator imports).
  */
 
-export const PRODUCTION_MODES = [
-  "OOH",
-  "SOCIAL",
-  "PACKAGING",
-  "RETAIL_POS",
-  "IDENTITY",
-  "ECOMMERCE_FASHION",
-  "EXPORT_PRESENTATION",
-] as const;
+import type { ProductionPlanDocument } from "./production-plan-schema";
+import type { ProductionMode } from "./modes";
 
-export type ProductionMode = (typeof PRODUCTION_MODES)[number];
+export { PRODUCTION_MODES, type ProductionMode } from "./modes";
 
 export type BrandAssetFonts = {
   family: string;
@@ -69,6 +62,7 @@ export type ProductionPlanStep = {
   dependsOn?: string[];
 };
 
+/** @deprecated Use ProductionPlanDocument + buildOperationalPlan from planning.ts */
 export type ProductionPlan = {
   mode: ProductionMode;
   objective: string;
@@ -134,7 +128,10 @@ export type HandoffPackage = {
 
 export type ProductionEngineRunResult = {
   input: ProductionEngineInput;
-  plan: ProductionPlan;
+  /** Schema-valid mode-aware production plan (shared + mode-specific fields). */
+  productionPlan: ProductionPlanDocument;
+  /** Execution checklist derived from plan + mode config. */
+  operationalPlan: ProductionPlan;
   falRouting: FalRouteDecision;
   jobs: ProductionJob[];
   compositionPlan: CompositionPlan;

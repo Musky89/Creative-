@@ -13,16 +13,18 @@ import { buildHandoffPackage } from "./handoff";
 export function runProductionEngineStub(
   input: ProductionEngineInput,
 ): ProductionEngineRunResult {
-  const plan = buildProductionPlan(input);
+  const { document: productionPlan, operational: operationalPlan } =
+    buildProductionPlan(input);
   const falRouting = routeFalForProduction(input);
   const jobs = buildProductionJobs(input);
   const compositionPlan = buildCompositionPlan(input);
   const composed = runDeterministicComposer(input, compositionPlan);
-  const review = evaluateProductionOutput(input);
-  const handoff = buildHandoffPackage(input);
+  const review = evaluateProductionOutput(input, productionPlan);
+  const handoff = buildHandoffPackage(input, productionPlan);
   return {
     input,
-    plan,
+    productionPlan,
+    operationalPlan,
     falRouting,
     jobs,
     compositionPlan,

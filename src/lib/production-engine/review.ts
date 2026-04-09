@@ -1,10 +1,15 @@
 import type { ProductionEngineInput, ReviewEvaluation } from "./types";
+import type { ProductionPlanDocument } from "./production-plan-schema";
 
 /**
  * Lightweight deterministic checklist — no vision model.
+ * When plan is provided, adds mode-config-driven checks from reviewFocus.
  */
-export function evaluateProductionOutput(input: ProductionEngineInput): ReviewEvaluation {
-  const checklist = [
+export function evaluateProductionOutput(
+  input: ProductionEngineInput,
+  plan?: ProductionPlanDocument,
+): ReviewEvaluation {
+  const checklist: ReviewEvaluation["checklist"] = [
     {
       id: "headline",
       label: "Headline present",
@@ -31,6 +36,25 @@ export function evaluateProductionOutput(input: ProductionEngineInput): ReviewEv
       ok: input.referenceSummaries.some((r) => r.trim().length > 0),
     },
   ];
+
+  if (plan) {
+    checklist.push({
+      id: "plan-export-targets",
+      label: "Production plan lists export targets",
+      ok: plan.exportTargets.length > 0,
+    });
+    checklist.push({
+      id: "plan-review-focus",
+      label: "Production plan defines review focus",
+      ok: plan.reviewFocus.length > 0,
+    });
+    checklist.push({
+      id: "plan-mode-constraints",
+      label: "Mode constraints captured",
+      ok: plan.modeConstraints.length > 0,
+    });
+  }
+
   const failed = checklist.filter((c) => !c.ok);
   const verdict =
     failed.length === 0 ? "PASS" : failed.length <= 2 ? ("WARN" as const) : ("FAIL" as const);
@@ -39,7 +63,7 @@ export function evaluateProductionOutput(input: ProductionEngineInput): ReviewEv
     checklist,
     summary:
       verdict === "PASS"
-        ? "Inputs sufficient for stub handoff."
+        ? "Inputs and production plan sufficient for stub handoff."
         : `Issues: ${failed.map((f) => f.id).join(", ")} — fix before production integration.`,
   };
 }

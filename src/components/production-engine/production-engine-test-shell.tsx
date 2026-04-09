@@ -6,6 +6,7 @@ import {
   listProductionModes,
   productionEngineInputSchema,
   runProductionEngineStub,
+  splitProductionPlanForDisplay,
   type ProductionEngineInput,
   type ProductionEngineRunResult,
 } from "@/lib/production-engine";
@@ -66,6 +67,16 @@ function Section({
   );
 }
 
+function Bullets({ items }: { items: string[] }) {
+  return (
+    <ul className="list-inside list-disc space-y-1 text-xs text-zinc-400">
+      {items.map((x, i) => (
+        <li key={i}>{x}</li>
+      ))}
+    </ul>
+  );
+}
+
 export function ProductionEngineTestShell() {
   const [jsonText, setJsonText] = useState(() =>
     JSON.stringify(DEFAULT_INPUT, null, 2),
@@ -121,6 +132,14 @@ export function ProductionEngineTestShell() {
       ? localPreview.result
       : null;
 
+  const active = apiResult ?? preview;
+  const modeCfg = active
+    ? listProductionModes().find((x) => x.id === active.input.mode)
+    : null;
+  const planSplit = active
+    ? splitProductionPlanForDisplay(active.productionPlan)
+    : null;
+
   return (
     <div className="space-y-8">
       <p className="text-sm text-zinc-400">
@@ -148,7 +167,7 @@ export function ProductionEngineTestShell() {
             >
               {loading ? "Running…" : "Run via API"}
             </button>
-            <span className="text-xs text-zinc-500 self-center">
+            <span className="self-center text-xs text-zinc-500">
               Local preview updates as you type (when valid).
             </span>
           </div>
@@ -170,90 +189,119 @@ export function ProductionEngineTestShell() {
             </ul>
           </Section>
 
-          <Section title="Mode config (selected)">
-            {preview ? (
-              <pre className="max-h-48 overflow-auto whitespace-pre-wrap font-mono text-xs text-zinc-400">
-                {JSON.stringify(
-                  listProductionModes().find((x) => x.id === preview.input.mode),
-                  null,
-                  2,
-                )}
-              </pre>
+          <Section title="Active mode">
+            {modeCfg ? (
+              <div className="space-y-2">
+                <p className="font-mono text-sm text-emerald-400">{modeCfg.id}</p>
+                <p className="text-xs text-zinc-400">{modeCfg.label}</p>
+              </div>
             ) : (
-              <p className="text-amber-400/90 text-xs">
-                Fix JSON to see mode config.
+              <p className="text-xs text-amber-400/90">
+                Fix JSON to select a mode.
                 {"error" in localPreview && localPreview.error
                   ? ` — ${localPreview.error}`
                   : ""}
               </p>
             )}
           </Section>
+
+          <Section title="Mode config summary">
+            {modeCfg ? (
+              <div className="max-h-[min(480px,55vh)] space-y-3 overflow-y-auto text-xs">
+                <div>
+                  <p className="font-semibold text-zinc-300">Objective</p>
+                  <p className="text-zinc-500">{modeCfg.objective}</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-zinc-300">Success criteria</p>
+                  <Bullets items={modeCfg.successCriteria} />
+                </div>
+                <div>
+                  <p className="font-semibold text-zinc-300">Composition priorities</p>
+                  <Bullets items={modeCfg.compositionPriorities} />
+                </div>
+                <div>
+                  <p className="font-semibold text-zinc-300">Text tolerance</p>
+                  <p className="text-zinc-500">{modeCfg.textTolerance}</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-zinc-300">Image expectations</p>
+                  <Bullets items={modeCfg.imageExpectations} />
+                </div>
+                <div>
+                  <p className="font-semibold text-zinc-300">Layout expectations</p>
+                  <Bullets items={modeCfg.layoutExpectations} />
+                </div>
+                <div>
+                  <p className="font-semibold text-zinc-300">Review focus</p>
+                  <Bullets items={modeCfg.reviewFocus} />
+                </div>
+                <div>
+                  <p className="font-semibold text-zinc-300">Export expectations</p>
+                  <Bullets items={modeCfg.exportExpectations} />
+                </div>
+                <p className="text-zinc-600">
+                  Technical: {modeCfg.typicalAspectRatios.join(", ")} ·{" "}
+                  {modeCfg.defaultFalEndpointId}
+                </p>
+              </div>
+            ) : (
+              <p className="text-xs text-zinc-500">—</p>
+            )}
+          </Section>
         </div>
       </div>
 
-      {(preview || apiResult) && (
+      {active && planSplit && (
+        <div className="space-y-4">
+          <Section title="Production Plan — shared fields">
+            <pre className="max-h-64 overflow-auto font-mono text-xs text-zinc-400">
+              {JSON.stringify(planSplit.common, null, 2)}
+            </pre>
+          </Section>
+          <Section title="Production Plan — mode-specific fields">
+            <pre className="max-h-64 overflow-auto font-mono text-xs text-amber-200/80">
+              {JSON.stringify(planSplit.modeSpecific, null, 2)}
+            </pre>
+          </Section>
+        </div>
+      )}
+
+      {active && (
         <div className="grid gap-4 md:grid-cols-2">
-          <Section title="Production plan">
+          <Section title="Operational plan (execution checklist)">
             <pre className="max-h-56 overflow-auto font-mono text-xs text-zinc-400">
-              {JSON.stringify(
-                (apiResult ?? preview)!.plan,
-                null,
-                2,
-              )}
+              {JSON.stringify(active.operationalPlan, null, 2)}
             </pre>
           </Section>
           <Section title="FAL routing (stub)">
             <pre className="max-h-56 overflow-auto font-mono text-xs text-zinc-400">
-              {JSON.stringify(
-                (apiResult ?? preview)!.falRouting,
-                null,
-                2,
-              )}
+              {JSON.stringify(active.falRouting, null, 2)}
             </pre>
           </Section>
           <Section title="Jobs (stub)">
             <pre className="max-h-56 overflow-auto font-mono text-xs text-zinc-400">
-              {JSON.stringify(
-                (apiResult ?? preview)!.jobs,
-                null,
-                2,
-              )}
+              {JSON.stringify(active.jobs, null, 2)}
             </pre>
           </Section>
           <Section title="Composition plan">
             <pre className="max-h-56 overflow-auto font-mono text-xs text-zinc-400">
-              {JSON.stringify(
-                (apiResult ?? preview)!.compositionPlan,
-                null,
-                2,
-              )}
+              {JSON.stringify(active.compositionPlan, null, 2)}
             </pre>
           </Section>
           <Section title="Deterministic composer output (stub)">
             <pre className="max-h-56 overflow-auto font-mono text-xs text-zinc-400">
-              {JSON.stringify(
-                (apiResult ?? preview)!.composed,
-                null,
-                2,
-              )}
+              {JSON.stringify(active.composed, null, 2)}
             </pre>
           </Section>
           <Section title="Review / evaluation">
             <pre className="max-h-56 overflow-auto font-mono text-xs text-zinc-400">
-              {JSON.stringify(
-                (apiResult ?? preview)!.review,
-                null,
-                2,
-              )}
+              {JSON.stringify(active.review, null, 2)}
             </pre>
           </Section>
           <Section title="Handoff package (stub)">
             <pre className="max-h-56 overflow-auto font-mono text-xs text-zinc-400">
-              {JSON.stringify(
-                (apiResult ?? preview)!.handoff,
-                null,
-                2,
-              )}
+              {JSON.stringify(active.handoff, null, 2)}
             </pre>
           </Section>
         </div>
