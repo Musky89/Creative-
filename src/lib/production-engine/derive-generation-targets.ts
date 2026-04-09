@@ -58,7 +58,11 @@ export function deriveGenerationTargets(
     .join(" · ");
 
   const batch =
-    qualityTier === "high" ? 2 : qualityTier === "standard" ? 2 : 1;
+    qualityTier === "high" || qualityTier === "premium"
+      ? 2
+      : qualityTier === "standard"
+        ? 2
+        : 1;
 
   const baseHero: Omit<
     GenerationTarget,

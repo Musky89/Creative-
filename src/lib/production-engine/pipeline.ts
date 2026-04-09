@@ -1,7 +1,10 @@
 import type { ProductionEngineInput, ProductionEngineRunResult } from "./types";
 import { buildProductionPlan } from "./planning";
 import { routeFalForProduction } from "./fal-routing";
-import { buildVisualExecutionBundle } from "./visual-execution";
+import {
+  buildVisualExecutionBundle,
+  type VisualExecutionBundleOptions,
+} from "./visual-execution";
 import { buildProductionJobs } from "./jobs";
 import { buildCompositionPlanDocument } from "./composition-plan";
 import {
@@ -23,10 +26,15 @@ import {
  */
 export function runProductionEngineStub(
   input: ProductionEngineInput,
+  visualBundleOptions?: VisualExecutionBundleOptions,
 ): ProductionEngineRunResult {
   const { document: productionPlan, operational: operationalPlan } =
     buildProductionPlan(input);
-  const visualExecution = buildVisualExecutionBundle(input, productionPlan);
+  const visualExecution = buildVisualExecutionBundle(
+    input,
+    productionPlan,
+    visualBundleOptions,
+  );
   const falRouting = routeFalForProduction(input, productionPlan);
   const jobs = buildProductionJobs(input, visualExecution);
   const compositionPlanDocument = buildCompositionPlanDocument(

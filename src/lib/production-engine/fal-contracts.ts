@@ -6,7 +6,7 @@ import type { ProductionMode } from "./modes";
 import type { GenerationTarget } from "./generation-targets";
 import type { FalPathKind } from "./fal-paths";
 
-export type QualityTier = "draft" | "standard" | "high";
+export type QualityTier = "draft" | "standard" | "high" | "premium";
 
 export type FalPromptPackage = {
   positivePrompt: string;

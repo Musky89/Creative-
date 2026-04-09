@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import {
   productionEngineInputSchema,
   buildProductionPlan,
@@ -12,8 +13,25 @@ import {
   buildExportDeckSections,
   buildVisualExecutionBundle,
   buildHandoffPackage,
+  type VisualExecutionBundleOptions,
 } from "@/lib/production-engine";
 import { runDeterministicComposeSharp } from "@/server/production-engine/deterministic-composer";
+
+const visualOptsSchema = z
+  .object({
+    extraReferenceUrls: z.array(z.string()).optional(),
+    preferEditOverGenerate: z.boolean().optional(),
+    strongReferenceImages: z.boolean().optional(),
+  })
+  .optional();
+
+const composeBodySchema = z.union([
+  productionEngineInputSchema,
+  z.object({
+    input: productionEngineInputSchema,
+    visualBundleOptions: visualOptsSchema,
+  }),
+]);
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -23,7 +41,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const parsed = productionEngineInputSchema.safeParse(body);
+  const parsed = composeBodySchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Validation failed", issues: parsed.error.flatten() },
@@ -31,7 +49,17 @@ export async function POST(req: Request) {
     );
   }
 
-  const input = parsed.data;
+  const raw = parsed.data;
+  const input =
+    "input" in raw && raw.input !== undefined ? raw.input : (raw as z.infer<typeof productionEngineInputSchema>);
+  const visualBundleOptions: VisualExecutionBundleOptions | undefined =
+    "visualBundleOptions" in raw && raw.visualBundleOptions
+      ? {
+          extraReferenceUrls: raw.visualBundleOptions.extraReferenceUrls,
+          preferEditOverGenerate: raw.visualBundleOptions.preferEditOverGenerate,
+          strongReferenceImages: raw.visualBundleOptions.strongReferenceImages,
+        }
+      : undefined;
   const { document: productionPlan } = buildProductionPlan(input);
   const plan = buildCompositionPlanDocument(
     input,
@@ -107,7 +135,11 @@ export async function POST(req: Request) {
   );
   const explanation = buildAssemblyExplanation(plan, input, manifest);
   const review = evaluateProductionOutput(input, productionPlan);
-  const visualExecution = buildVisualExecutionBundle(input, productionPlan);
+  const visualExecution = buildVisualExecutionBundle(
+    input,
+    productionPlan,
+    visualBundleOptions,
+  );
   const handoff = buildHandoffPackage(
     input,
     productionPlan,
