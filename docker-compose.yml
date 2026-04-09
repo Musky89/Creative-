@@ -1,8 +1,14 @@
 # Optional local PostgreSQL for AgenticForce (dev only).
-# Usage:
+#
+# Postgres only (default):
 #   docker compose up -d
 #   cp .env.example .env   # ensure DATABASE_URL matches POSTGRES_* below
 #   npm run db:migrate:deploy
+#
+# Full stack — Next.js on the host (same machine as Compose):
+#   docker compose --profile dev-server up -d --build
+#   Open http://localhost:3000
+#   Optional: put API keys in a root `.env` file; the dev-server service loads it when present.
 #
 # Stop: docker compose down
 # Data persists in the named volume until you docker compose down -v
@@ -26,5 +32,25 @@ services:
       timeout: 5s
       retries: 5
 
+  dev-server:
+    profiles: ["dev-server"]
+    build: .
+    container_name: agenticforce-dev-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/agenticforce?schema=public
+      STORAGE_ROOT: /data/storage
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - agenticforce_storage:/data/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   agenticforce_pgdata:
+  agenticforce_storage:
