@@ -21,10 +21,11 @@ export function buildComposedArtifactStubs(
       placeholderUri: `production-engine://compose/${input.mode}/preview.png`,
     },
     {
-      id: `${base}-manifest`,
+      id: `${base}-handoff-bundle`,
       format: "markdown",
-      description: "Layer manifest JSON for handoff",
-      placeholderUri: `production-engine://compose/${input.mode}/manifest.json`,
+      description:
+        "Handoff package index — structured layer manifest, source visuals, brand/copy metadata (see pipeline.handoff)",
+      placeholderUri: `production-engine://handoff/${input.mode}/${base}/README.md`,
     },
   ];
 }

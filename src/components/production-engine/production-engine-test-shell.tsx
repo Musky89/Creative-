@@ -82,6 +82,28 @@ function Bullets({ items }: { items: string[] }) {
 type ComposePreviewPayload = {
   compositionPlanDocument: unknown;
   layerManifest: unknown;
+  handoffLayerManifest?: unknown;
+  handoffPackage?: {
+    bundleName: string;
+    items: { path: string; description: string; kind: string }[];
+    readme: string;
+    exportProfile: {
+      presetId: string;
+      label: string;
+      canvasPx: { width: number; height: number };
+      exportDimensionsPx: { width: number; height: number };
+      logicalDpiScreen: number;
+      printDpiRecommended?: number;
+      colorSpace: string;
+      primaryFormats: string[];
+      allowUpscaleMaster: boolean;
+      mediaSpecHint: string;
+    };
+    copyMetadata: unknown;
+    brandMetadata: unknown;
+    sourceVisuals: unknown[];
+    productionNotes: string[];
+  };
   assemblyExplanation: string[];
   review?: {
     verdict: string;
@@ -588,9 +610,116 @@ export function ProductionEngineTestShell() {
               {JSON.stringify(active.compositionPlanDocument, null, 2)}
             </pre>
           </Section>
-          <Section title="Layer manifest (handoff)">
+          <Section title="Layer stack (logical manifest)">
+            <p className="mb-2 text-xs text-zinc-500">
+              Composer stack order — see <span className="text-zinc-400">handoff.layerManifestStructured</span>{" "}
+              for PSD/Figma-ready placement, scale, sources, and text payloads.
+            </p>
             <pre className="max-h-64 overflow-auto font-mono text-xs text-zinc-400">
               {JSON.stringify(active.layerManifest, null, 2)}
+            </pre>
+          </Section>
+          <Section title="Handoff — export profile (mode-aware)">
+            <div className="space-y-2 text-xs text-zinc-400">
+              <p>
+                <span className="text-zinc-500">Preset:</span>{" "}
+                <span className="font-mono text-emerald-400/90">
+                  {active.handoff.exportProfile.presetId}
+                </span>{" "}
+                — {active.handoff.exportProfile.label}
+              </p>
+              <p>
+                Canvas / export:{" "}
+                <span className="font-mono text-zinc-300">
+                  {active.handoff.exportProfile.canvasPx.width}×
+                  {active.handoff.exportProfile.canvasPx.height}px
+                </span>
+                {" · "}
+                screen {active.handoff.exportProfile.logicalDpiScreen} DPI
+                {active.handoff.exportProfile.printDpiRecommended
+                  ? ` · print ${active.handoff.exportProfile.printDpiRecommended} DPI`
+                  : ""}
+              </p>
+              <p>
+                Formats:{" "}
+                <span className="text-zinc-300">
+                  {active.handoff.exportProfile.primaryFormats.join(", ")}
+                </span>
+                {" · "}
+                {active.handoff.exportProfile.colorSpace}
+                {active.handoff.exportProfile.allowUpscaleMaster
+                  ? " · upscale allowed for master"
+                  : ""}
+              </p>
+              <p className="text-zinc-500">{active.handoff.exportProfile.mediaSpecHint}</p>
+              <Bullets items={active.handoff.exportProfile.deliveryNotes} />
+            </div>
+          </Section>
+          <Section title="Handoff — package contents (paths)">
+            <div className="max-h-56 overflow-auto text-xs">
+              <table className="w-full border-collapse text-left text-zinc-400">
+                <thead>
+                  <tr className="border-b border-zinc-800 text-zinc-500">
+                    <th className="py-1 pr-2">Kind</th>
+                    <th className="py-1 pr-2">Path</th>
+                    <th className="py-1">Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {active.handoff.items.map((item, i) => (
+                    <tr key={i} className="border-b border-zinc-800/80">
+                      <td className="py-1 pr-2 font-mono text-violet-400/90">{item.kind}</td>
+                      <td className="py-1 pr-2 font-mono text-[10px] text-zinc-500">
+                        {item.path}
+                      </td>
+                      <td className="py-1">{item.description}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-xs text-zinc-500">
+              Bundle: <span className="font-mono text-zinc-400">{active.handoff.bundleName}</span>
+            </p>
+          </Section>
+          <Section title="Handoff — structured layer manifest (excerpt)">
+            <p className="mb-2 text-xs text-zinc-500">
+              First layers with <span className="text-zinc-400">textContent</span> /{" "}
+              <span className="text-zinc-400">sourceAsset</span> /{" "}
+              <span className="text-zinc-400">logoAsset</span> — full JSON in API or copy from{" "}
+              <span className="font-mono">runProductionEngineStub</span> result.
+            </p>
+            <pre className="max-h-64 overflow-auto font-mono text-[10px] text-zinc-400">
+              {JSON.stringify(
+                {
+                  ...active.handoff.layerManifestStructured,
+                  layers: active.handoff.layerManifestStructured.layers.slice(0, 8),
+                },
+                null,
+                2,
+              )}
+            </pre>
+          </Section>
+          <Section title="Handoff — copy & brand metadata">
+            <p className="mb-2 text-xs font-semibold text-zinc-500">Copy</p>
+            <pre className="mb-3 max-h-40 overflow-auto font-mono text-[10px] text-zinc-400">
+              {JSON.stringify(active.handoff.copyMetadata, null, 2)}
+            </pre>
+            <p className="mb-2 text-xs font-semibold text-zinc-500">Brand</p>
+            <pre className="max-h-40 overflow-auto font-mono text-[10px] text-zinc-400">
+              {JSON.stringify(active.handoff.brandMetadata, null, 2)}
+            </pre>
+          </Section>
+          <Section title="Handoff — source visuals & production notes">
+            <p className="mb-2 text-xs font-semibold text-zinc-500">Source visuals (URLs)</p>
+            <pre className="mb-3 max-h-36 overflow-auto font-mono text-[10px] text-zinc-400">
+              {JSON.stringify(active.handoff.sourceVisuals, null, 2)}
+            </pre>
+            <Bullets items={active.handoff.productionNotes} />
+          </Section>
+          <Section title="Handoff — README (bundle index)">
+            <pre className="max-h-48 overflow-auto whitespace-pre-wrap font-mono text-[10px] text-zinc-400">
+              {active.handoff.readme}
             </pre>
           </Section>
           <Section title="How assembly works">
@@ -612,11 +741,6 @@ export function ProductionEngineTestShell() {
             )}
             <pre className="max-h-56 overflow-auto font-mono text-xs text-zinc-400">
               {JSON.stringify(active.review, null, 2)}
-            </pre>
-          </Section>
-          <Section title="Handoff package (stub)">
-            <pre className="max-h-56 overflow-auto font-mono text-xs text-zinc-400">
-              {JSON.stringify(active.handoff, null, 2)}
             </pre>
           </Section>
         </div>
@@ -685,6 +809,26 @@ export function ProductionEngineTestShell() {
             <code className="text-zinc-400">secondaryImageUrl</code> /{" "}
             <code className="text-zinc-400">tertiaryImageUrl</code> for routes A/B/C.
           </p>
+        </Section>
+      )}
+
+      {composePreview?.handoffPackage && (
+        <Section title="Compose API — handoff package (same as pipeline)">
+          <p className="mb-2 text-xs text-zinc-500">
+            Flattened PNG is the preview above; this block is the structured bundle metadata for
+            agencies (paths are logical until ZIP export is wired).
+          </p>
+          <pre className="max-h-64 overflow-auto font-mono text-[10px] text-zinc-400">
+            {JSON.stringify(composePreview.handoffPackage, null, 2)}
+          </pre>
+        </Section>
+      )}
+
+      {composePreview?.handoffLayerManifest != null && (
+        <Section title="Compose API — structured layer manifest (full)">
+          <pre className="max-h-96 overflow-auto font-mono text-[10px] text-zinc-400">
+            {JSON.stringify(composePreview.handoffLayerManifest, null, 2)}
+          </pre>
         </Section>
       )}
 

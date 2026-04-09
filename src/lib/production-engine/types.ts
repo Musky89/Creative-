@@ -27,6 +27,7 @@ import type {
   FashionVariantCopy,
   IdentityRouteKey,
 } from "./mode-identity-fashion-export";
+import type { HandoffPackageExtended } from "./handoff-types";
 
 export { PRODUCTION_MODES, type ProductionMode } from "./modes";
 
@@ -182,10 +183,11 @@ export type ReviewEvaluation = {
   modeReviewSummary?: string[];
 };
 
+/** @deprecated Use HandoffPackageExtended from ./handoff */
 export type HandoffPackage = {
   mode: ProductionMode;
   bundleName: string;
-  items: { path: string; description: string }[];
+  items: { path: string; description: string; kind?: string }[];
   readme: string;
 };
 
@@ -213,5 +215,5 @@ export type ProductionEngineRunResult = {
   assemblyExplanation: string[];
   composed: ComposedArtifact[];
   review: ReviewEvaluation;
-  handoff: HandoffPackage;
+  handoff: HandoffPackageExtended;
 };

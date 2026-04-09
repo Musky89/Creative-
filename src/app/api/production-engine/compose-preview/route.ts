@@ -10,6 +10,8 @@ import {
   getPackagingVariantSpec,
   buildAllFashionVariants,
   buildExportDeckSections,
+  buildVisualExecutionBundle,
+  buildHandoffPackage,
 } from "@/lib/production-engine";
 import { runDeterministicComposeSharp } from "@/server/production-engine/deterministic-composer";
 
@@ -105,6 +107,24 @@ export async function POST(req: Request) {
   );
   const explanation = buildAssemblyExplanation(plan, input, manifest);
   const review = evaluateProductionOutput(input, productionPlan);
+  const visualExecution = buildVisualExecutionBundle(input, productionPlan);
+  const handoff = buildHandoffPackage(
+    input,
+    productionPlan,
+    plan,
+    manifest,
+    visualExecution,
+    {
+      qualityTier: input.visualQualityTier,
+      textOverride: socialSlot
+        ? { headline: socialSlot.headline, cta: socialSlot.cta }
+        : fashionSlot
+          ? { headline: fashionSlot.headline, cta: fashionSlot.cta }
+          : undefined,
+      fashionVariant: fashionSlot ?? undefined,
+      exportSection: exportDeckSection ?? undefined,
+    },
+  );
 
   try {
     const { pngBuffer, width, height } = await runDeterministicComposeSharp({
@@ -122,6 +142,17 @@ export async function POST(req: Request) {
     return NextResponse.json({
       compositionPlanDocument: plan,
       layerManifest: manifest,
+      handoffLayerManifest: handoff.layerManifestStructured,
+      handoffPackage: {
+        bundleName: handoff.bundleName,
+        items: handoff.items,
+        readme: handoff.readme,
+        exportProfile: handoff.exportProfile,
+        copyMetadata: handoff.copyMetadata,
+        brandMetadata: handoff.brandMetadata,
+        sourceVisuals: handoff.sourceVisuals,
+        productionNotes: handoff.productionNotes,
+      },
       assemblyExplanation: explanation,
       review,
       packagingVariantSpec:
@@ -171,6 +202,17 @@ export async function POST(req: Request) {
         message: msg,
         compositionPlanDocument: plan,
         layerManifest: manifest,
+        handoffLayerManifest: handoff.layerManifestStructured,
+        handoffPackage: {
+          bundleName: handoff.bundleName,
+          items: handoff.items,
+          readme: handoff.readme,
+          exportProfile: handoff.exportProfile,
+          copyMetadata: handoff.copyMetadata,
+          brandMetadata: handoff.brandMetadata,
+          sourceVisuals: handoff.sourceVisuals,
+          productionNotes: handoff.productionNotes,
+        },
         assemblyExplanation: explanation,
         review,
       },

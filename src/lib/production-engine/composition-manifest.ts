@@ -338,7 +338,7 @@ export function buildAssemblyExplanation(
     );
   }
   lines.push(
-    `Layer manifest (${manifest.length} entries) is stored for **layered handoff** (PSD/Figma export is a future step).`,
+    `Logical layer stack (${manifest.length} entries) feeds **handoff.layerManifestStructured** — placement, scale, source URIs, and text roles for PSD/Figma adapters.`,
   );
   lines.push(`Export: **${doc.exportFormat}** — ${doc.exportDpiNote}`);
   return lines;

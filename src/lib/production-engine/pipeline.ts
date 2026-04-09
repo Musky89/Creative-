@@ -103,7 +103,21 @@ export function runProductionEngineStub(
     layerManifest,
   );
   const review = evaluateProductionOutput(input, productionPlan);
-  const handoff = buildHandoffPackage(input, productionPlan);
+  const handoff = buildHandoffPackage(
+    input,
+    productionPlan,
+    compositionPlanDocument,
+    layerManifest,
+    visualExecution,
+    {
+      qualityTier: input.visualQualityTier,
+      textOverride: socialSlot
+        ? { headline: socialSlot.headline, cta: socialSlot.cta }
+        : undefined,
+      fashionVariant: fashionSlot,
+      exportSection,
+    },
+  );
   const packagingVariantSpec =
     input.mode === "PACKAGING"
       ? getPackagingVariantSpec(input.packagingVariant ?? "ORIGINAL")

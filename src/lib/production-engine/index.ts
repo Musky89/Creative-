@@ -25,4 +25,7 @@ export * from "./composition-mode-tweaks";
 export * from "./composer";
 export * from "./review";
 export * from "./handoff";
+export * from "./handoff-types";
+export * from "./handoff-export-profile";
+export * from "./handoff-layer-manifest";
 export * from "./pipeline";
