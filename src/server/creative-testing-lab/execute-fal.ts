@@ -15,6 +15,7 @@ export type LabExecutionKind =
   | "force_lora_edit";
 
 export type FalExecuteTargetResult = {
+  targetIndex: number;
   targetId: string;
   pathId: string;
   ok: boolean;
@@ -70,6 +71,7 @@ export async function executeFalForLabTargets(args: {
     const req = args.requests[idx];
     if (!req) {
       results.push({
+        targetIndex: idx,
         targetId: `missing-${idx}`,
         pathId: "",
         ok: false,
@@ -82,6 +84,7 @@ export async function executeFalForLabTargets(args: {
     let pathId = req.resolvedPath.pathId;
     if (pathId === "internal/composition-only") {
       results.push({
+        targetIndex: idx,
         targetId: req.sourceTargetId,
         pathId,
         ok: true,
@@ -120,6 +123,7 @@ export async function executeFalForLabTargets(args: {
       if (pathId === "fal-ai/flux/dev/image-to-image" || pathId === "fal-ai/flux-lora/image-to-image") {
         if (!baseImage) {
           results.push({
+            targetIndex: idx,
             targetId: req.sourceTargetId,
             pathId,
             ok: false,
@@ -183,6 +187,7 @@ export async function executeFalForLabTargets(args: {
 
       const urls = extractImageUrls(data);
       results.push({
+        targetIndex: idx,
         targetId: req.sourceTargetId,
         pathId,
         ok: urls.length > 0,
@@ -192,6 +197,7 @@ export async function executeFalForLabTargets(args: {
       });
     } catch (e) {
       results.push({
+        targetIndex: idx,
         targetId: req.sourceTargetId,
         pathId,
         ok: false,

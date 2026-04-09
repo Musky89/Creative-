@@ -14,8 +14,39 @@ import {
   type LabCreativeForm,
   type LabAssetUrls,
 } from "@/lib/creative-testing-lab/map-to-production-input";
+import {
+  RUN_HISTORY_VERSION,
+  MAX_STORED_RUNS,
+  type LabTestRun,
+  type LabFalExecutionRecord,
+  type OutputReviewMark,
+  type LabManualVerdict,
+  pathIdToKindLabel,
+  summarizeProductionInput,
+  loadRuns,
+  saveRuns,
+  buildExportPackage,
+  downloadJson,
+} from "@/lib/creative-testing-lab/run-history";
 
 const PRESET_KEY = "creative-testing-lab-presets-v1";
+
+function executionPathLabel(
+  p: "router" | "generate" | "edit" | "lora_gen" | "lora_edit",
+): string {
+  const m: Record<typeof p, string> = {
+    router: "Router (engine default)",
+    generate: "Force text-to-image",
+    edit: "Force image edit",
+    lora_gen: "Force LoRA generate",
+    lora_edit: "Force LoRA edit",
+  };
+  return m[p];
+}
+
+function outputMarkKey(targetIndex: number, targetId: string, url: string, j: number): string {
+  return `${targetIndex}::${targetId}::${j}::${url.slice(0, 80)}`;
+}
 
 const emptyBrand = (): LabBrandForm => ({
   clientName: "",
@@ -157,7 +188,15 @@ export function CreativeTestingLabShell() {
   const [pipelineResult, setPipelineResult] = useState<ProductionEngineRunResult | null>(null);
   const [composeData, setComposeData] = useState<Record<string, unknown> | null>(null);
   const [falResults, setFalResults] = useState<
-    { targetId: string; pathId: string; ok: boolean; imageUrls: string[]; error?: string }[] | null
+    | {
+        targetIndex: number;
+        targetId: string;
+        pathId: string;
+        ok: boolean;
+        imageUrls: string[];
+        error?: string;
+      }[]
+    | null
   >(null);
   const [selectedVisualUrl, setSelectedVisualUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
@@ -177,6 +216,51 @@ export function CreativeTestingLabShell() {
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<Preset[]>([]);
 
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [runHistory, setRunHistory] = useState<LabTestRun[]>([]);
+  const [outputMarks, setOutputMarks] = useState<Record<string, OutputReviewMark>>({});
+  const [manualVerdict, setManualVerdict] = useState<LabManualVerdict>("");
+  const [compareA, setCompareA] = useState<string | null>(null);
+  const [compareB, setCompareB] = useState<string | null>(null);
+
+  const mergeRunIntoHistory = useCallback((updater: (prev: LabTestRun[]) => LabTestRun[]) => {
+    setRunHistory((prev) => {
+      const next = updater(prev).slice(-MAX_STORED_RUNS);
+      saveRuns(next);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!activeRunId) return;
+    const t = setTimeout(() => {
+      mergeRunIntoHistory((prev) =>
+        prev.map((r) =>
+          r.id === activeRunId
+            ? {
+                ...r,
+                updatedAt: new Date().toISOString(),
+                manualScores: reviewScores,
+                manualNotes: reviewNotes,
+                manualVerdict,
+                selectedOutputUrl: selectedVisualUrl,
+                outputMarks,
+              }
+            : r,
+        ),
+      );
+    }, 900);
+    return () => clearTimeout(t);
+  }, [
+    activeRunId,
+    reviewScores,
+    reviewNotes,
+    manualVerdict,
+    selectedVisualUrl,
+    outputMarks,
+    mergeRunIntoHistory,
+  ]);
+
   useEffect(() => {
     fetch("/api/creative-testing-lab/status")
       .then((r) => r.json())
@@ -188,11 +272,26 @@ export function CreativeTestingLabShell() {
     } catch {
       /* ignore */
     }
+    setRunHistory(loadRuns());
   }, []);
 
   const persistPresets = useCallback((next: Preset[]) => {
     setPresets(next);
     localStorage.setItem(PRESET_KEY, JSON.stringify(next));
+  }, []);
+
+  const applyRunToForm = useCallback((run: LabTestRun) => {
+    setActiveRunId(run.id);
+    setMode(run.mode);
+    setQualityTier(run.qualityTier as typeof qualityTier);
+    setReviewScores(run.manualScores);
+    setReviewNotes(run.manualNotes);
+    setManualVerdict(run.manualVerdict);
+    setOutputMarks(run.outputMarks);
+    setSelectedVisualUrl(run.selectedOutputUrl);
+    setPipelineResult(null);
+    setFalResults(null);
+    setComposeData(null);
   }, []);
 
   const assets: LabAssetUrls = useMemo(
@@ -265,6 +364,8 @@ export function CreativeTestingLabShell() {
   async function runPipeline() {
     setLoading("pipeline");
     setError(null);
+    const runId = activeRunId ?? `run-${Date.now()}`;
+    setActiveRunId(runId);
     try {
       const res = await fetch("/api/creative-testing-lab/pipeline", {
         method: "POST",
@@ -273,9 +374,80 @@ export function CreativeTestingLabShell() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(JSON.stringify(data));
-      setPipelineResult(data as ProductionEngineRunResult);
-      const n = (data as ProductionEngineRunResult).visualExecution.targets.length;
+      const pr = data as ProductionEngineRunResult;
+      setPipelineResult(pr);
+      const n = pr.visualExecution.targets.length;
       setSelectedTargetIndices(n ? [0] : []);
+
+      const now = new Date().toISOString();
+      const falExecPlanned: LabFalExecutionRecord[] =
+        pr.visualExecution.routedExecutions.map((ex, i) => ({
+          targetId: ex.target.id,
+          targetIndex: i,
+          targetType: ex.target.targetType,
+          pathId: ex.route.pathId,
+          pathKindLabel: `${ex.route.kind.replace(/_/g, " ")} · ${pathIdToKindLabel(ex.route.pathId)}`,
+          ok: ex.route.pathId !== "internal/composition-only",
+          error:
+            ex.route.pathId === "internal/composition-only"
+              ? "Router: composition-only (no FAL image for this target)"
+              : undefined,
+          imageUrls: [],
+        }));
+
+      mergeRunIntoHistory((prev) => {
+        const existing = prev.find((r) => r.id === runId);
+        const base: LabTestRun =
+          existing ?? {
+            version: RUN_HISTORY_VERSION,
+            id: runId,
+            createdAt: now,
+            updatedAt: now,
+            mode: productionInput.mode,
+            brandName: brand.clientName || "(unnamed brand)",
+            headline: creative.headline,
+            cta: creative.cta,
+            conceptName: creative.conceptName,
+            projectTitle: creative.projectTitle,
+            campaignCoreSnippet: creative.campaignCore.slice(0, 200),
+            visualDirectionSnippet: creative.visualDirection.slice(0, 200),
+            qualityTier,
+            executionPathLabel: executionPathLabel(executionPath),
+            falKeyConfigured: falKeyOk === true,
+            productionInputSummary: summarizeProductionInput(productionInput),
+            falRoutingSummary: "",
+            falPrimaryPath: undefined,
+            productionPlan: undefined,
+            falExecutions: [],
+            selectedOutputUrl: null,
+            outputMarks: {},
+            manualVerdict: "",
+            manualScores: reviewScores,
+            manualNotes: reviewNotes,
+            composeMeta: null,
+          };
+        const merged: LabTestRun = {
+          ...base,
+          updatedAt: now,
+          mode: productionInput.mode,
+          brandName: brand.clientName || base.brandName,
+          headline: creative.headline,
+          cta: creative.cta,
+          conceptName: creative.conceptName,
+          projectTitle: creative.projectTitle,
+          campaignCoreSnippet: creative.campaignCore.slice(0, 200),
+          visualDirectionSnippet: creative.visualDirection.slice(0, 200),
+          qualityTier,
+          executionPathLabel: executionPathLabel(executionPath),
+          falKeyConfigured: falKeyOk === true,
+          productionInputSummary: summarizeProductionInput(productionInput),
+          falRoutingSummary: pr.falRouting.reason,
+          falPrimaryPath: pr.falRouting.primaryEndpointId,
+          productionPlan: pr.productionPlan,
+          falExecutions: falExecPlanned,
+        };
+        return [...prev.filter((r) => r.id !== runId), merged];
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -283,13 +455,14 @@ export function CreativeTestingLabShell() {
     }
   }
 
-  async function runFal() {
+  async function runFal(indicesArg?: number[]) {
     setLoading("fal");
     setError(null);
     const indices =
-      selectedTargetIndices.length > 0
+      indicesArg ??
+      (selectedTargetIndices.length > 0
         ? selectedTargetIndices
-        : filteredTargetIndices.slice(0, 3);
+        : filteredTargetIndices.slice(0, 3));
     try {
       const res = await fetch("/api/creative-testing-lab/fal-execute", {
         method: "POST",
@@ -304,16 +477,67 @@ export function CreativeTestingLabShell() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(JSON.stringify(data));
-      setFalResults(data.results as typeof falResults);
-      const firstUrl = (data.results as { imageUrls?: string[] }[]).find(
-        (r) => r.imageUrls?.length,
-      )?.imageUrls?.[0];
+      const results = data.results as Array<{
+        targetIndex: number;
+        targetId: string;
+        pathId: string;
+        ok: boolean;
+        imageUrls: string[];
+        error?: string;
+      }>;
+      setFalResults(results);
+      const firstUrl = results.find((r) => r.imageUrls?.length)?.imageUrls?.[0];
       if (firstUrl) setSelectedVisualUrl(firstUrl);
+
+      if (activeRunId) {
+        mergeRunIntoHistory((prev) =>
+          prev.map((r) => {
+            if (r.id !== activeRunId) return r;
+            const byIdx = new Map(results.map((x) => [x.targetIndex, x]));
+            const nextExec = r.falExecutions.map((ex) => {
+              const hit = byIdx.get(ex.targetIndex);
+              if (!hit) return ex;
+              return {
+                ...ex,
+                pathId: hit.pathId,
+                pathKindLabel: pathIdToKindLabel(hit.pathId),
+                ok: hit.ok && hit.imageUrls.length > 0,
+                imageUrls: hit.imageUrls,
+                error: hit.error,
+              };
+            });
+            return {
+              ...r,
+              updatedAt: new Date().toISOString(),
+              falExecutions: nextExec,
+              falKeyConfigured: falKeyOk === true,
+            };
+          }),
+        );
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(null);
     }
+  }
+
+  function runFalSingleOnly() {
+    const idx =
+      selectedTargetIndices.length === 1
+        ? selectedTargetIndices[0]
+        : selectedTargetIndices[0] ?? filteredTargetIndices[0];
+    if (idx === undefined) {
+      setError("Select one target (or run Build plan first).");
+      return;
+    }
+    void runFal([idx]);
+  }
+
+  function runFalAllTargets() {
+    if (!pipelineResult) return;
+    const all = pipelineResult.visualExecution.targets.map((_, i) => i);
+    void runFal(all.slice(0, 12));
   }
 
   async function runCompose() {
@@ -335,11 +559,89 @@ export function CreativeTestingLabShell() {
       const data = await res.json();
       if (!res.ok) throw new Error(JSON.stringify(data));
       setComposeData(data as Record<string, unknown>);
+      const preview = data.preview as { width?: number; height?: number } | undefined;
+      if (activeRunId) {
+        mergeRunIntoHistory((prev) =>
+          prev.map((r) =>
+            r.id === activeRunId
+              ? {
+                  ...r,
+                  updatedAt: new Date().toISOString(),
+                  composeMeta: {
+                    width: preview?.width,
+                    height: preview?.height,
+                    hasPreview: !!preview,
+                  },
+                }
+              : r,
+          ),
+        );
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(null);
     }
+  }
+
+  function saveQaToRun() {
+    if (!activeRunId) return;
+    mergeRunIntoHistory((prev) =>
+      prev.map((r) =>
+        r.id === activeRunId
+          ? {
+              ...r,
+              updatedAt: new Date().toISOString(),
+              manualScores: reviewScores,
+              manualNotes: reviewNotes,
+              manualVerdict,
+              selectedOutputUrl: selectedVisualUrl,
+              outputMarks,
+            }
+          : r,
+      ),
+    );
+  }
+
+  function setMarkForOutput(
+    targetIndex: number,
+    targetId: string,
+    url: string,
+    j: number,
+    mark: OutputReviewMark,
+  ) {
+    const k = outputMarkKey(targetIndex, targetId, url, j);
+    setOutputMarks((prev) => ({ ...prev, [k]: mark }));
+  }
+
+  function exportCurrentRunJson() {
+    const run = runHistory.find((r) => r.id === activeRunId);
+    if (!run) {
+      setError("No active run in history — run pipeline first.");
+      return;
+    }
+    const merged: LabTestRun = {
+      ...run,
+      manualScores: reviewScores,
+      manualNotes: reviewNotes,
+      manualVerdict,
+      selectedOutputUrl: selectedVisualUrl,
+      outputMarks,
+      updatedAt: new Date().toISOString(),
+    };
+    downloadJson(`creative-lab-run-${run.id}.json`, buildExportPackage(merged));
+  }
+
+  function startNewRun() {
+    const id = `run-${Date.now()}`;
+    setActiveRunId(id);
+    setPipelineResult(null);
+    setFalResults(null);
+    setComposeData(null);
+    setOutputMarks({});
+    setManualVerdict("");
+    setCompareA(null);
+    setCompareB(null);
   }
 
   function savePreset() {
@@ -369,20 +671,99 @@ export function CreativeTestingLabShell() {
     <div className="space-y-10">
       {falKeyOk === false ? (
         <div className="rounded-xl border border-amber-800/60 bg-amber-950/30 px-4 py-3 text-sm text-amber-100">
-          <strong className="font-semibold">FAL_KEY not set.</strong> Routing and planning work; live
-          generation requires <code className="rounded bg-black/30 px-1">FAL_KEY</code> in the environment.
+          <strong className="font-semibold">FAL_KEY missing.</strong> You can still build plans and inspect
+          routing. Live calls to fal.ai will return 503 until{" "}
+          <code className="rounded bg-black/30 px-1">FAL_KEY</code> is set server-side.
         </div>
       ) : falKeyOk === true ? (
         <div className="rounded-xl border border-emerald-900/50 bg-emerald-950/20 px-4 py-2 text-xs text-emerald-200/90">
-          FAL credentials detected — you can run live test generation.
+          FAL_KEY is configured — generation uses text-to-image, image edit, or LoRA endpoints per path below.
         </div>
-      ) : null}
+      ) : (
+        <div className="rounded-xl border border-zinc-800 px-4 py-2 text-xs text-zinc-500">
+          Checking FAL_KEY status…
+        </div>
+      )}
 
       {error ? (
         <pre className="max-h-40 overflow-auto rounded-xl border border-red-900/50 bg-red-950/30 p-4 text-xs text-red-100">
           {error}
         </pre>
       ) : null}
+
+      <Card
+        title="Run history"
+        subtitle="Stored in this browser (localStorage). Compare runs and export JSON for review."
+      >
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={startNewRun}
+            className="rounded-lg border border-zinc-600 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-800"
+          >
+            New run
+          </button>
+          <span className="text-xs text-zinc-500">
+            Active:{" "}
+            <span className="font-mono text-zinc-400">{activeRunId ?? "— (build plan to create)"}</span>
+          </span>
+          <button
+            type="button"
+            onClick={exportCurrentRunJson}
+            disabled={!activeRunId}
+            className="rounded-lg bg-zinc-700 px-3 py-2 text-xs text-white hover:bg-zinc-600 disabled:opacity-40"
+          >
+            Export run JSON
+          </button>
+        </div>
+        <div className="max-h-56 space-y-2 overflow-y-auto">
+          {[...runHistory].reverse().map((r) => (
+            <div
+              key={r.id}
+              className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-sm ${
+                r.id === activeRunId ? "border-violet-500/50 bg-violet-950/20" : "border-zinc-800 bg-zinc-950/40"
+              }`}
+            >
+              <div>
+                <span className="text-zinc-500">{new Date(r.createdAt).toLocaleString()}</span>
+                <span className="ml-2 font-mono text-xs text-emerald-400/90">{r.mode}</span>
+                <span className="ml-2 text-zinc-300">{r.brandName}</span>
+                <span className="ml-2 line-clamp-1 text-xs text-zinc-500">{r.headline}</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="text-xs text-violet-400 hover:underline"
+                  onClick={() => applyRunToForm(r)}
+                >
+                  Load QA
+                </button>
+                <button
+                  type="button"
+                  className="text-xs text-zinc-400 hover:underline"
+                  onClick={() => {
+                    setActiveRunId(r.id);
+                    setPipelineResult(null);
+                    setFalResults(null);
+                    setComposeData(null);
+                  }}
+                >
+                  Set active
+                </button>
+                <button
+                  type="button"
+                  className="text-xs text-red-400/80 hover:underline"
+                  onClick={() =>
+                    mergeRunIntoHistory((prev) => prev.filter((x) => x.id !== r.id))
+                  }
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       <div className="grid gap-8 lg:grid-cols-2">
         <Card
@@ -856,7 +1237,28 @@ export function CreativeTestingLabShell() {
         </Card>
       </div>
 
-      <Card title="Test actions" subtitle="Run in sequence: plan → generate → pick visual → compose → handoff.">
+      <Card
+        title="Test actions"
+        subtitle="1) Build plan · 2) Generate (single / all / selected) · 3) Mark outputs · 4) Compose · 5) Save QA to run"
+      >
+        <div className="mb-4 grid gap-2 rounded-xl border border-zinc-800 bg-zinc-950/50 p-4 text-xs text-zinc-400 sm:grid-cols-3">
+          <div>
+            <span className="text-zinc-500">FAL status:</span>{" "}
+            <span className={falKeyOk ? "text-emerald-400" : "text-amber-400"}>
+              {falKeyOk === null ? "…" : falKeyOk ? "KEY present" : "KEY missing"}
+            </span>
+          </div>
+          <div>
+            <span className="text-zinc-500">Path override:</span>{" "}
+            <span className="text-zinc-200">{executionPathLabel(executionPath)}</span>
+          </div>
+          <div>
+            <span className="text-zinc-500">Selected targets:</span>{" "}
+            <span className="font-mono text-zinc-300">
+              {selectedTargetIndices.length ? selectedTargetIndices.join(", ") : "none"}
+            </span>
+          </div>
+        </div>
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
@@ -868,20 +1270,29 @@ export function CreativeTestingLabShell() {
           </button>
           <button
             type="button"
-            disabled={!!loading}
-            onClick={runFal}
+            disabled={!!loading || !pipelineResult}
+            onClick={() => void runFalSingleOnly()}
             className="rounded-xl bg-cyan-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-cyan-600 disabled:opacity-40"
-            title={!falKeyOk ? "FAL_KEY missing — call will fail until configured" : undefined}
+            title="Uses first checked target only"
           >
-            {loading === "fal" ? "Generating…" : "Generate test (FAL)"}
+            {loading === "fal" ? "…" : "Generate — single target"}
           </button>
           <button
             type="button"
-            disabled={!!loading}
-            onClick={runFal}
-            className="rounded-xl border border-cyan-700/50 px-5 py-2.5 text-sm text-cyan-200 hover:bg-cyan-950/30 disabled:opacity-40"
+            disabled={!!loading || !pipelineResult}
+            onClick={() => void runFal()}
+            className="rounded-xl border border-cyan-600/60 px-5 py-2.5 text-sm text-cyan-100 hover:bg-cyan-950/40 disabled:opacity-40"
+            title="All checked targets"
           >
-            Generate batch (same as generate with selected indices)
+            Generate — selected targets
+          </button>
+          <button
+            type="button"
+            disabled={!!loading || !pipelineResult}
+            onClick={runFalAllTargets}
+            className="rounded-xl border border-cyan-700/40 px-5 py-2.5 text-sm text-cyan-200/90 hover:bg-cyan-950/30 disabled:opacity-40"
+          >
+            Generate — all targets
           </button>
           <button
             type="button"
@@ -897,11 +1308,20 @@ export function CreativeTestingLabShell() {
             onClick={runCompose}
             className="rounded-xl border border-violet-600/50 px-5 py-2.5 text-sm text-violet-200 hover:bg-violet-950/30 disabled:opacity-40"
           >
-            Export handoff preview
+            Handoff preview (same compose)
+          </button>
+          <button
+            type="button"
+            disabled={!activeRunId}
+            onClick={saveQaToRun}
+            className="rounded-xl border border-zinc-600 px-5 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800 disabled:opacity-40"
+          >
+            Save QA to run
           </button>
         </div>
         <p className="mt-3 text-xs text-zinc-500">
-          Edit/refine: switch path to <strong>edit</strong> or <strong>LoRA edit</strong>, ensure a base image is set, then run Generate again.
+          <strong>Single target:</strong> check one box above. <strong>Rerun selected:</strong> adjust checks →
+          Generate — selected. <strong>Edit/refine:</strong> switch path to edit / LoRA edit and set a base hero.
         </p>
       </Card>
 
@@ -967,21 +1387,59 @@ export function CreativeTestingLabShell() {
             </div>
           </OutputSection>
 
-          <OutputSection title="FAL routing" summary="Resolved path per target from production-engine router.">
+          <OutputSection
+            title="FAL routing & execution"
+            summary="What the engine would call — after Generate, see success/failure per target."
+          >
             <div className="space-y-3">
-              {pipelineResult.visualExecution.routedExecutions.map((r) => (
-                <div key={r.target.id} className="rounded-xl border border-zinc-800 bg-zinc-950/40 p-4">
-                  <p className="font-mono text-sm text-amber-200/90">{r.route.pathId}</p>
-                  <p className="text-xs text-zinc-500">
-                    {r.route.kind} · {r.target.id}
-                  </p>
-                  <ul className="mt-2 list-inside list-disc text-xs text-zinc-500">
-                    {r.route.reasons.map((x, i) => (
-                      <li key={i}>{x}</li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+              {pipelineResult.visualExecution.routedExecutions.map((r, i) => {
+                const live = falResults?.find((x) => x.targetIndex === i);
+                const kindLabel = pathIdToKindLabel(r.route.pathId);
+                const failed = live && !live.ok;
+                return (
+                  <div
+                    key={r.target.id}
+                    className={`rounded-xl border p-4 ${
+                      failed ? "border-red-800/60 bg-red-950/20" : "border-zinc-800 bg-zinc-950/40"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="text-xs text-zinc-500">
+                          Target #{i} ·{" "}
+                          <span className="font-mono text-emerald-400/90">{r.target.targetType}</span>
+                        </p>
+                        <p className="mt-1 font-mono text-sm text-amber-200/90">{r.route.pathId}</p>
+                        <p className="mt-0.5 text-xs text-violet-300/90">{kindLabel}</p>
+                        <p className="mt-1 text-[11px] text-zinc-600">
+                          Router kind: {r.route.kind.replace(/_/g, " ")}
+                        </p>
+                      </div>
+                      {live ? (
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                            live.ok && live.imageUrls.length
+                              ? "bg-emerald-950 text-emerald-300"
+                              : "bg-red-950 text-red-200"
+                          }`}
+                        >
+                          {live.ok && live.imageUrls.length ? "FAL OK" : "FAL failed"}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-zinc-600">Not executed yet</span>
+                      )}
+                    </div>
+                    {live?.error ? (
+                      <p className="mt-2 text-xs text-red-300/90">{live.error}</p>
+                    ) : null}
+                    <ul className="mt-2 list-inside list-disc text-[11px] text-zinc-500">
+                      {r.route.reasons.slice(0, 4).map((x, j) => (
+                        <li key={j}>{x}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
             </div>
             <details className="mt-4">
               <summary className="cursor-pointer text-xs text-zinc-500">Execution requests (JSON)</summary>
@@ -996,38 +1454,115 @@ export function CreativeTestingLabShell() {
           </OutputSection>
 
           {falResults && falResults.length > 0 ? (
-            <OutputSection title="Raw generated visuals" summary="From live FAL when configured.">
+            <OutputSection title="Generated outputs" summary="Mark preferred / rejected / needs refinement. Click image to set compose hero.">
+              <div className="mb-6 grid gap-4 md:grid-cols-2">
+                <div>
+                  <p className="mb-2 text-xs font-medium text-zinc-500">Compare A</p>
+                  <select
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-2 text-xs text-zinc-300"
+                    value={compareA ?? ""}
+                    onChange={(e) => setCompareA(e.target.value || null)}
+                  >
+                    <option value="">Pick output…</option>
+                    {falResults.flatMap((r) =>
+                      r.imageUrls.map((url, j) => (
+                        <option key={`a-${r.targetId}-${j}`} value={url}>
+                          #{r.targetIndex} {r.targetId} · {j + 1}
+                        </option>
+                      )),
+                    )}
+                  </select>
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-medium text-zinc-500">Compare B</p>
+                  <select
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-2 text-xs text-zinc-300"
+                    value={compareB ?? ""}
+                    onChange={(e) => setCompareB(e.target.value || null)}
+                  >
+                    <option value="">Pick output…</option>
+                    {falResults.flatMap((r) =>
+                      r.imageUrls.map((url, j) => (
+                        <option key={`b-${r.targetId}-${j}`} value={url}>
+                          #{r.targetIndex} {r.targetId} · {j + 1}
+                        </option>
+                      )),
+                    )}
+                  </select>
+                </div>
+              </div>
+              {compareA && compareB ? (
+                <div className="mb-8 grid grid-cols-2 gap-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={compareA} alt="" className="w-full rounded-xl border border-zinc-700 object-contain" />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={compareB} alt="" className="w-full rounded-xl border border-zinc-700 object-contain" />
+                </div>
+              ) : null}
+
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {falResults.flatMap((r) =>
-                  r.imageUrls.map((url, j) => (
-                    <button
-                      key={`${r.targetId}-${j}`}
-                      type="button"
-                      onClick={() => setSelectedVisualUrl(url)}
-                      className={`overflow-hidden rounded-xl border text-left transition ${
-                        selectedVisualUrl === url
-                          ? "border-violet-500 ring-2 ring-violet-500/40"
-                          : "border-zinc-800 hover:border-zinc-600"
-                      }`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={url} alt="" className="aspect-square w-full object-cover" />
-                      <p className="p-2 font-mono text-[10px] text-zinc-500">{r.targetId}</p>
-                    </button>
-                  )),
+                  r.imageUrls.map((url, j) => {
+                    const mk = outputMarks[outputMarkKey(r.targetIndex, r.targetId, url, j)] ?? "none";
+                    return (
+                      <div
+                        key={`${r.targetId}-${j}`}
+                        className={`overflow-hidden rounded-xl border ${
+                          selectedVisualUrl === url
+                            ? "border-violet-500 ring-2 ring-violet-500/40"
+                            : mk === "preferred"
+                              ? "border-emerald-600/60"
+                              : mk === "rejected"
+                                ? "border-red-800/50 opacity-70"
+                                : "border-zinc-800"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setSelectedVisualUrl(url)}
+                          className="block w-full text-left"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={url} alt="" className="aspect-square w-full object-cover" />
+                        </button>
+                        <div className="space-y-2 p-2">
+                          <p className="font-mono text-[10px] text-zinc-500">
+                            #{r.targetIndex} {r.targetId}
+                          </p>
+                          <p className="text-[10px] text-zinc-600">{pathIdToKindLabel(r.pathId)}</p>
+                          <div className="flex flex-wrap gap-1">
+                            {(["preferred", "rejected", "refine", "none"] as const).map((m) => {
+                              const active = m === "none" ? mk === "none" : mk === m;
+                              return (
+                                <button
+                                  key={m}
+                                  type="button"
+                                  onClick={() =>
+                                    setMarkForOutput(
+                                      r.targetIndex,
+                                      r.targetId,
+                                      url,
+                                      j,
+                                      m === "none" ? "none" : m,
+                                    )
+                                  }
+                                  className={`rounded px-2 py-0.5 text-[10px] font-medium ${
+                                    active
+                                      ? "bg-zinc-600 text-white"
+                                      : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"
+                                  }`}
+                                >
+                                  {m === "none" ? "clear" : m}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }),
                 )}
               </div>
-              {falResults.some((r) => r.error) ? (
-                <ul className="mt-4 text-xs text-amber-200/90">
-                  {falResults
-                    .filter((r) => r.error)
-                    .map((r) => (
-                      <li key={r.targetId}>
-                        {r.targetId}: {r.error}
-                      </li>
-                    ))}
-                </ul>
-              ) : null}
             </OutputSection>
           ) : null}
 
@@ -1122,7 +1657,23 @@ export function CreativeTestingLabShell() {
         </div>
       ) : null}
 
-      <Card title="Manual quality review" subtitle="Founder scores — stored in this session only (React state).">
+      <Card
+        title="Manual quality review"
+        subtitle="Auto-saves to the active run (debounced). Use Save QA to run for an immediate write. Export run JSON includes this block."
+      >
+        <Field label="Overall verdict">
+          <select
+            className="w-full max-w-md rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
+            value={manualVerdict}
+            onChange={(e) => setManualVerdict(e.target.value as LabManualVerdict)}
+          >
+            <option value="">—</option>
+            <option value="strong">Strong</option>
+            <option value="usable">Usable</option>
+            <option value="weak">Weak</option>
+            <option value="failed">Failed</option>
+          </select>
+        </Field>
         <Stars
           label="Brand alignment"
           value={reviewScores.brandAlignment}
