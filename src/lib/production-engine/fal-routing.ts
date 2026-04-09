@@ -1,23 +1,17 @@
 import type { ProductionEngineInput, FalRouteDecision } from "./types";
-import { getModeConfig } from "./mode-registry";
+import type { ProductionPlanDocument } from "./production-plan-schema";
+import {
+  buildVisualExecutionBundle,
+  summarizeFalRouting,
+} from "./visual-execution";
 
 /**
- * Stub fal routing — returns logical endpoint ids only (no network).
+ * Legacy summary of FAL routes from the visual execution bundle.
  */
-export function routeFalForProduction(input: ProductionEngineInput): FalRouteDecision {
-  const cfg = getModeConfig(input.mode);
-  if (input.mode === "EXPORT_PRESENTATION") {
-    return {
-      mode: input.mode,
-      primaryEndpointId: "composition-only",
-      reason:
-        "Presentation mode is composition/export-first; image gen optional in future pass.",
-    };
-  }
-  return {
-    mode: input.mode,
-    primaryEndpointId: cfg.defaultFalEndpointId,
-    fallbackEndpointId: `${cfg.defaultFalEndpointId}#fallback`,
-    reason: `Default stack for ${cfg.label}; modelRef=${input.modelRef ?? "unset"}.`,
-  };
+export function routeFalForProduction(
+  input: ProductionEngineInput,
+  plan: ProductionPlanDocument,
+): FalRouteDecision {
+  const bundle = buildVisualExecutionBundle(input, plan);
+  return summarizeFalRouting(input, bundle);
 }

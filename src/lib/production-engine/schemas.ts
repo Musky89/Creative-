@@ -37,6 +37,8 @@ const brandAssetsSchema = z
   })
   .optional();
 
+const qualityTierSchema = z.enum(["draft", "standard", "high"]).optional();
+
 export const productionEngineInputSchema = z.object({
   mode: productionModeSchema,
   briefSummary: z.string().min(1, "briefSummary required"),
@@ -59,6 +61,7 @@ export const productionEngineInputSchema = z.object({
   brandAssets: brandAssetsSchema,
   visualStyleRef: z.string().optional(),
   modelRef: z.string().optional(),
+  visualQualityTier: qualityTierSchema,
 });
 
 export type ProductionEngineInputParsed = z.infer<

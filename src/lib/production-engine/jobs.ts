@@ -1,41 +1,33 @@
-import type { ProductionEngineInput, ProductionJob } from "./types";
-import { routeFalForProduction } from "./fal-routing";
+import type { ProductionEngineInput, ProductionJob, VisualExecutionBundle } from "./types";
 
 function jid(): string {
   return `pe-job-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 /**
- * Stub job layer — PLANNED jobs only.
+ * Job layer aligned with FAL routed executions (still PLANNED until subscribe).
  */
-export function buildProductionJobs(input: ProductionEngineInput): ProductionJob[] {
-  const route = routeFalForProduction(input);
-  const jobs: ProductionJob[] = [
-    {
+export function buildProductionJobs(
+  input: ProductionEngineInput,
+  visual: VisualExecutionBundle,
+): ProductionJob[] {
+  return visual.routedExecutions.map((r) => {
+    const kind =
+      r.route.kind === "IMAGE_EDIT" || r.route.kind === "LORA_IMAGE_EDIT"
+        ? ("EDIT" as const)
+        : r.route.kind === "SPECIALTY" && r.route.pathId.includes("upscale")
+          ? ("UPSCALE" as const)
+          : r.request.batchSize > 1
+            ? ("VARIANT" as const)
+            : ("GENERATE" as const);
+
+    return {
       id: jid(),
-      kind: "GENERATE",
-      label: "Primary visual for mode",
-      falEndpointId: route.primaryEndpointId,
-      inputSummary: `Concept: ${input.selectedConcept.conceptName}; refs: ${input.referenceSummaries.length}`,
-      status: "PLANNED",
-    },
-  ];
-  if (input.brandAssets?.logoUrl) {
-    jobs.push({
-      id: jid(),
-      kind: "EDIT",
-      label: "Composite logo lockup",
-      falEndpointId: route.fallbackEndpointId,
-      inputSummary: "Logo URL provided — compose under safe area.",
-      status: "PLANNED",
-    });
-  }
-  jobs.push({
-    id: jid(),
-    kind: "VARIANT",
-    label: "Alt crop / platform variant",
-    inputSummary: "Secondary aspect for social/OOH parity (stub).",
-    status: "PLANNED",
+      kind,
+      label: `${r.target.targetType} (${r.target.id})`,
+      falEndpointId: r.route.pathId,
+      inputSummary: r.route.reasons.join(" · ").slice(0, 240),
+      status: "PLANNED" as const,
+    };
   });
-  return jobs;
 }

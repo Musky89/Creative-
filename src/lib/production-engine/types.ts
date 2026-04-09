@@ -4,6 +4,9 @@
 
 import type { ProductionPlanDocument } from "./production-plan-schema";
 import type { ProductionMode } from "./modes";
+import type { GenerationTarget } from "./generation-targets";
+import type { QualityTier } from "./fal-contracts";
+import type { RoutedFalExecution } from "./fal-contracts";
 
 export { PRODUCTION_MODES, type ProductionMode } from "./modes";
 
@@ -53,6 +56,8 @@ export type ProductionEngineInput = {
   brandAssets?: BrandAssetsInput;
   visualStyleRef?: string;
   modelRef?: string;
+  /** FAL router quality tier (defaults to standard in pipeline if omitted). */
+  visualQualityTier?: QualityTier;
 };
 
 export type ProductionPlanStep = {
@@ -72,10 +77,16 @@ export type ProductionPlan = {
 
 export type FalRouteDecision = {
   mode: ProductionMode;
-  /** Logical endpoint id for future wiring — not invoked here. */
+  /** First routed path (legacy summary). */
   primaryEndpointId: string;
   fallbackEndpointId?: string;
   reason: string;
+};
+
+export type VisualExecutionBundle = {
+  qualityTier: QualityTier;
+  targets: GenerationTarget[];
+  routedExecutions: RoutedFalExecution[];
 };
 
 export type ProductionJobKind = "GENERATE" | "EDIT" | "UPSCALE" | "VARIANT";
@@ -133,6 +144,8 @@ export type ProductionEngineRunResult = {
   /** Execution checklist derived from plan + mode config. */
   operationalPlan: ProductionPlan;
   falRouting: FalRouteDecision;
+  /** FAL-first visual layer: targets + per-target routes and stub contracts. */
+  visualExecution: VisualExecutionBundle;
   jobs: ProductionJob[];
   compositionPlan: CompositionPlan;
   composed: ComposedArtifact[];

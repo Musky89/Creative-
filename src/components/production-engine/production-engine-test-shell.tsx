@@ -269,17 +269,90 @@ export function ProductionEngineTestShell() {
 
       {active && (
         <div className="grid gap-4 md:grid-cols-2">
+          <Section title="FAL visual layer — quality tier">
+            <p className="mb-2 font-mono text-sm text-cyan-400/90">
+              {active.visualExecution.qualityTier}
+            </p>
+            <p className="text-xs text-zinc-500">
+              Set <code className="text-zinc-400">visualQualityTier</code> in input JSON:
+              draft | standard | high
+            </p>
+          </Section>
+          <Section title="FAL routing summary (legacy)">
+            <pre className="max-h-56 overflow-auto font-mono text-xs text-zinc-400">
+              {JSON.stringify(active.falRouting, null, 2)}
+            </pre>
+          </Section>
+
+          <Section title="Derived generation targets">
+            <ul className="space-y-3 text-xs">
+              {active.visualExecution.targets.map((t) => (
+                <li
+                  key={t.id}
+                  className="rounded border border-zinc-800 bg-zinc-950/60 p-2"
+                >
+                  <span className="font-mono text-emerald-400">{t.targetType}</span>
+                  <span className="text-zinc-500"> · {t.id}</span>
+                  <p className="mt-1 text-zinc-400">{t.roleInOutput}</p>
+                  <p className="mt-1 text-zinc-600">
+                    batch {t.desiredBatchSize} · realism {t.realismBias}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </Section>
+
+          <Section title="Per-target FAL route + why">
+            <div className="space-y-4">
+              {active.visualExecution.routedExecutions.map((r) => (
+                <div
+                  key={r.target.id}
+                  className="rounded border border-zinc-800 bg-zinc-950/60 p-3"
+                >
+                  <p className="font-mono text-sm text-amber-200/90">
+                    {r.route.pathId}
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    kind: {r.route.kind} · target: {r.target.id}
+                  </p>
+                  <Bullets items={r.route.reasons} />
+                </div>
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Execution request previews (FAL contract)">
+            <div className="space-y-3">
+              {active.visualExecution.routedExecutions.map((r) => (
+                <pre
+                  key={`req-${r.request.requestId}`}
+                  className="max-h-48 overflow-auto rounded border border-zinc-800 bg-black/40 p-2 font-mono text-[10px] text-zinc-400"
+                >
+                  {JSON.stringify(r.request, null, 2)}
+                </pre>
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Execution response previews (stub)">
+            <div className="space-y-3">
+              {active.visualExecution.routedExecutions.map((r) => (
+                <pre
+                  key={`res-${r.response.requestId}`}
+                  className="max-h-48 overflow-auto rounded border border-zinc-800 bg-black/40 p-2 font-mono text-[10px] text-zinc-400"
+                >
+                  {JSON.stringify(r.response, null, 2)}
+                </pre>
+              ))}
+            </div>
+          </Section>
+
           <Section title="Operational plan (execution checklist)">
             <pre className="max-h-56 overflow-auto font-mono text-xs text-zinc-400">
               {JSON.stringify(active.operationalPlan, null, 2)}
             </pre>
           </Section>
-          <Section title="FAL routing (stub)">
-            <pre className="max-h-56 overflow-auto font-mono text-xs text-zinc-400">
-              {JSON.stringify(active.falRouting, null, 2)}
-            </pre>
-          </Section>
-          <Section title="Jobs (stub)">
+          <Section title="Jobs (aligned with FAL routes)">
             <pre className="max-h-56 overflow-auto font-mono text-xs text-zinc-400">
               {JSON.stringify(active.jobs, null, 2)}
             </pre>
