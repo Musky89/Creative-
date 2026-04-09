@@ -28,6 +28,12 @@ import {
   buildExportPackage,
   downloadJson,
 } from "@/lib/creative-testing-lab/run-history";
+import {
+  LAB_DEMO_PRESETS_STORAGE_KEY,
+  LAB_DEMO_PRESETS_VERSION,
+  rehydrateLabPresetsFromStorage,
+  type LabFullPreset,
+} from "@/lib/creative-testing-lab/demo-presets";
 
 const PRESET_KEY = "creative-testing-lab-presets-v1";
 
@@ -111,8 +117,6 @@ const emptyCreative = (): LabCreativeForm => ({
   fashionNotes: "",
   longFormBrief: "",
 });
-
-type Preset = { id: string; name: string; brand: LabBrandForm; creative: LabCreativeForm; mode: ProductionMode };
 
 type ReviewScores = {
   brandAlignment: number;
@@ -238,7 +242,7 @@ export function CreativeTestingLabShell() {
   const [reviewNotes, setReviewNotes] = useState("");
 
   const [presetName, setPresetName] = useState("");
-  const [presets, setPresets] = useState<Preset[]>([]);
+  const [presets, setPresets] = useState<LabFullPreset[]>([]);
 
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [runHistory, setRunHistory] = useState<LabTestRun[]>([]);
@@ -330,14 +334,23 @@ export function CreativeTestingLabShell() {
       .catch(() => setFalKeyOk(false));
     try {
       const raw = localStorage.getItem(PRESET_KEY);
-      if (raw) setPresets(JSON.parse(raw) as Preset[]);
+      const demoVer = localStorage.getItem(LAB_DEMO_PRESETS_STORAGE_KEY);
+      const { presets: nextPresets, shouldPersist } = rehydrateLabPresetsFromStorage({
+        presetsJson: raw,
+        demoVersionKey: demoVer ?? "",
+      });
+      setPresets(nextPresets);
+      if (shouldPersist) {
+        localStorage.setItem(PRESET_KEY, JSON.stringify(nextPresets));
+        localStorage.setItem(LAB_DEMO_PRESETS_STORAGE_KEY, String(LAB_DEMO_PRESETS_VERSION));
+      }
     } catch {
       /* ignore */
     }
     setRunHistory(loadRuns());
   }, []);
 
-  const persistPresets = useCallback((next: Preset[]) => {
+  const persistPresets = useCallback((next: LabFullPreset[]) => {
     setPresets(next);
     localStorage.setItem(PRESET_KEY, JSON.stringify(next));
   }, []);
@@ -787,12 +800,27 @@ export function CreativeTestingLabShell() {
 
   function savePreset() {
     const name = presetName.trim() || "Untitled preset";
-    const p: Preset = {
+    const p: LabFullPreset = {
       id: `p-${Date.now()}`,
       name,
       brand: { ...brand },
       creative: { ...creative },
       mode,
+      qualityTier,
+      executionPath,
+      batchSize,
+      targetTypeFilter,
+      styleModelRef,
+      loraRef,
+      strongRefs,
+      preferEdit,
+      seedAssets: {
+        logoUrl: logoDataUrl,
+        heroUrl: heroDataUrl,
+        secondaryUrl: secondaryDataUrl,
+        tertiaryUrl: tertiaryDataUrl,
+        extraRefs: extraRefs.map((r) => ({ id: r.id, name: r.name, url: r.dataUrl })),
+      },
     };
     persistPresets([...presets.filter((x) => x.name !== name), p]);
     setPresetName("");
@@ -804,6 +832,26 @@ export function CreativeTestingLabShell() {
     setBrand(p.brand);
     setCreative(p.creative);
     setMode(p.mode);
+    setQualityTier(p.qualityTier ?? "standard");
+    setExecutionPath(p.executionPath ?? "router");
+    setBatchSize(p.batchSize ?? 1);
+    setTargetTypeFilter(p.targetTypeFilter ?? "");
+    setStyleModelRef(p.styleModelRef ?? "");
+    setLoraRef(p.loraRef ?? "");
+    setStrongRefs(p.strongRefs ?? false);
+    setPreferEdit(p.preferEdit ?? false);
+    const s = p.seedAssets;
+    setLogoDataUrl(s?.logoUrl);
+    setHeroDataUrl(s?.heroUrl);
+    setSecondaryDataUrl(s?.secondaryUrl);
+    setTertiaryDataUrl(s?.tertiaryUrl);
+    setExtraRefs(
+      (s?.extraRefs ?? []).map((r) => ({
+        id: r.id,
+        name: r.name,
+        dataUrl: r.url,
+      })),
+    );
   }
 
   const modeCfg = listProductionModes().find((m) => m.id === mode);
@@ -1333,7 +1381,10 @@ export function CreativeTestingLabShell() {
           </div>
         </Card>
 
-        <Card title="Test presets" subtitle="Saved in localStorage for this browser.">
+        <Card
+          title="Test presets"
+          subtitle="Saved in localStorage. Three built-in demos (Nike-style, Apple-style, Coca-Cola-style) ship with remote logo + reference URLs — add your Fal LoRA URL after training."
+        >
           <div className="flex gap-2">
             <input
               className="flex-1 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
@@ -1351,9 +1402,19 @@ export function CreativeTestingLabShell() {
           </div>
           <ul className="mt-4 space-y-2">
             {presets.map((p) => (
-              <li key={p.id} className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2">
-                <span className="text-sm text-zinc-300">{p.name}</span>
-                <div className="flex gap-2">
+              <li
+                key={p.id}
+                className="flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2 sm:flex-row sm:items-start sm:justify-between"
+              >
+                <div className="min-w-0 flex-1">
+                  <span className="text-sm text-zinc-300">{p.name}</span>
+                  {p.id.startsWith("demo-lab-") ? (
+                    <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+                      {p.loraTrainingNote ?? "Paste your trained LoRA URL in FAL execution controls after loading."}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex shrink-0 gap-2">
                   <button
                     type="button"
                     className="text-xs text-violet-400 hover:underline"
@@ -1373,7 +1434,7 @@ export function CreativeTestingLabShell() {
             ))}
           </ul>
           <p className="mt-3 text-[11px] text-zinc-600">
-            Tip: save &quot;McDonald&apos;s OOH&quot;, &quot;Fashion editorial&quot;, etc. after filling brand + creative once.
+            Demos use Wikimedia Commons logo thumbnails and Unsplash category photos (not official brand shoots). Replace hero URLs with your approved CI stills when available.
           </p>
         </Card>
       </div>

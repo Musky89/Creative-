@@ -96,7 +96,15 @@ function multilineTextSvg(args: {
 
 async function fetchBuffer(url: string): Promise<Buffer | null> {
   try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(12_000) });
+    const r = await fetch(url, {
+      signal: AbortSignal.timeout(12_000),
+      headers: {
+        // Wikimedia and some CDNs return 403/429 without a normal browser UA
+        "User-Agent":
+          "Mozilla/5.0 (compatible; CreativeProductionEngine/1.0; +https://github.com/)",
+        Accept: "image/*,*/*;q=0.8",
+      },
+    });
     if (!r.ok) return null;
     return Buffer.from(await r.arrayBuffer());
   } catch {
