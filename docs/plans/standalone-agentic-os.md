@@ -11,7 +11,7 @@ OPENAI_API_KEY=sk-...
 ```
 
 - UI: `/standalone-agentic-os`
-- API: `/api/standalone-agentic-os/*` (health, brands, campaigns, channels, cases)
+- API: `/api/standalone-agentic-os/*` (health, **dataset**, brands, campaigns, channels, cases)
 
 ## What’s implemented (v0)
 
@@ -19,7 +19,9 @@ OPENAI_API_KEY=sk-...
 2. **Campaign graph** — objective, audience, SMP, proof points, channel link.
 3. **Channel spec** — headline/CTA max length, min contrast ratio.
 4. **Pipeline** — proposal (OpenAI JSON or deterministic) → **verification** → **critic** (OpenAI or deterministic) → bounded revisions → **case file** (append-only in memory).
-5. **Seed data** — demo brand + campaign + two channels in `store.ts`.
+5. **Full seed pack** — `seed-data.ts`: **4** fictional brands, **8** campaigns, **5** channel specs. `STANDALONE_AGENTIC_OS_SEED_PACK_VERSION` in `store.ts` bumps when you change seed; stale in-memory store resets on next request.
+6. **UI** — dataset overview, brand → filtered campaigns, channel hint, download latest case JSON.
+7. **Smoke test** — `pnpm test:standalone-agentic-os` (requires dev server; see script header).
 
 ## Non-goals (this branch)
 
