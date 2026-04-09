@@ -82,6 +82,45 @@ export function evaluateProductionOutput(
     );
   }
 
+  if (input.mode === "PACKAGING" && plan) {
+    checklist.push({
+      id: "pack-no-fop-in-fal",
+      label: "PACKAGING: plan forbids FOP text in FAL output",
+      ok:
+        plan.compositionIntent.includes("composer") &&
+        plan.compositionIntent.includes("FAL"),
+    });
+    checklist.push({
+      id: "pack-hierarchy",
+      label: "PACKAGING: FOP hierarchy described",
+      ok: plan.reviewFocus.some((r) => r.toLowerCase().includes("hierarchy")),
+    });
+    modeReviewSummary.push(
+      "PACKAGING: shelf impact — brand + variant band + claims stack are composer-driven.",
+      "PACKAGING: FAL targets are ingredient, texture, product-without-label-copy only.",
+      "PACKAGING: review variant discrimination + legal strip reservation.",
+    );
+  }
+
+  if (input.mode === "RETAIL_POS" && plan) {
+    checklist.push({
+      id: "retail-not-social",
+      label: "RETAIL_POS: signage logic (not feed ad)",
+      ok: plan.modeConstraints.some(
+        (c) => c.includes("signage") || c.includes("shelf"),
+      ),
+    });
+    checklist.push({
+      id: "retail-offer-compose",
+      label: "RETAIL_POS: offer/price in platform compose",
+      ok: plan.reviewFocus.some((r) => r.includes("offer") || r.includes("promo")),
+    });
+    modeReviewSummary.push(
+      "RETAIL_POS: promo board hierarchy — headline, offer line, product window, urgency strip.",
+      "RETAIL_POS: FAL avoids baked price; numerals belong in compose bands.",
+    );
+  }
+
   if (input.mode === "SOCIAL" && plan) {
     const n = socialBatchCount(input.socialBatchPreset);
     checklist.push({

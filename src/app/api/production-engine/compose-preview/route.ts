@@ -7,6 +7,7 @@ import {
   buildAssemblyExplanation,
   evaluateProductionOutput,
   buildAllSocialVariants,
+  getPackagingVariantSpec,
 } from "@/lib/production-engine";
 import { runDeterministicComposeSharp } from "@/server/production-engine/deterministic-composer";
 
@@ -71,6 +72,10 @@ export async function POST(req: Request) {
       layerManifest: manifest,
       assemblyExplanation: explanation,
       review,
+      packagingVariantSpec:
+        input.mode === "PACKAGING"
+          ? getPackagingVariantSpec(input.packagingVariant ?? "ORIGINAL")
+          : undefined,
       socialSlot:
         input.mode === "SOCIAL" && socialSlot
           ? {

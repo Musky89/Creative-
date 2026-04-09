@@ -1,6 +1,8 @@
 import type { CompositionPlanDocument } from "./composition-plan-schema";
 import type { SocialContentFamily } from "./mode-ooh-social";
 import { oohComposeHints } from "./mode-ooh-social";
+import type { PackagingVariantSpec } from "./mode-packaging-retail";
+import type { RetailPosVariantKey } from "./mode-packaging-retail";
 
 /** Enlarge type islands + OOH-specific finishing; canvas already wide from geometry. */
 export function applyOohCompositionTweaks(
@@ -44,6 +46,76 @@ export function applyOohCompositionTweaks(
     modeSpecificConstraints: {
       ...doc.modeSpecificConstraints,
       oohHints: oohComposeHints().join(" | "),
+    },
+  };
+}
+
+/** FOP grid emphasis — not ad layout. */
+export function applyPackagingCompositionTweaks(
+  doc: CompositionPlanDocument,
+  variant: PackagingVariantSpec,
+): CompositionPlanDocument {
+  return {
+    ...doc,
+    visualDominance: "type_forward",
+    textHierarchy: [
+      `PACKAGING: brand — ${variant.label}`,
+      "PACKAGING: primary claim (headline field)",
+      "PACKAGING: secondary line (CTA field)",
+      "PACKAGING: variant ribbon + band color in compose",
+      "PACKAGING: legal placeholder strip (non-printing guide)",
+    ],
+    finishingLayers: [
+      ...doc.finishingLayers,
+      {
+        id: "pack-variant-band",
+        kind: "BORDER",
+        description: `Variant system: ${variant.key} band ${variant.bandColorHex}`,
+        opacity: 1,
+      },
+    ],
+    exportDpiNote:
+      "PACKAGING: 300 DPI at trim; include bleed per dieline; FAL assets are support-only.",
+    modeSpecificConstraints: {
+      ...doc.modeSpecificConstraints,
+      packagingVariantKey: variant.key,
+      packagingBandHex: variant.bandColorHex,
+      packagingRibbon: variant.ribbonText,
+    },
+  };
+}
+
+export function applyRetailPosCompositionTweaks(
+  doc: CompositionPlanDocument,
+  variant: RetailPosVariantKey,
+): CompositionPlanDocument {
+  let visualDominance = doc.visualDominance;
+  if (variant === "PRICE_FORWARD") visualDominance = "balanced";
+  if (variant === "URGENCY") visualDominance = "type_forward";
+
+  return {
+    ...doc,
+    visualDominance,
+    textHierarchy: [
+      "RETAIL_POS: promo headline (top band)",
+      variant === "PRICE_FORWARD"
+        ? "RETAIL_POS: price/offer line dominant"
+        : "RETAIL_POS: offer line secondary to headline",
+      "RETAIL_POS: urgency footer",
+      "RETAIL_POS: product window (FAL raster)",
+    ],
+    finishingLayers: [
+      ...doc.finishingLayers,
+      {
+        id: "retail-offer-band",
+        kind: "SCRIM",
+        description: "High-contrast strip behind offer numerals (compose).",
+        opacity: variant === "PRICE_FORWARD" ? 0.5 : 0.35,
+      },
+    ],
+    modeSpecificConstraints: {
+      ...doc.modeSpecificConstraints,
+      retailPosVariant: variant,
     },
   };
 }

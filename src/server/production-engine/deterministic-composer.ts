@@ -7,6 +7,10 @@ import sharp from "sharp";
 import type { ProductionEngineInput } from "@/lib/production-engine/types";
 import type { CompositionPlanDocument } from "@/lib/production-engine/composition-plan-schema";
 import type { CompositionLayerManifestEntry } from "@/lib/production-engine/composition-plan-schema";
+import {
+  packagingComposerCopy,
+  retailPosComposerCopy,
+} from "@/lib/production-engine/mode-packaging-retail";
 
 function escapeXml(s: string): string {
   return s
@@ -160,6 +164,42 @@ export async function runDeterministicComposeSharp(
             input: fitted,
             left: Math.round(plan.secondaryPlacement.x),
             top: Math.round(plan.secondaryPlacement.y),
+            blend: "over",
+          },
+        ])
+        .png()
+        .toBuffer();
+    }
+  }
+
+  if (input.mode === "PACKAGING" && plan.packagingLayout) {
+    const bandHex = String(
+      plan.modeSpecificConstraints.packagingBandHex ?? "#52525b",
+    );
+    const b = plan.packagingLayout.variantBand;
+    const bandBuf = await solidColorBuffer(b.width, b.height, bandHex);
+    base = await sharp(base)
+      .composite([
+        { input: bandBuf, left: Math.round(b.x), top: Math.round(b.y) },
+      ])
+      .png()
+      .toBuffer();
+    const ribbon = String(plan.modeSpecificConstraints.packagingRibbon ?? "").trim();
+    if (ribbon) {
+      const ribSvg = textSvg({
+        width: b.width - 16,
+        height: b.height - 8,
+        text: ribbon,
+        fontSize: Math.min(22, Math.floor(b.height * 0.42)),
+        fontWeight: 800,
+        fill: "#fafafa",
+      });
+      base = await sharp(base)
+        .composite([
+          {
+            input: ribSvg,
+            left: Math.round(b.x + 8),
+            top: Math.round(b.y + 4),
           },
         ])
         .png()
@@ -218,21 +258,55 @@ export async function runDeterministicComposeSharp(
     return `${words.slice(0, 8).join(" ")}…`;
   }
 
+  const packCopy =
+    input.mode === "PACKAGING"
+      ? packagingComposerCopy({
+          selectedHeadline: input.selectedHeadline,
+          selectedCta: input.selectedCta,
+          supportingCopy: input.supportingCopy,
+          selectedConceptName: input.selectedConcept.conceptName,
+        })
+      : null;
+  const retailCopy =
+    input.mode === "RETAIL_POS"
+      ? retailPosComposerCopy({
+          selectedHeadline: input.selectedHeadline,
+          selectedCta: input.selectedCta,
+          supportingCopy: input.supportingCopy,
+        })
+      : null;
+
   const headlineStr =
     args.headlineText?.trim() ??
     (input.mode === "OOH"
       ? oohShortHeadline(input.selectedHeadline)
-      : input.selectedHeadline);
-  const ctaStr = args.ctaText?.trim() ?? input.selectedCta;
+      : input.mode === "PACKAGING" && packCopy
+        ? packCopy.brandLine
+        : input.mode === "RETAIL_POS" && retailCopy
+          ? retailCopy.promoHeadline
+          : input.selectedHeadline);
+  const ctaStr =
+    args.ctaText?.trim() ??
+    (input.mode === "PACKAGING" && packCopy
+      ? packCopy.primaryClaim
+      : input.mode === "RETAIL_POS" && retailCopy
+        ? retailCopy.offerLine
+        : input.selectedCta);
 
   const hl = plan.headlinePlacement;
   const headlineSvg = textSvg({
     width: hl.width,
     height: hl.height,
     text: headlineStr,
-    fontSize: Math.max(18, Math.floor(hl.height * 0.42)),
-    fontWeight: 700,
-    fill: "#f4f4f5",
+    fontSize: Math.max(
+      16,
+      Math.floor(
+        hl.height *
+          (input.mode === "PACKAGING" ? 0.36 : input.mode === "RETAIL_POS" ? 0.4 : 0.42),
+      ),
+    ),
+    fontWeight: input.mode === "RETAIL_POS" ? 800 : 700,
+    fill: input.mode === "PACKAGING" ? "#18181b" : "#f4f4f5",
   });
   base = await sharp(base)
     .composite([
@@ -253,9 +327,12 @@ export async function runDeterministicComposeSharp(
       input.mode === "OOH"
         ? ctaStr.split(/\s+/).slice(0, 5).join(" ")
         : ctaStr,
-    fontSize: Math.max(14, Math.floor(ct.height * 0.38)),
+    fontSize: Math.max(
+      13,
+      Math.floor(ct.height * (input.mode === "PACKAGING" ? 0.34 : 0.38)),
+    ),
     fontWeight: 600,
-    fill: "#a1a1aa",
+    fill: input.mode === "PACKAGING" ? "#3f3f46" : "#a1a1aa",
   });
   base = await sharp(base)
     .composite([
@@ -267,6 +344,57 @@ export async function runDeterministicComposeSharp(
     ])
     .png()
     .toBuffer();
+
+  if (input.mode === "PACKAGING" && plan.packagingLayout && packCopy) {
+    const sec = plan.packagingLayout.secondaryClaim;
+    const secSvg = textSvg({
+      width: sec.width,
+      height: sec.height,
+      text: packCopy.secondaryClaim,
+      fontSize: Math.max(12, Math.floor(sec.height * 0.32)),
+      fontWeight: 500,
+      fill: "#52525b",
+    });
+    base = await sharp(base)
+      .composite([
+        { input: secSvg, left: Math.round(sec.x), top: Math.round(sec.y) },
+      ])
+      .png()
+      .toBuffer();
+    const leg = plan.packagingLayout.legalStrip;
+    const legSvg = textSvg({
+      width: leg.width,
+      height: leg.height,
+      text: "NUTRITION / INGREDIENTS / LEGAL — PLACEHOLDER (composer zone)",
+      fontSize: Math.max(10, Math.floor(leg.height * 0.28)),
+      fontWeight: 400,
+      fill: "#71717a",
+    });
+    base = await sharp(base)
+      .composite([
+        { input: legSvg, left: Math.round(leg.x), top: Math.round(leg.y) },
+      ])
+      .png()
+      .toBuffer();
+  }
+
+  if (input.mode === "RETAIL_POS" && plan.retailLayout && retailCopy) {
+    const urg = plan.retailLayout.urgencyStrip;
+    const urgSvg = textSvg({
+      width: urg.width,
+      height: urg.height,
+      text: retailCopy.urgencyLine,
+      fontSize: Math.max(12, Math.floor(urg.height * 0.36)),
+      fontWeight: 700,
+      fill: "#fca5a5",
+    });
+    base = await sharp(base)
+      .composite([
+        { input: urgSvg, left: Math.round(urg.x), top: Math.round(urg.y) },
+      ])
+      .png()
+      .toBuffer();
+  }
 
   const lg = plan.logoPlacement;
   const logoUrl = input.brandAssets?.logoUrl?.trim();

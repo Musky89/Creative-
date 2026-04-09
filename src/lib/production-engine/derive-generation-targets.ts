@@ -213,42 +213,125 @@ export function deriveGenerationTargets(
   }
 
   if (mode === "PACKAGING") {
+    const packNeg = [
+      ...negRules(input),
+      "consumer-facing brand name or claims text in the raster",
+      "nutrition facts or legal copy inside generated image",
+      "barcode or QR in generated image",
+      "ad-style tagline supers over product",
+    ];
     targets.push({
-      id: tid("pack-mood"),
-      targetType: "PACKAGING_MOOD_IMAGE",
+      id: tid("pack-ingredient"),
+      targetType: "INGREDIENT_IMAGE",
       productionMode: mode,
-      roleInOutput: "FOP mood / ingredient / product hero for panel.",
-      ...baseHero,
+      packagingRetailRole: "INGREDIENT_MOOD",
+      roleInOutput: "FAL: ingredient / food / material hero for FOP panel (no type).",
+      subjectIntent:
+        "Isolated ingredient or product macro for panel inset — clean edges for composer mask.",
+      backgroundIntent: "Neutral or soft studio; no packaging mockup with text.",
+      compositionIntent: "Subject only; composer places inside hero rect on grid.",
+      lightingIntent: "Product photography; even, print-safe.",
+      realismBias: realism,
+      brandVisualConstraints: brandVc + " | NO TEXT IN OUTPUT",
+      referenceSummary: refSummary(input),
+      negativeRules: packNeg,
+      styleModelRef: input.visualStyleRef,
+      loraRef: baseHero.loraRef,
+      desiredBatchSize: 1,
+      evaluationFocus: ["subject isolation", "no embedded type", "shelf appetite"],
     });
     targets.push({
       id: tid("pack-texture"),
       targetType: "SUPPORTING_TEXTURE",
       productionMode: mode,
-      roleInOutput: "Subtle texture or pattern layer under grid.",
-      subjectIntent: "Brand-true texture; low contrast for type overlay.",
-      backgroundIntent: "Flat or shallow depth.",
-      compositionIntent: "Tile-friendly or panel crop.",
-      lightingIntent: "Even, packaging-print safe.",
+      packagingRetailRole: "TEXTURE_PLATE",
+      roleInOutput: "FAL: subtle texture tile for FOP background zones.",
+      subjectIntent: "Abstract brand texture, grain, or pattern — low contrast.",
+      backgroundIntent: "Seamless-tile friendly; no focal competition.",
+      compositionIntent: "Fills texture band under claims in composer.",
+      lightingIntent: "Flat; packaging print safe.",
       realismBias: realism,
       brandVisualConstraints: brandVc,
       referenceSummary: refSummary(input),
-      negativeRules: negRules(input),
+      negativeRules: packNeg,
       styleModelRef: input.visualStyleRef,
       loraRef: baseHero.loraRef,
       desiredBatchSize: 1,
-      evaluationFocus: ["print safety", "grid alignment hint"],
+      evaluationFocus: ["tile safety", "contrast under type"],
+    });
+    targets.push({
+      id: tid("pack-product-support"),
+      targetType: "PRODUCT_COMPONENT",
+      productionMode: mode,
+      packagingRetailRole: "PRODUCT_SUPPORT",
+      roleInOutput: "FAL: pack or bottle hero without label copy (plain mock).",
+      subjectIntent:
+        "Product form / silhouette for FOP — labels blank or generic; composer adds real claims.",
+      backgroundIntent: "Clean studio; minimal props.",
+      compositionIntent: "Hero panel placement only; grid reserves text columns.",
+      lightingIntent: "Shelf-ready clarity.",
+      realismBias: realism,
+      brandVisualConstraints: brandVc + " | blank or generic label only",
+      referenceSummary: refSummary(input),
+      negativeRules: [
+        ...packNeg,
+        "readable fake nutrition panel in image",
+        "competitor logos",
+      ],
+      styleModelRef: input.visualStyleRef,
+      loraRef: baseHero.loraRef,
+      desiredBatchSize: 1,
+      evaluationFocus: ["silhouette clarity", "label-free for composer"],
     });
     return targets;
   }
 
   if (mode === "RETAIL_POS") {
+    const retailNeg = [
+      ...negRules(input),
+      "final price numerals or $ in generated image",
+      "fine print legal inside raster",
+      "social-style UI or phone mockup",
+    ];
     targets.push({
-      id: tid("retail"),
+      id: tid("retail-product"),
+      targetType: "PRODUCT_COMPONENT",
+      productionMode: mode,
+      packagingRetailRole: "PRODUCT_SUPPORT",
+      roleInOutput: "FAL: product hero for POS — no offer text in raster.",
+      subjectIntent:
+        "Product recognition at shelf distance; clean pack or bottle without promo type.",
+      backgroundIntent: "Retail-neutral; optional soft gradient.",
+      compositionIntent: "Composer allocates promo bands around this rect.",
+      lightingIntent: "Bright; in-store lighting tolerant.",
+      realismBias: realism,
+      brandVisualConstraints: brandVc,
+      referenceSummary: refSummary(input),
+      negativeRules: retailNeg,
+      styleModelRef: input.visualStyleRef,
+      loraRef: baseHero.loraRef,
+      desiredBatchSize: 1,
+      evaluationFocus: ["product legibility", "no baked offer"],
+    });
+    targets.push({
+      id: tid("retail-promo-scene"),
       targetType: "RETAIL_PROMO_VISUAL",
       productionMode: mode,
-      roleInOutput: "POS hero with promo readability.",
-      ...baseHero,
-      evaluationFocus: [...baseHero.evaluationFocus, "offer visibility"],
+      packagingRetailRole: "PROMO_SCENE",
+      roleInOutput: "FAL: optional appetite / lifestyle accent — still no final price.",
+      subjectIntent:
+        "Supporting appetite or seasonal cue; subordinate to product window in compose.",
+      backgroundIntent: "Warm retail context without readable signage in frame.",
+      compositionIntent: "Secondary panel or strip; composer owns headline/price.",
+      lightingIntent: baseHero.lightingIntent,
+      realismBias: realism,
+      brandVisualConstraints: brandVc,
+      referenceSummary: refSummary(input),
+      negativeRules: retailNeg,
+      styleModelRef: input.visualStyleRef,
+      loraRef: baseHero.loraRef,
+      desiredBatchSize: 1,
+      evaluationFocus: ["promo support without type", "balance with product"],
     });
     return targets;
   }

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   PRODUCTION_MODES,
+  PACKAGING_VARIANT_KEYS,
   listProductionModes,
   productionEngineInputSchema,
   runProductionEngineStub,
@@ -93,6 +94,12 @@ type ComposePreviewPayload = {
     headline: string;
     cta: string;
     visualVariationHint: string;
+  };
+  packagingVariantSpec?: {
+    key: string;
+    label: string;
+    bandColorHex: string;
+    ribbonText: string;
   };
   preview?: { mimeType: string; width: number; height: number; dataBase64: string };
   error?: string;
@@ -236,7 +243,10 @@ export function ProductionEngineTestShell() {
               <code className="text-zinc-400">layoutArchetype</code>, SOCIAL:{" "}
               <code className="text-zinc-400">socialBatchPreset</code> (1|7|15|30),{" "}
               <code className="text-zinc-400">socialVariantIndex</code>,{" "}
-              <code className="text-zinc-400">socialContentFamilies</code>.
+              <code className="text-zinc-400">socialContentFamilies</code>
+              , PACKAGING:{" "}
+              <code className="text-zinc-400">packagingVariant</code>, RETAIL_POS:{" "}
+              <code className="text-zinc-400">retailPosVariant</code>.
             </span>
           </div>
           {apiError && (
@@ -324,6 +334,33 @@ export function ProductionEngineTestShell() {
           </Section>
         </div>
       </div>
+
+      {active?.packagingVariantSpec && (
+        <Section title="PACKAGING variant (SKU system)">
+          <pre className="max-h-48 overflow-auto font-mono text-xs text-amber-200/90">
+            {JSON.stringify(active.packagingVariantSpec, null, 2)}
+          </pre>
+          <p className="mt-2 text-xs text-zinc-500">
+            Keys: {PACKAGING_VARIANT_KEYS.join(", ")}
+          </p>
+        </Section>
+      )}
+
+      {active?.compositionPlanDocument?.packagingLayout && (
+        <Section title="PACKAGING FOP layout (composer rects)">
+          <pre className="max-h-56 overflow-auto font-mono text-xs text-zinc-400">
+            {JSON.stringify(active.compositionPlanDocument.packagingLayout, null, 2)}
+          </pre>
+        </Section>
+      )}
+
+      {active?.compositionPlanDocument?.retailLayout && (
+        <Section title="RETAIL_POS layout (promo bands)">
+          <pre className="max-h-48 overflow-auto font-mono text-xs text-zinc-400">
+            {JSON.stringify(active.compositionPlanDocument.retailLayout, null, 2)}
+          </pre>
+        </Section>
+      )}
 
       {active?.socialVariants && active.socialVariants.length > 0 && (
         <Section title="SOCIAL batch plan (variants)">
@@ -500,6 +537,14 @@ export function ProductionEngineTestShell() {
             </pre>
           </Section>
         </div>
+      )}
+
+      {composePreview?.packagingVariantSpec && (
+        <Section title="Compose API — packaging variant">
+          <pre className="max-h-40 overflow-auto font-mono text-xs text-amber-200/90">
+            {JSON.stringify(composePreview.packagingVariantSpec, null, 2)}
+          </pre>
+        </Section>
       )}
 
       {composePreview?.socialSlot && (

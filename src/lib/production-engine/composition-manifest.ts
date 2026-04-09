@@ -1,4 +1,5 @@
 import type { ProductionEngineInput } from "./types";
+import { packagingComposerCopy, retailPosComposerCopy } from "./mode-packaging-retail";
 import type {
   CompositionPlanDocument,
   CompositionLayerManifestEntry,
@@ -9,8 +10,29 @@ export function buildLayerManifest(
   input: ProductionEngineInput,
   textOverride?: { headline: string; cta: string },
 ): CompositionLayerManifestEntry[] {
-  const hl = textOverride?.headline ?? input.selectedHeadline;
-  const ct = textOverride?.cta ?? input.selectedCta;
+  const packCopy =
+    input.mode === "PACKAGING"
+      ? packagingComposerCopy({
+          selectedHeadline: input.selectedHeadline,
+          selectedCta: input.selectedCta,
+          supportingCopy: input.supportingCopy,
+          selectedConceptName: input.selectedConcept.conceptName,
+        })
+      : null;
+  const retailCopy =
+    input.mode === "RETAIL_POS"
+      ? retailPosComposerCopy({
+          selectedHeadline: input.selectedHeadline,
+          selectedCta: input.selectedCta,
+          supportingCopy: input.supportingCopy,
+        })
+      : null;
+
+  const hl =
+    textOverride?.headline ??
+    (packCopy ? packCopy.brandLine : input.selectedHeadline);
+  const ct =
+    textOverride?.cta ?? (packCopy ? packCopy.primaryClaim : input.selectedCta);
   const entries: CompositionLayerManifestEntry[] = [];
   let z = 0;
 
@@ -40,7 +62,12 @@ export function buildLayerManifest(
       width: doc.heroPlacement.width,
       height: doc.heroPlacement.height,
     },
-    description: "FAL hero asset fitted with cover; clipped to hero rect.",
+    description:
+      input.mode === "PACKAGING"
+        ? "FAL ingredient/product panel (no consumer text in raster)."
+        : input.mode === "RETAIL_POS"
+          ? "FAL product hero for POS (no price in raster)."
+          : "FAL hero asset fitted with cover; clipped to hero rect.",
   });
 
   if (doc.secondaryPlacement) {
@@ -54,7 +81,21 @@ export function buildLayerManifest(
         width: doc.secondaryPlacement.width,
         height: doc.secondaryPlacement.height,
       },
-      description: "Secondary FAL or split-panel asset.",
+      description:
+        input.mode === "PACKAGING"
+          ? "FAL texture tile (support) under type zones."
+          : "Secondary FAL or split-panel asset.",
+    });
+  }
+
+  if (doc.packagingLayout) {
+    const vb = doc.packagingLayout.variantBand;
+    entries.push({
+      id: "variant-band",
+      zIndex: z++,
+      kind: "VARIANT_BAND",
+      rect: { x: vb.x, y: vb.y, width: vb.width, height: vb.height },
+      description: "Platform variant ribbon + band color (SKU system).",
     });
   }
 
@@ -78,7 +119,12 @@ export function buildLayerManifest(
       width: doc.headlinePlacement.width,
       height: doc.headlinePlacement.height,
     },
-    description: `Headline: "${hl.slice(0, 80)}${hl.length > 80 ? "…" : ""}"`,
+    description:
+      input.mode === "PACKAGING"
+        ? `Brand line: "${hl.slice(0, 80)}${hl.length > 80 ? "…" : ""}"`
+        : input.mode === "RETAIL_POS" && retailCopy
+          ? `Promo: "${retailCopy.promoHeadline.slice(0, 80)}"`
+          : `Headline: "${hl.slice(0, 80)}${hl.length > 80 ? "…" : ""}"`,
   });
 
   entries.push({
@@ -91,8 +137,43 @@ export function buildLayerManifest(
       width: doc.ctaPlacement.width,
       height: doc.ctaPlacement.height,
     },
-    description: `CTA: "${ct}"`,
+    description:
+      input.mode === "PACKAGING" && packCopy
+        ? `Primary claim: "${packCopy.primaryClaim.slice(0, 80)}"`
+        : input.mode === "RETAIL_POS" && retailCopy
+          ? `Offer line: "${retailCopy.offerLine}"`
+          : `CTA: "${ct}"`,
   });
+
+  if (doc.packagingLayout && packCopy) {
+    const sc = doc.packagingLayout.secondaryClaim;
+    entries.push({
+      id: "text-secondary-claim",
+      zIndex: z++,
+      kind: "TEXT_TERTIARY",
+      rect: { x: sc.x, y: sc.y, width: sc.width, height: sc.height },
+      description: `Secondary claim: "${packCopy.secondaryClaim.slice(0, 96)}${packCopy.secondaryClaim.length > 96 ? "…" : ""}"`,
+    });
+    const lg = doc.packagingLayout.legalStrip;
+    entries.push({
+      id: "legal-placeholder",
+      zIndex: z++,
+      kind: "LEGAL_PLACEHOLDER",
+      rect: { x: lg.x, y: lg.y, width: lg.width, height: lg.height },
+      description: "Reserved nutrition / ingredients / regulatory strip.",
+    });
+  }
+
+  if (doc.retailLayout && retailCopy) {
+    const ob = doc.retailLayout.offerBand;
+    entries.push({
+      id: "offer-band-guide",
+      zIndex: z++,
+      kind: "FINISHING",
+      rect: { x: ob.x, y: ob.y, width: ob.width, height: ob.height },
+      description: "Offer/price emphasis band (compose + scrim).",
+    });
+  }
 
   entries.push({
     id: "logo",
@@ -127,9 +208,19 @@ export function buildAssemblyExplanation(
   lines.push(
     `Visual dominance: **${doc.visualDominance}**. Text hierarchy: ${doc.textHierarchy.join(" → ")}.`,
   );
-  lines.push(
-    `Hero region receives the primary **FAL** raster (cover-fit). Headline and CTA are rendered as **vector text** (platform) in fixed boxes, not baked into the model prompt.`,
-  );
+  if (input.mode === "PACKAGING") {
+    lines.push(
+      "**PACKAGING:** FAL supplies ingredient/texture/product support only — **no final pack face text** in model output. Brand, claims, variant band, and legal zone are **platform-composed**.",
+    );
+  } else if (input.mode === "RETAIL_POS") {
+    lines.push(
+      "**RETAIL_POS:** FAL supplies product/promo scene **without** final price or offer numerals. Promo, offer, and urgency lines are **vector layers**.",
+    );
+  } else {
+    lines.push(
+      `Hero region receives the primary **FAL** raster (cover-fit). Headline and CTA are rendered as **vector text** (platform) in fixed boxes, not baked into the model prompt.`,
+    );
+  }
   if (input.brandAssets?.logoUrl) {
     lines.push(
       `Logo is composited **after** type, **contain** within logo rect with clear space implied by rect size.`,

@@ -20,7 +20,9 @@ export function buildVisualExecutionBundle(
       target.targetType !== "BACKGROUND_PLATE" &&
       target.targetType !== "RETAIL_PROMO_VISUAL" &&
       target.productionMode !== "SOCIAL" &&
-      target.productionMode !== "OOH";
+      target.productionMode !== "OOH" &&
+      target.productionMode !== "PACKAGING" &&
+      target.productionMode !== "RETAIL_POS";
 
     const refs: string[] = [];
     if (input.brandAssets?.logoUrl?.trim()) {

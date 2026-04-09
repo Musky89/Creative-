@@ -19,6 +19,7 @@ export * from "./composition-manifest";
 export * from "./layout-archetypes";
 export * from "./composition-geometry";
 export * from "./mode-ooh-social";
+export * from "./mode-packaging-retail";
 export * from "./composition-mode-tweaks";
 export * from "./composer";
 export * from "./review";

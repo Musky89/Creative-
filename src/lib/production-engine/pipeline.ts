@@ -12,6 +12,7 @@ import { buildComposedArtifactStubs } from "./composer";
 import { evaluateProductionOutput } from "./review";
 import { buildHandoffPackage } from "./handoff";
 import { buildAllSocialVariants } from "./mode-ooh-social";
+import { getPackagingVariantSpec } from "./mode-packaging-retail";
 
 /**
  * End-to-end stub pipeline for the standalone engine (no I/O).
@@ -57,6 +58,10 @@ export function runProductionEngineStub(
   );
   const review = evaluateProductionOutput(input, productionPlan);
   const handoff = buildHandoffPackage(input, productionPlan);
+  const packagingVariantSpec =
+    input.mode === "PACKAGING"
+      ? getPackagingVariantSpec(input.packagingVariant ?? "ORIGINAL")
+      : undefined;
   return {
     input,
     productionPlan,
@@ -64,6 +69,7 @@ export function runProductionEngineStub(
     falRouting,
     visualExecution,
     socialVariants,
+    packagingVariantSpec,
     jobs,
     compositionPlanDocument,
     layerManifest,

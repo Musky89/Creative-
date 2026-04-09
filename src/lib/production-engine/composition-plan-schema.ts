@@ -48,6 +48,21 @@ export const compositionPlanDocumentSchema = z.object({
   exportFormat: z.enum(["png", "webp", "jpeg"]),
   exportDpiNote: z.string(),
   modeSpecificConstraints: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
+  /** PACKAGING: FOP-specific rects (composer-driven; not ad layout). */
+  packagingLayout: z
+    .object({
+      variantBand: placementRectSchema,
+      secondaryClaim: placementRectSchema,
+      legalStrip: placementRectSchema,
+    })
+    .optional(),
+  /** RETAIL_POS: promo-specific rects. */
+  retailLayout: z
+    .object({
+      offerBand: placementRectSchema,
+      urgencyStrip: placementRectSchema,
+    })
+    .optional(),
 });
 
 export type CompositionPlanDocument = z.infer<typeof compositionPlanDocumentSchema>;
@@ -62,8 +77,11 @@ export type CompositionLayerManifestEntry = {
     | "SECONDARY_RASTER"
     | "TEXT_HEADLINE"
     | "TEXT_CTA"
+    | "TEXT_TERTIARY"
     | "LOGO_RASTER"
-    | "FINISHING";
+    | "FINISHING"
+    | "VARIANT_BAND"
+    | "LEGAL_PLACEHOLDER";
   rect: { x: number; y: number; width: number; height: number };
   description: string;
 };

@@ -50,4 +50,10 @@ export type GenerationTarget = {
   socialVariantIndex?: number;
   /** OOH: label for hero vs plate vs proof. */
   oohVariantLabel?: string;
+  /** PACKAGING / RETAIL: role for routing (support vs product — never final FOP text). */
+  packagingRetailRole?:
+    | "INGREDIENT_MOOD"
+    | "TEXTURE_PLATE"
+    | "PRODUCT_SUPPORT"
+    | "PROMO_SCENE";
 };

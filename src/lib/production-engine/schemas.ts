@@ -2,6 +2,10 @@ import { z } from "zod";
 import { PRODUCTION_MODES } from "./modes";
 import { LAYOUT_ARCHETYPES } from "./layout-archetypes";
 import { SOCIAL_CONTENT_FAMILIES } from "./mode-ooh-social";
+import {
+  PACKAGING_VARIANT_KEYS,
+  RETAIL_POS_VARIANT_KEYS,
+} from "./mode-packaging-retail";
 
 const productionModeSchema = z.enum(PRODUCTION_MODES);
 
@@ -73,6 +77,8 @@ export const productionEngineInputSchema = z.object({
   socialBatchPreset: socialBatchPresetSchema,
   socialContentFamilies: z.array(socialFamilySchema).optional(),
   socialVariantIndex: z.number().int().min(0).max(99).optional(),
+  packagingVariant: z.enum(PACKAGING_VARIANT_KEYS).optional(),
+  retailPosVariant: z.enum(RETAIL_POS_VARIANT_KEYS).optional(),
 });
 
 export type ProductionEngineInputParsed = z.infer<

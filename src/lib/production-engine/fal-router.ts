@@ -50,6 +50,34 @@ function pickPath(args: {
     return { pathId: "fal-ai/flux-general", kind: "TEXT_TO_IMAGE" };
   }
 
+  if (t.productionMode === "PACKAGING") {
+    reasons.push(
+      "PACKAGING: support-only rasters — flux-general; no final FOP text in model output.",
+    );
+    if (t.targetType === "SUPPORTING_TEXTURE") {
+      reasons.push("Texture tile: simple abstract field — flux-general.");
+      return { pathId: "fal-ai/flux-general", kind: "TEXT_TO_IMAGE" };
+    }
+    if (t.targetType === "INGREDIENT_IMAGE") {
+      reasons.push("Ingredient/macro: flux-general; isolate subject.");
+      return { pathId: "fal-ai/flux-general", kind: "TEXT_TO_IMAGE" };
+    }
+    reasons.push("Product component: flux-general; blank-label discipline.");
+    return { pathId: "fal-ai/flux-general", kind: "TEXT_TO_IMAGE" };
+  }
+
+  if (t.productionMode === "RETAIL_POS") {
+    reasons.push(
+      "RETAIL_POS: signage support — flux-general; composer adds price/promo type.",
+    );
+    if (t.packagingRetailRole === "PROMO_SCENE") {
+      reasons.push("Promo scene accent — flux-general; avoid readable signage in frame.");
+      return { pathId: "fal-ai/flux-general", kind: "TEXT_TO_IMAGE" };
+    }
+    reasons.push("Product POS hero — flux-general.");
+    return { pathId: "fal-ai/flux-general", kind: "TEXT_TO_IMAGE" };
+  }
+
   if (t.productionMode === "SOCIAL") {
     const fam = t.socialContentFamily;
     if (fam === "TEXT_LED" || fam === "STATEMENT") {

@@ -15,6 +15,11 @@ import type {
   SocialContentFamily,
   SocialVariantCopy,
 } from "./mode-ooh-social";
+import type {
+  PackagingVariantKey,
+  PackagingVariantSpec,
+  RetailPosVariantKey,
+} from "./mode-packaging-retail";
 
 export { PRODUCTION_MODES, type ProductionMode } from "./modes";
 
@@ -77,6 +82,10 @@ export type ProductionEngineInput = {
   socialContentFamilies?: SocialContentFamily[];
   /** SOCIAL: compose this index only in single-frame preview (default 0). */
   socialVariantIndex?: number;
+  /** PACKAGING: SKU/line variant for band color + ribbon (default ORIGINAL). */
+  packagingVariant?: PackagingVariantKey;
+  /** RETAIL_POS: layout emphasis preset. */
+  retailPosVariant?: RetailPosVariantKey;
 };
 
 export type ProductionPlanStep = {
@@ -172,6 +181,8 @@ export type ProductionEngineRunResult = {
   visualExecution: VisualExecutionBundle;
   /** SOCIAL only: planned copy/visual variation per slot. */
   socialVariants?: SocialVariantCopy[];
+  /** PACKAGING: resolved variant spec for UI / handoff. */
+  packagingVariantSpec?: PackagingVariantSpec;
   jobs: ProductionJob[];
   /** Validated platform-owned layout plan. */
   compositionPlanDocument: CompositionPlanDocument;

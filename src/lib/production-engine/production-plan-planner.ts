@@ -9,6 +9,7 @@ import type {
 } from "./production-plan-schema";
 import { getModeConfig } from "./mode-registry";
 import { socialBatchCount } from "./mode-ooh-social";
+import { getPackagingVariantSpec } from "./mode-packaging-retail";
 
 function campaignCoreSummary(input: ProductionEngineInput): string {
   const c = input.campaignCore;
@@ -158,6 +159,70 @@ function baseFromInput(
     ];
   }
 
+  if (input.mode === "PACKAGING") {
+    const pv = getPackagingVariantSpec(input.packagingVariant ?? "ORIGINAL");
+    heroAssetIntent = `PACKAGING support — ingredient / mood / product plate only (no FOP text in raster): ${input.selectedConcept.conceptName}; ${input.visualDirection.slice(0, 140)}`;
+    secondaryAssetIntent =
+      "Texture or secondary product angle for FOP panel zones — composer owns brand, claims, variant band.";
+    compositionIntent =
+      "Structured FOP grid: brand block → variant ribbon → claims stack → legal greeking zone; FAL assets sit in hero/texture slots only.";
+    negativeSpaceIntent =
+      "Reserve fixed legal/nutrition rectangles; marketing copy only in composer-controlled bands.";
+    realismBias = "photoreal";
+    typographyIntent =
+      "PACKAGING: all consumer-facing type in platform compose — headline field maps to primary claim; CTA to secondary claim; no ad-style supers.";
+    exportTargets = [
+      `pack-variant-${pv.key}`,
+      "fop-concept-png",
+      "layer-manifest-json",
+      ...cfg.exportFormats,
+    ];
+    reviewFocus = [
+      "FOP hierarchy",
+      "claims order vs regulations",
+      "shelf impact at 3m",
+      "variant band discrimination",
+      "no branded pack text inside FAL output",
+    ];
+    modeConstraints = [
+      "PACKAGING: final pack face = composer only",
+      `PACKAGING variant: ${pv.label} (${pv.key})`,
+      "PACKAGING: FAL limited to mood, texture, ingredient, supporting product",
+      ...modeConstraints,
+    ];
+  }
+
+  if (input.mode === "RETAIL_POS") {
+    heroAssetIntent = `RETAIL/POS support visual — product or promo scene without final price layout in raster: ${input.selectedConcept.conceptName}; ${input.visualDirection.slice(0, 140)}`;
+    secondaryAssetIntent =
+      "Optional secondary product angle or texture; offer/price/urgency text is platform-composed.";
+    compositionIntent =
+      "POS hierarchy: promo headline → offer line → product window → urgency footer; min contrast for aisle distance.";
+    negativeSpaceIntent =
+      "Clear band for price/offer numerals; avoid busy patterns behind type islands.";
+    realismBias = "photoreal";
+    typographyIntent =
+      "RETAIL_POS: promo and price lines are vector in compose — raster stays illustration-only.";
+    exportTargets = [
+      `retail-pos-${input.retailPosVariant ?? "STANDARD"}`,
+      "signage-png",
+      ...cfg.exportFormats,
+    ];
+    reviewFocus = [
+      "promo vs product balance",
+      "offer visibility",
+      "urgency hierarchy",
+      "in-store legibility",
+      "no final offer text baked in FAL",
+    ];
+    modeConstraints = [
+      "RETAIL_POS: not a social ad frame — signage / shelf logic",
+      "RETAIL_POS: price and CTA from platform layers",
+      `RETAIL_POS emphasis: ${input.retailPosVariant ?? "STANDARD"}`,
+      ...modeConstraints,
+    ];
+  }
+
   return {
     campaignCoreSummary: campaignCoreSummary(input),
     selectedConceptSummary: conceptSummary(input),
@@ -181,7 +246,11 @@ function baseFromInput(
         ? "OOH: print-safe margins + bleed notes in exportDpiNote."
         : input.mode === "SOCIAL"
           ? "SOCIAL: platform-safe overlays; optional bottom scrim."
-          : "Print-safe or web-optimized export per exportTargets.",
+          : input.mode === "PACKAGING"
+            ? "PACKAGING: dieline-safe margins; variant stripe from spec; print PDF handoff."
+            : input.mode === "RETAIL_POS"
+              ? "RETAIL_POS: print bleed for shelf talkers; high contrast type stack."
+              : "Print-safe or web-optimized export per exportTargets.",
     ].join(" "),
     exportTargets,
     reviewFocus,
@@ -229,28 +298,32 @@ export function buildProductionPlanDocument(
           "Every slot includes the same anchor element (color bar width, corner radius, or texture stamp) for feed recognition.",
       };
     }
-    case "PACKAGING":
+    case "PACKAGING": {
+      const pv = getPackagingVariantSpec(input.packagingVariant ?? "ORIGINAL");
       return {
         productionMode: "PACKAGING",
         ...base,
         shelfImpactObjective:
-          "Win 3-second aisle scan — brand block + variant + hero benefit legible.",
-        packFrontHierarchy: "Brand → sub-brand/variant → hero claim → mandatory nutrition/legal.",
-        claimsPriority: "Regulatory and nutrition claims outrank marketing sublines on FOP.",
-        variantSystemLogic:
-          "Color stripe or icon system differentiates SKU while preserving master grid.",
+          "3-second aisle scan: brand block + variant ribbon + primary claim read before ingredient story.",
+        packFrontHierarchy:
+          "Composer stack: brand line → variant band (color) → primary claim → secondary line → legal placeholder strip.",
+        claimsPriority:
+          "Mandatory nutrition/legal blocks reserved first; marketing claims only in assigned composer rects.",
+        variantSystemLogic: `Active variant ${pv.key}: ${pv.label} — band color ${pv.bandColorHex}; ribbon "${pv.ribbonText || "—"}"; master grid unchanged.`,
         structuredGridRule:
-          "All type and marks snap to 8px grid; no optical drift between panels.",
+          "8px snap; FAL rasters only in hero panel + texture tile; zero consumer text inside FAL output.",
       };
+    }
     case "RETAIL_POS":
       return {
         productionMode: "RETAIL_POS",
         ...base,
-        promoHierarchy: "Offer / price → product → supporting proof → legal footnote.",
+        promoHierarchy:
+          "Composer: promo headline band → offer/price line → product hero rect → urgency strip → optional legal micro.",
         offerVisibilityRule:
-          "Primary offer occupies upper third or center band per format; min contrast 4.5:1.",
+          "Offer numerals in dedicated high-contrast band; WCAG-style contrast target 4.5:1 on price line.",
         urgencyTreatment:
-          "Time-bound language paired with clear end date or 'while supplies last' stub.",
+          "Urgency line anchored footer or sub-offer; never embedded only inside FAL raster.",
       };
     case "IDENTITY":
       return {
