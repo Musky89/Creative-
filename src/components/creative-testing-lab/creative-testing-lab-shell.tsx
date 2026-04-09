@@ -1689,9 +1689,17 @@ export function CreativeTestingLabShell() {
                 <div className="min-w-0 flex-1">
                   <span className="text-sm text-zinc-300">{p.name}</span>
                   {p.id.startsWith("demo-lab-") ? (
-                    <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-                      {p.loraTrainingNote ?? "Paste your trained LoRA URL in FAL execution controls after loading."}
-                    </p>
+                    <div className="mt-1 space-y-1 text-[11px] leading-relaxed text-zinc-500">
+                      {p.simulatedUpstreamSummary ? (
+                        <p>
+                          <span className="font-medium text-zinc-400">Simulated upstream: </span>
+                          {p.simulatedUpstreamSummary}
+                        </p>
+                      ) : null}
+                      <p>
+                        {p.loraTrainingNote ?? "Paste your trained LoRA URL in FAL execution controls after loading."}
+                      </p>
+                    </div>
                   ) : null}
                 </div>
                 <div className="flex shrink-0 gap-2">
