@@ -3,8 +3,12 @@ import { buildProductionPlan } from "./planning";
 import { routeFalForProduction } from "./fal-routing";
 import { buildVisualExecutionBundle } from "./visual-execution";
 import { buildProductionJobs } from "./jobs";
-import { buildCompositionPlan } from "./composition-plan";
-import { runDeterministicComposer } from "./composer";
+import { buildCompositionPlanDocument } from "./composition-plan";
+import {
+  buildLayerManifest,
+  buildAssemblyExplanation,
+} from "./composition-manifest";
+import { buildComposedArtifactStubs } from "./composer";
 import { evaluateProductionOutput } from "./review";
 import { buildHandoffPackage } from "./handoff";
 
@@ -19,8 +23,22 @@ export function runProductionEngineStub(
   const visualExecution = buildVisualExecutionBundle(input, productionPlan);
   const falRouting = routeFalForProduction(input, productionPlan);
   const jobs = buildProductionJobs(input, visualExecution);
-  const compositionPlan = buildCompositionPlan(input);
-  const composed = runDeterministicComposer(input, compositionPlan);
+  const compositionPlanDocument = buildCompositionPlanDocument(
+    input,
+    productionPlan,
+    input.layoutArchetype,
+  );
+  const layerManifest = buildLayerManifest(compositionPlanDocument, input);
+  const assemblyExplanation = buildAssemblyExplanation(
+    compositionPlanDocument,
+    input,
+    layerManifest,
+  );
+  const composed = buildComposedArtifactStubs(
+    input,
+    compositionPlanDocument,
+    layerManifest,
+  );
   const review = evaluateProductionOutput(input, productionPlan);
   const handoff = buildHandoffPackage(input, productionPlan);
   return {
@@ -30,7 +48,9 @@ export function runProductionEngineStub(
     falRouting,
     visualExecution,
     jobs,
-    compositionPlan,
+    compositionPlanDocument,
+    layerManifest,
+    assemblyExplanation,
     composed,
     review,
     handoff,

@@ -1,34 +1,55 @@
-import type { ProductionEngineInput, CompositionPlan } from "./types";
-import { getModeConfig } from "./mode-registry";
+import type { ProductionEngineInput } from "./types";
+import type { ProductionPlanDocument } from "./production-plan-schema";
+import { defaultArchetypeForMode } from "./layout-archetypes";
+import {
+  buildRectsForArchetype,
+  defaultCanvasForMode,
+} from "./composition-geometry";
+import {
+  compositionPlanDocumentSchema,
+  type CompositionPlanDocument,
+} from "./composition-plan-schema";
 
-export function buildCompositionPlan(input: ProductionEngineInput): CompositionPlan {
-  const cfg = getModeConfig(input.mode);
-  const layers = [
-    {
-      id: "bg",
-      role: "Background / scene",
-      zIndex: 0,
-      source: "GENERATED" as const,
-      notes: `Ground in: ${input.visualDirection.slice(0, 120)}`,
+/**
+ * Builds validated COMPOSITION_PLAN from mode, optional override, and production plan hints.
+ */
+export function buildCompositionPlanDocument(
+  input: ProductionEngineInput,
+  productionPlan: ProductionPlanDocument,
+  layoutArchetypeOverride?: CompositionPlanDocument["layoutArchetype"],
+): CompositionPlanDocument {
+  const archetype = layoutArchetypeOverride ?? defaultArchetypeForMode(input.mode);
+  const { width, height } = defaultCanvasForMode(input.mode);
+
+  const fromRects = buildRectsForArchetype({
+    mode: input.mode,
+    archetype,
+    width,
+    height,
+  });
+
+  const raw: CompositionPlanDocument = {
+    productionMode: input.mode,
+    layoutArchetype: archetype,
+    canvasWidth: fromRects.canvasWidth,
+    canvasHeight: fromRects.canvasHeight,
+    heroPlacement: fromRects.heroPlacement,
+    secondaryPlacement: fromRects.secondaryPlacement,
+    headlinePlacement: fromRects.headlinePlacement,
+    ctaPlacement: fromRects.ctaPlacement,
+    logoPlacement: fromRects.logoPlacement,
+    safeMargins: fromRects.safeMargins,
+    visualDominance: fromRects.visualDominance,
+    textHierarchy: fromRects.textHierarchy,
+    finishingLayers: fromRects.finishingLayers,
+    exportFormat: fromRects.exportFormat,
+    exportDpiNote: fromRects.exportDpiNote,
+    modeSpecificConstraints: {
+      ...fromRects.modeSpecificConstraints,
+      productionPlanRealism: productionPlan.realismBias,
+      compositionIntentEcho: productionPlan.compositionIntent.slice(0, 200),
     },
-    {
-      id: "brand",
-      role: "Logo / mark",
-      zIndex: 10,
-      source: input.brandAssets?.logoUrl ? ("BRAND_ASSET" as const) : ("TEXT" as const),
-      notes: input.brandAssets?.logoUrl ? "Use provided logoUrl" : "Type-based mark placeholder",
-    },
-    {
-      id: "type",
-      role: "Headline + CTA",
-      zIndex: 20,
-      source: "TEXT" as const,
-      notes: `${input.selectedHeadline} / ${input.selectedCta}`,
-    },
-  ];
-  return {
-    canvasAspect: cfg.typicalAspectRatios[0] ?? "1:1",
-    safeAreaNotes: `${cfg.notes} — respect brandRulesSummary.`,
-    layers,
   };
+
+  return compositionPlanDocumentSchema.parse(raw);
 }

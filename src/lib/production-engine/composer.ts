@@ -1,29 +1,30 @@
+import type { ComposedArtifact, ProductionEngineInput } from "./types";
 import type {
-  CompositionPlan,
-  ComposedArtifact,
-  ProductionEngineInput,
-} from "./types";
+  CompositionPlanDocument,
+  CompositionLayerManifestEntry,
+} from "./composition-plan-schema";
 
 /**
- * Deterministic composer stub — describes outputs without rendering.
+ * Client-safe composed artifact metadata (no Sharp). PNG bytes come from API route.
  */
-export function runDeterministicComposer(
+export function buildComposedArtifactStubs(
   input: ProductionEngineInput,
-  plan: CompositionPlan,
+  plan: CompositionPlanDocument,
+  manifest: CompositionLayerManifestEntry[],
 ): ComposedArtifact[] {
   const base = input.selectedConcept.conceptName.replace(/\s+/g, "-").toLowerCase();
   return [
     {
-      id: `${base}-hero`,
+      id: `${base}-composed`,
       format: "png",
-      description: `Hero composite (${plan.canvasAspect}) — layers: ${plan.layers.map((l) => l.id).join(", ")}`,
-      placeholderUri: `production-engine://stub/${input.mode}/hero.png`,
+      description: `Layer stack (${manifest.length} layers) · ${plan.layoutArchetype} · ${plan.canvasWidth}×${plan.canvasHeight}`,
+      placeholderUri: `production-engine://compose/${input.mode}/preview.png`,
     },
     {
-      id: `${base}-spec`,
+      id: `${base}-manifest`,
       format: "markdown",
-      description: "Build recipe + layer manifest for integrators",
-      placeholderUri: `production-engine://stub/${input.mode}/manifest.md`,
+      description: "Layer manifest JSON for handoff",
+      placeholderUri: `production-engine://compose/${input.mode}/manifest.json`,
     },
   ];
 }

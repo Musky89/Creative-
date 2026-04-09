@@ -18,7 +18,12 @@ export function buildHandoffPackage(
         path: `exports/${slug}/production-plan.json`,
         description: "Validated Production Plan document",
       },
-      { path: `exports/${slug}/manifest.md`, description: "Layer + prompt manifest" },
+      {
+        path: `exports/${slug}/composition-plan.json`,
+        description: "Composition Plan (layout archetype, rects, finishing)",
+      },
+      { path: `exports/${slug}/layer-manifest.json`, description: "Ordered layer manifest" },
+      { path: `exports/${slug}/manifest.md`, description: "Human-readable assembly notes" },
       { path: `exports/${slug}/brand.json`, description: "Brand asset refs + colors" },
     ],
     readme: `Creative Production Engine (stub) — ${cfg.label}. Export targets: ${targets.join(", ")}.`,

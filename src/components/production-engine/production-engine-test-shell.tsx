@@ -77,6 +77,15 @@ function Bullets({ items }: { items: string[] }) {
   );
 }
 
+type ComposePreviewPayload = {
+  compositionPlanDocument: unknown;
+  layerManifest: unknown;
+  assemblyExplanation: string[];
+  preview?: { mimeType: string; width: number; height: number; dataBase64: string };
+  error?: string;
+  message?: string;
+};
+
 export function ProductionEngineTestShell() {
   const [jsonText, setJsonText] = useState(() =>
     JSON.stringify(DEFAULT_INPUT, null, 2),
@@ -86,6 +95,11 @@ export function ProductionEngineTestShell() {
   );
   const [apiError, setApiError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [composePreview, setComposePreview] = useState<ComposePreviewPayload | null>(
+    null,
+  );
+  const [composeLoading, setComposeLoading] = useState(false);
+  const [composeError, setComposeError] = useState<string | null>(null);
 
   const localPreview = useMemo(() => {
     try {
@@ -102,6 +116,34 @@ export function ProductionEngineTestShell() {
       return { error: "JSON parse error" };
     }
   }, [jsonText]);
+
+  async function runComposePreview() {
+    setComposeLoading(true);
+    setComposeError(null);
+    setComposePreview(null);
+    try {
+      const body = JSON.parse(jsonText);
+      const res = await fetch("/api/production-engine/compose-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json()) as ComposePreviewPayload & {
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok) {
+        setComposeError(JSON.stringify(data, null, 2));
+        setComposePreview(data);
+        return;
+      }
+      setComposePreview(data);
+    } catch (e) {
+      setComposeError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setComposeLoading(false);
+    }
+  }
 
   async function runViaApi() {
     setLoading(true);
@@ -167,13 +209,28 @@ export function ProductionEngineTestShell() {
             >
               {loading ? "Running…" : "Run via API"}
             </button>
+            <button
+              type="button"
+              onClick={runComposePreview}
+              disabled={composeLoading}
+              className="rounded-md bg-violet-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-600 disabled:opacity-50"
+            >
+              {composeLoading ? "Composing…" : "Compose preview (Sharp)"}
+            </button>
             <span className="self-center text-xs text-zinc-500">
-              Local preview updates as you type (when valid).
+              Local preview updates as you type (when valid). Optional:{" "}
+              <code className="text-zinc-400">heroImageUrl</code>,{" "}
+              <code className="text-zinc-400">layoutArchetype</code>.
             </span>
           </div>
           {apiError && (
             <pre className="max-h-40 overflow-auto rounded border border-red-900/50 bg-red-950/30 p-2 text-xs text-red-200">
               {apiError}
+            </pre>
+          )}
+          {composeError && (
+            <pre className="max-h-40 overflow-auto rounded border border-amber-900/50 bg-amber-950/30 p-2 text-xs text-amber-200">
+              {composeError}
             </pre>
           )}
         </div>
@@ -357,12 +414,26 @@ export function ProductionEngineTestShell() {
               {JSON.stringify(active.jobs, null, 2)}
             </pre>
           </Section>
-          <Section title="Composition plan">
-            <pre className="max-h-56 overflow-auto font-mono text-xs text-zinc-400">
-              {JSON.stringify(active.compositionPlan, null, 2)}
+          <Section title="Composition Plan (schema)">
+            <p className="mb-2 font-mono text-sm text-violet-300">
+              Layout archetype:{" "}
+              <span className="text-violet-100">
+                {active.compositionPlanDocument.layoutArchetype}
+              </span>
+            </p>
+            <pre className="max-h-64 overflow-auto font-mono text-xs text-zinc-400">
+              {JSON.stringify(active.compositionPlanDocument, null, 2)}
             </pre>
           </Section>
-          <Section title="Deterministic composer output (stub)">
+          <Section title="Layer manifest (handoff)">
+            <pre className="max-h-64 overflow-auto font-mono text-xs text-zinc-400">
+              {JSON.stringify(active.layerManifest, null, 2)}
+            </pre>
+          </Section>
+          <Section title="How assembly works">
+            <Bullets items={active.assemblyExplanation} />
+          </Section>
+          <Section title="Composed artifact stubs">
             <pre className="max-h-56 overflow-auto font-mono text-xs text-zinc-400">
               {JSON.stringify(active.composed, null, 2)}
             </pre>
@@ -378,6 +449,23 @@ export function ProductionEngineTestShell() {
             </pre>
           </Section>
         </div>
+      )}
+
+      {composePreview?.preview && (
+        <Section title="Server compose preview (PNG)">
+          {/* Base64 preview — next/image not applicable */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`data:${composePreview.preview.mimeType};base64,${composePreview.preview.dataBase64}`}
+            alt="Composed preview"
+            className="max-h-[min(480px,60vh)] w-auto rounded border border-zinc-700"
+          />
+          <p className="mt-2 text-xs text-zinc-500">
+            {composePreview.preview.width}×{composePreview.preview.height} — platform
+            layout + text + logo; FAL hero if{" "}
+            <code className="text-zinc-400">heroImageUrl</code> set.
+          </p>
+        </Section>
       )}
 
       <p className="text-xs text-zinc-600">

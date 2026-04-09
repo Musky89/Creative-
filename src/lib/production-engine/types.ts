@@ -7,6 +7,9 @@ import type { ProductionMode } from "./modes";
 import type { GenerationTarget } from "./generation-targets";
 import type { QualityTier } from "./fal-contracts";
 import type { RoutedFalExecution } from "./fal-contracts";
+import type { CompositionPlanDocument } from "./composition-plan-schema";
+import type { CompositionLayerManifestEntry } from "./composition-plan-schema";
+import type { LayoutArchetype } from "./layout-archetypes";
 
 export { PRODUCTION_MODES, type ProductionMode } from "./modes";
 
@@ -58,6 +61,11 @@ export type ProductionEngineInput = {
   modelRef?: string;
   /** FAL router quality tier (defaults to standard in pipeline if omitted). */
   visualQualityTier?: QualityTier;
+  /** Override default layout archetype from mode. */
+  layoutArchetype?: LayoutArchetype;
+  /** Optional raster URLs for server compose (FAL output or stock). */
+  heroImageUrl?: string;
+  secondaryImageUrl?: string;
 };
 
 export type ProductionPlanStep = {
@@ -100,6 +108,7 @@ export type ProductionJob = {
   status: "PLANNED" | "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED";
 };
 
+/** @deprecated Legacy stub; use CompositionPlanDocument */
 export type CompositionLayer = {
   id: string;
   role: string;
@@ -108,6 +117,7 @@ export type CompositionLayer = {
   notes?: string;
 };
 
+/** @deprecated Use CompositionPlanDocument */
 export type CompositionPlan = {
   canvasAspect: string;
   safeAreaNotes: string;
@@ -118,8 +128,9 @@ export type ComposedArtifact = {
   id: string;
   format: "png" | "svg" | "pdf" | "markdown";
   description: string;
-  /** Placeholder — real bytes/URLs wired at integration time. */
   placeholderUri?: string;
+  /** Base64 PNG when server composer ran (API only). */
+  dataBase64?: string;
 };
 
 export type ReviewVerdict = "PASS" | "WARN" | "FAIL";
@@ -147,7 +158,10 @@ export type ProductionEngineRunResult = {
   /** FAL-first visual layer: targets + per-target routes and stub contracts. */
   visualExecution: VisualExecutionBundle;
   jobs: ProductionJob[];
-  compositionPlan: CompositionPlan;
+  /** Validated platform-owned layout plan. */
+  compositionPlanDocument: CompositionPlanDocument;
+  layerManifest: CompositionLayerManifestEntry[];
+  assemblyExplanation: string[];
   composed: ComposedArtifact[];
   review: ReviewEvaluation;
   handoff: HandoffPackage;

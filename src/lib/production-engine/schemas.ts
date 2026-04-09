@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PRODUCTION_MODES } from "./modes";
+import { LAYOUT_ARCHETYPES } from "./layout-archetypes";
 
 const productionModeSchema = z.enum(PRODUCTION_MODES);
 
@@ -38,6 +39,7 @@ const brandAssetsSchema = z
   .optional();
 
 const qualityTierSchema = z.enum(["draft", "standard", "high"]).optional();
+const layoutArchetypeSchema = z.enum(LAYOUT_ARCHETYPES).optional();
 
 export const productionEngineInputSchema = z.object({
   mode: productionModeSchema,
@@ -62,6 +64,9 @@ export const productionEngineInputSchema = z.object({
   visualStyleRef: z.string().optional(),
   modelRef: z.string().optional(),
   visualQualityTier: qualityTierSchema,
+  layoutArchetype: layoutArchetypeSchema,
+  heroImageUrl: z.string().optional(),
+  secondaryImageUrl: z.string().optional(),
 });
 
 export type ProductionEngineInputParsed = z.infer<
