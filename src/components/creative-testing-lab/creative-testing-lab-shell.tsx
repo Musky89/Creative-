@@ -34,6 +34,13 @@ import {
   rehydrateLabPresetsFromStorage,
   type LabFullPreset,
 } from "@/lib/creative-testing-lab/demo-presets";
+import {
+  BRAND_PROFILES_VERSION,
+  BRAND_PROFILES_VERSION_KEY,
+  loadBrandProfiles,
+  saveBrandProfiles,
+  type LabBrandProfile,
+} from "@/lib/creative-testing-lab/brand-profiles";
 
 const PRESET_KEY = "creative-testing-lab-presets-v1";
 
@@ -243,6 +250,17 @@ export function CreativeTestingLabShell() {
 
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<LabFullPreset[]>([]);
+  const [brandProfiles, setBrandProfiles] = useState<LabBrandProfile[]>([]);
+  const [brandProfileName, setBrandProfileName] = useState("");
+  const [brandProfileIncludeCreative, setBrandProfileIncludeCreative] = useState(false);
+  const [assetUrlDrafts, setAssetUrlDrafts] = useState({
+    logo: "",
+    hero: "",
+    secondary: "",
+    tertiary: "",
+  });
+  const [extraRefUrlDraft, setExtraRefUrlDraft] = useState("");
+  const [extraRefNameDraft, setExtraRefNameDraft] = useState("");
 
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [runHistory, setRunHistory] = useState<LabTestRun[]>([]);
@@ -348,6 +366,20 @@ export function CreativeTestingLabShell() {
       /* ignore */
     }
     setRunHistory(loadRuns());
+    try {
+      const bp = loadBrandProfiles();
+      setBrandProfiles(bp);
+      if (!localStorage.getItem(BRAND_PROFILES_VERSION_KEY)) {
+        localStorage.setItem(BRAND_PROFILES_VERSION_KEY, String(BRAND_PROFILES_VERSION));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const persistBrandProfiles = useCallback((next: LabBrandProfile[]) => {
+    setBrandProfiles(next);
+    saveBrandProfiles(next);
   }, []);
 
   const persistPresets = useCallback((next: LabFullPreset[]) => {
@@ -374,6 +406,12 @@ export function CreativeTestingLabShell() {
     setSecondaryDataUrl(ab?.secondaryDataUrl);
     setTertiaryDataUrl(ab?.tertiaryDataUrl);
     setExtraRefs(ab?.extraRefs ?? []);
+    setAssetUrlDrafts({
+      logo: ab?.logoDataUrl?.startsWith("http") ? ab.logoDataUrl : "",
+      hero: ab?.heroDataUrl?.startsWith("http") ? ab.heroDataUrl : "",
+      secondary: ab?.secondaryDataUrl?.startsWith("http") ? ab.secondaryDataUrl : "",
+      tertiary: ab?.tertiaryDataUrl?.startsWith("http") ? ab.tertiaryDataUrl : "",
+    });
     setReviewScores(run.manualScores);
     setReviewNotes(run.manualNotes);
     setManualVerdict(run.manualVerdict);
@@ -798,6 +836,119 @@ export function CreativeTestingLabShell() {
     setCompareB(null);
   }
 
+  function resetForNewBrandTest() {
+    setBrand(emptyBrand());
+    setCreative(emptyCreative());
+    setLogoDataUrl(undefined);
+    setHeroDataUrl(undefined);
+    setSecondaryDataUrl(undefined);
+    setTertiaryDataUrl(undefined);
+    setExtraRefs([]);
+    setMode("SOCIAL");
+    setQualityTier("standard");
+    setExecutionPath("router");
+    setBatchSize(1);
+    setTargetTypeFilter("");
+    setStyleModelRef("");
+    setLoraRef("");
+    setStrongRefs(false);
+    setPreferEdit(false);
+    setPipelineResult(null);
+    setFalResults(null);
+    setComposeData(null);
+    setSelectedVisualUrl(null);
+    setOutputMarks({});
+    setManualVerdict("");
+    setCompareA(null);
+    setCompareB(null);
+    setReviewScores({
+      brandAlignment: 0,
+      realism: 0,
+      quality: 0,
+      composition: 0,
+      typographyLayout: 0,
+      usefulness: 0,
+    });
+    setReviewNotes("");
+    setError(null);
+    setAssetUrlDrafts({ logo: "", hero: "", secondary: "", tertiary: "" });
+    setExtraRefUrlDraft("");
+    setExtraRefNameDraft("");
+    startNewRun();
+  }
+
+  function saveBrandProfileFromForm() {
+    const name = brandProfileName.trim() || "Untitled brand profile";
+    const profile: LabBrandProfile = {
+      version: BRAND_PROFILES_VERSION,
+      id: `bp-${Date.now()}`,
+      name,
+      brand: { ...brand },
+      seedAssets: {
+        logoUrl: logoDataUrl,
+        heroUrl: heroDataUrl,
+        secondaryUrl: secondaryDataUrl,
+        tertiaryUrl: tertiaryDataUrl,
+        extraRefs: extraRefs.map((r) => ({ id: r.id, name: r.name, url: r.dataUrl })),
+      },
+      defaultMode: mode,
+      qualityTier,
+      executionPath,
+      batchSize,
+      targetTypeFilter,
+      styleModelRef,
+      loraRef,
+      strongRefs,
+      preferEdit,
+      storedCreative: brandProfileIncludeCreative ? { ...creative } : null,
+    };
+    persistBrandProfiles([...brandProfiles.filter((x) => x.name !== name), profile]);
+    setBrandProfileName("");
+    setBrandProfileIncludeCreative(false);
+  }
+
+  function loadBrandProfile(id: string) {
+    const p = brandProfiles.find((x) => x.id === id);
+    if (!p) return;
+    setBrand(p.brand);
+    setMode(p.defaultMode);
+    setQualityTier(p.qualityTier);
+    setExecutionPath(p.executionPath);
+    setBatchSize(p.batchSize);
+    setTargetTypeFilter(p.targetTypeFilter);
+    setStyleModelRef(p.styleModelRef);
+    setLoraRef(p.loraRef);
+    setStrongRefs(p.strongRefs);
+    setPreferEdit(p.preferEdit);
+    setCreative(p.storedCreative ? { ...p.storedCreative } : emptyCreative());
+    const s = p.seedAssets;
+    setLogoDataUrl(s.logoUrl);
+    setHeroDataUrl(s.heroUrl);
+    setSecondaryDataUrl(s.secondaryUrl);
+    setTertiaryDataUrl(s.tertiaryUrl);
+    setExtraRefs(
+      (s.extraRefs ?? []).map((r) => ({
+        id: r.id,
+        name: r.name,
+        dataUrl: r.url,
+      })),
+    );
+    setAssetUrlDrafts({
+      logo: s.logoUrl?.startsWith("http") ? s.logoUrl : "",
+      hero: s.heroUrl?.startsWith("http") ? s.heroUrl : "",
+      secondary: s.secondaryUrl?.startsWith("http") ? s.secondaryUrl : "",
+      tertiary: s.tertiaryUrl?.startsWith("http") ? s.tertiaryUrl : "",
+    });
+    setPipelineResult(null);
+    setFalResults(null);
+    setComposeData(null);
+    setSelectedVisualUrl(null);
+    setOutputMarks({});
+    setCompareA(null);
+    setCompareB(null);
+    setError(null);
+  }
+
   function savePreset() {
     const name = presetName.trim() || "Untitled preset";
     const p: LabFullPreset = {
@@ -852,6 +1003,12 @@ export function CreativeTestingLabShell() {
         dataUrl: r.url,
       })),
     );
+    setAssetUrlDrafts({
+      logo: s?.logoUrl?.startsWith("http") ? s.logoUrl : "",
+      hero: s?.heroUrl?.startsWith("http") ? s.heroUrl : "",
+      secondary: s?.secondaryUrl?.startsWith("http") ? s.secondaryUrl : "",
+      tertiary: s?.tertiaryUrl?.startsWith("http") ? s.tertiaryUrl : "",
+    });
   }
 
   const modeCfg = listProductionModes().find((m) => m.id === mode);
@@ -954,10 +1111,78 @@ export function CreativeTestingLabShell() {
         </div>
       </Card>
 
+      <Card
+        title="Brand profiles"
+        subtitle="Save a full brand kit (all Brand context fields + asset URLs or uploads + default mode/FAL settings). Reuse across tests; optionally include current campaign creative."
+      >
+        <div className="mb-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={resetForNewBrandTest}
+            className="rounded-lg border border-violet-600/50 bg-violet-950/30 px-3 py-2 text-xs font-medium text-violet-200 hover:bg-violet-950/50"
+          >
+            New brand test (clear all fields)
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2 border-b border-zinc-800 pb-4">
+          <input
+            className="min-w-[200px] flex-1 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
+            placeholder="Profile name (e.g. Acme Corp)"
+            value={brandProfileName}
+            onChange={(e) => setBrandProfileName(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={saveBrandProfileFromForm}
+            className="rounded-lg bg-emerald-700 px-4 py-2 text-sm text-white hover:bg-emerald-600"
+          >
+            Save brand profile
+          </button>
+        </div>
+        <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-zinc-400">
+          <input
+            type="checkbox"
+            checked={brandProfileIncludeCreative}
+            onChange={(e) => setBrandProfileIncludeCreative(e.target.checked)}
+          />
+          Also save current Creative input (headline, brief, etc.) into this profile
+        </label>
+        <ul className="mt-4 max-h-48 space-y-2 overflow-y-auto">
+          {brandProfiles.length === 0 ? (
+            <li className="text-sm text-zinc-500">No saved profiles yet — fill Brand context + assets, then save.</li>
+          ) : (
+            brandProfiles.map((p) => (
+              <li
+                key={p.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2"
+              >
+                <span className="text-sm text-zinc-300">{p.name}</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="text-xs text-violet-400 hover:underline"
+                    onClick={() => loadBrandProfile(p.id)}
+                  >
+                    Load
+                  </button>
+                  <button
+                    type="button"
+                    className="text-xs text-red-400/80 hover:underline"
+                    onClick={() => persistBrandProfiles(brandProfiles.filter((x) => x.id !== p.id))}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </li>
+            ))
+          )}
+        </ul>
+      </Card>
+
       <div className="grid gap-8 lg:grid-cols-2">
         <Card
           title="Brand context"
-          subtitle="Who this is for — CI, tone, and guardrails feed the production plan and FAL prompts."
+          subtitle="Who this is for — CI, tone, and guardrails feed the production plan and FAL prompts. Use “Brand profiles” above to save or load the full set."
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Brand / client name">
@@ -1071,7 +1296,7 @@ export function CreativeTestingLabShell() {
 
         <Card
           title="Brand assets"
-          subtitle="Stored as data URLs in-session for lab use — no cloud storage."
+          subtitle="Upload files (data URLs) or paste HTTPS image URLs (Wikimedia, Unsplash, your CDN). Remote URLs work for compose and FAL."
         >
           <div className="space-y-4">
             <AssetRow
@@ -1079,29 +1304,84 @@ export function CreativeTestingLabShell() {
               dataUrl={logoDataUrl}
               onFile={async (f) => setLogoDataUrl(await uploadFile(f))}
               onClear={() => setLogoDataUrl(undefined)}
+              urlDraft={assetUrlDrafts.logo}
+              onUrlDraftChange={(v) => setAssetUrlDrafts((d) => ({ ...d, logo: v }))}
+              onApplyUrl={() => {
+                const u = assetUrlDrafts.logo.trim();
+                if (u) setLogoDataUrl(u);
+              }}
             />
             <AssetRow
               label="Hero / primary visual (compose + optional edit)"
               dataUrl={heroDataUrl}
               onFile={async (f) => setHeroDataUrl(await uploadFile(f))}
               onClear={() => setHeroDataUrl(undefined)}
+              urlDraft={assetUrlDrafts.hero}
+              onUrlDraftChange={(v) => setAssetUrlDrafts((d) => ({ ...d, hero: v }))}
+              onApplyUrl={() => {
+                const u = assetUrlDrafts.hero.trim();
+                if (u) setHeroDataUrl(u);
+              }}
             />
             <AssetRow
               label="Secondary visual"
               dataUrl={secondaryDataUrl}
               onFile={async (f) => setSecondaryDataUrl(await uploadFile(f))}
               onClear={() => setSecondaryDataUrl(undefined)}
+              urlDraft={assetUrlDrafts.secondary}
+              onUrlDraftChange={(v) => setAssetUrlDrafts((d) => ({ ...d, secondary: v }))}
+              onApplyUrl={() => {
+                const u = assetUrlDrafts.secondary.trim();
+                if (u) setSecondaryDataUrl(u);
+              }}
             />
             <AssetRow
               label="Tertiary (identity route C / detail)"
               dataUrl={tertiaryDataUrl}
               onFile={async (f) => setTertiaryDataUrl(await uploadFile(f))}
               onClear={() => setTertiaryDataUrl(undefined)}
+              urlDraft={assetUrlDrafts.tertiary}
+              onUrlDraftChange={(v) => setAssetUrlDrafts((d) => ({ ...d, tertiary: v }))}
+              onApplyUrl={() => {
+                const u = assetUrlDrafts.tertiary.trim();
+                if (u) setTertiaryDataUrl(u);
+              }}
             />
             <div>
               <p className="mb-2 text-xs font-medium text-zinc-400">
                 Reference boards, packshots, inspiration (multiple)
               </p>
+              <div className="mb-3 flex flex-wrap gap-2">
+                <input
+                  className="min-w-[120px] flex-1 rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs"
+                  placeholder="Label (optional)"
+                  value={extraRefNameDraft}
+                  onChange={(e) => setExtraRefNameDraft(e.target.value)}
+                />
+                <input
+                  className="min-w-[200px] flex-[2] rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs"
+                  placeholder="https://… image URL"
+                  value={extraRefUrlDraft}
+                  onChange={(e) => setExtraRefUrlDraft(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="rounded-lg border border-zinc-600 px-2 py-1.5 text-xs text-zinc-200 hover:bg-zinc-800"
+                  onClick={() => {
+                    const u = extraRefUrlDraft.trim();
+                    if (!u) return;
+                    const label = extraRefNameDraft.trim() || "Reference URL";
+                    setExtraRefs((prev) => [
+                      ...prev,
+                      { id: `url-${Date.now()}`, name: label, dataUrl: u },
+                    ]);
+                    setExtraRefUrlDraft("");
+                    setExtraRefNameDraft("");
+                  }}
+                >
+                  Add URL
+                </button>
+              </div>
               <input
                 type="file"
                 accept="image/*"
@@ -1922,40 +2202,67 @@ function AssetRow({
   dataUrl,
   onFile,
   onClear,
+  urlDraft,
+  onUrlDraftChange,
+  onApplyUrl,
 }: {
   label: string;
   dataUrl?: string;
   onFile: (f: File) => void;
   onClear: () => void;
+  urlDraft: string;
+  onUrlDraftChange: (v: string) => void;
+  onApplyUrl: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-4">
-      <div className="min-w-[140px] flex-1">
-        <p className="text-xs font-medium text-zinc-400">{label}</p>
-        <input
-          type="file"
-          accept="image/*"
-          className="mt-1 text-xs text-zinc-500"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void onFile(f);
-            e.target.value = "";
-          }}
-        />
-      </div>
-      {dataUrl ? (
-        <div className="relative">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={dataUrl} alt="" className="h-24 w-24 rounded-lg border border-zinc-700 object-cover" />
-          <button
-            type="button"
-            className="absolute -right-1 -top-1 rounded-full bg-zinc-800 px-1.5 text-[10px] text-zinc-300"
-            onClick={onClear}
-          >
-            ×
-          </button>
+    <div className="space-y-2 rounded-xl border border-zinc-800/80 bg-zinc-950/30 p-3">
+      <p className="text-xs font-medium text-zinc-400">{label}</p>
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="min-w-[120px] flex-1">
+          <p className="mb-1 text-[10px] uppercase tracking-wide text-zinc-600">Upload</p>
+          <input
+            type="file"
+            accept="image/*"
+            className="text-xs text-zinc-500"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void onFile(f);
+              e.target.value = "";
+            }}
+          />
         </div>
-      ) : null}
+        <div className="min-w-[180px] flex-[2]">
+          <p className="mb-1 text-[10px] uppercase tracking-wide text-zinc-600">Or image URL</p>
+          <div className="flex gap-1">
+            <input
+              className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-200"
+              placeholder="https://…"
+              value={urlDraft}
+              onChange={(e) => onUrlDraftChange(e.target.value)}
+            />
+            <button
+              type="button"
+              className="shrink-0 rounded-lg border border-zinc-600 px-2 py-1.5 text-[11px] text-zinc-200 hover:bg-zinc-800"
+              onClick={onApplyUrl}
+            >
+              Set
+            </button>
+          </div>
+        </div>
+        {dataUrl ? (
+          <div className="relative shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={dataUrl} alt="" className="h-24 w-24 rounded-lg border border-zinc-700 object-cover" />
+            <button
+              type="button"
+              className="absolute -right-1 -top-1 rounded-full bg-zinc-800 px-1.5 text-[10px] text-zinc-300"
+              onClick={onClear}
+            >
+              ×
+            </button>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
