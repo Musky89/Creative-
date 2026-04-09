@@ -29,3 +29,4 @@ export * from "./handoff-types";
 export * from "./handoff-export-profile";
 export * from "./handoff-layer-manifest";
 export * from "./pipeline";
+export * from "./public-api";
