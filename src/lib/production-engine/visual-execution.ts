@@ -5,15 +5,28 @@ import { routeBatch, type FalRouterInput } from "./fal-router";
 
 const DEFAULT_TIER = "standard" as const;
 
+/** Optional Creative Testing Lab / advanced callers — does not affect default pipeline. */
+export type VisualExecutionBundleOptions = {
+  /** Appended to every target’s reference list (e.g. uploaded ref boards). */
+  extraReferenceUrls?: string[];
+  /** When true and hero/secondary URL exists, bias router toward image-to-image where applicable. */
+  preferEditOverGenerate?: boolean;
+  /** Include hero/secondary/tertiary raster URLs as FAL references (strong ref mode). */
+  strongReferenceImages?: boolean;
+};
+
 export function buildVisualExecutionBundle(
   input: ProductionEngineInput,
   plan: ProductionPlanDocument,
+  bundleOptions?: VisualExecutionBundleOptions,
 ): VisualExecutionBundle {
-  const qualityTier = input.visualQualityTier ?? DEFAULT_TIER;
+  const rawTier = input.visualQualityTier ?? DEFAULT_TIER;
+  const qualityTier =
+    rawTier === "premium" ? "high" : rawTier;
   const targets = deriveGenerationTargets(input, plan, qualityTier);
 
   const routerInputs: FalRouterInput[] = targets.map((target) => {
-    const hasBase =
+    const logoBase =
       !!input.brandAssets?.logoUrl &&
       target.targetType !== "HERO_PHOTO" &&
       target.targetType !== "LIFESTYLE_SCENE" &&
@@ -26,9 +39,25 @@ export function buildVisualExecutionBundle(
       target.productionMode !== "IDENTITY" &&
       target.productionMode !== "ECOMMERCE_FASHION";
 
-    const refs: string[] = [];
+    const rasterBase =
+      bundleOptions?.preferEditOverGenerate === true &&
+      !!(
+        input.heroImageUrl?.trim() ||
+        input.secondaryImageUrl?.trim() ||
+        input.tertiaryImageUrl?.trim()
+      ) &&
+      target.targetType !== "BACKGROUND_PLATE";
+
+    const hasBase = logoBase || rasterBase;
+
+    const refs: string[] = [...(bundleOptions?.extraReferenceUrls ?? [])];
     if (input.brandAssets?.logoUrl?.trim()) {
       refs.push(input.brandAssets.logoUrl.trim());
+    }
+    if (bundleOptions?.strongReferenceImages) {
+      if (input.heroImageUrl?.trim()) refs.push(input.heroImageUrl.trim());
+      if (input.secondaryImageUrl?.trim()) refs.push(input.secondaryImageUrl.trim());
+      if (input.tertiaryImageUrl?.trim()) refs.push(input.tertiaryImageUrl.trim());
     }
 
     return {

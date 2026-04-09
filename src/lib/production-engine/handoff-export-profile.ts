@@ -35,7 +35,7 @@ export function buildHandoffExportProfile(args: {
   const { mode, compositionPlan: doc, productionPlan: plan, qualityTier } = args;
   const W = doc.canvasWidth;
   const H = doc.canvasHeight;
-  const highTier = qualityTier === "high";
+  const highTier = qualityTier === "high" || qualityTier === "premium";
 
   const base = {
     canvasPx: { width: W, height: H },

@@ -12,6 +12,7 @@ export * from "./fal-contracts";
 export * from "./fal-router";
 export * from "./derive-generation-targets";
 export * from "./visual-execution";
+export type { VisualExecutionBundleOptions } from "./visual-execution";
 export * from "./jobs";
 export * from "./composition-plan";
 export * from "./composition-plan-schema";

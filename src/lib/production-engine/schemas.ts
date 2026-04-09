@@ -47,7 +47,9 @@ const brandAssetsSchema = z
   })
   .optional();
 
-const qualityTierSchema = z.enum(["draft", "standard", "high"]).optional();
+const qualityTierSchema = z
+  .enum(["draft", "standard", "high", "premium"])
+  .optional();
 const layoutArchetypeSchema = z.enum(LAYOUT_ARCHETYPES).optional();
 const socialBatchPresetSchema = z.enum(["1", "7", "15", "30"]).optional();
 const socialFamilySchema = z.enum(SOCIAL_CONTENT_FAMILIES);
