@@ -18,6 +18,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link href="/clients" className="transition-colors hover:text-zinc-100">
               Clients
             </Link>
+            <Link
+              href="/production-engine"
+              className="transition-colors hover:text-zinc-100"
+            >
+              Production Engine
+            </Link>
           </nav>
         </div>
       </header>
