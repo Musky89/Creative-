@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { PRODUCTION_MODES } from "./modes";
 import { LAYOUT_ARCHETYPES } from "./layout-archetypes";
+import { SOCIAL_CONTENT_FAMILIES } from "./mode-ooh-social";
 
 const productionModeSchema = z.enum(PRODUCTION_MODES);
 
@@ -40,6 +41,8 @@ const brandAssetsSchema = z
 
 const qualityTierSchema = z.enum(["draft", "standard", "high"]).optional();
 const layoutArchetypeSchema = z.enum(LAYOUT_ARCHETYPES).optional();
+const socialBatchPresetSchema = z.enum(["1", "7", "15", "30"]).optional();
+const socialFamilySchema = z.enum(SOCIAL_CONTENT_FAMILIES);
 
 export const productionEngineInputSchema = z.object({
   mode: productionModeSchema,
@@ -67,6 +70,9 @@ export const productionEngineInputSchema = z.object({
   layoutArchetype: layoutArchetypeSchema,
   heroImageUrl: z.string().optional(),
   secondaryImageUrl: z.string().optional(),
+  socialBatchPreset: socialBatchPresetSchema,
+  socialContentFamilies: z.array(socialFamilySchema).optional(),
+  socialVariantIndex: z.number().int().min(0).max(99).optional(),
 });
 
 export type ProductionEngineInputParsed = z.infer<

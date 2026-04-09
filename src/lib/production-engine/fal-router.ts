@@ -29,13 +29,46 @@ function pickPath(args: {
 }): { pathId: string; kind: FalPathKind } {
   const t = args.target;
   const reasons = args.reasons;
+  const hasStyle = !!(t.styleModelRef?.trim() || t.loraRef?.trim());
 
   if (t.productionMode === "EXPORT_PRESENTATION") {
     reasons.push("EXPORT_PRESENTATION defaults to composition-only unless hero visual explicitly requested.");
     return { pathId: "internal/composition-only", kind: "SPECIALTY" };
   }
 
-  const hasStyle = !!(t.styleModelRef?.trim() || t.loraRef?.trim());
+  if (t.productionMode === "OOH") {
+    if (t.targetType === "BACKGROUND_PLATE") {
+      reasons.push("OOH proof plate: simple field — flux-general text-to-image; no logo i2i.");
+      return { pathId: "fal-ai/flux-general", kind: "TEXT_TO_IMAGE" };
+    }
+    reasons.push(
+      "OOH board hero: large-format clarity — flux-general; high tier may chain upscale later.",
+    );
+    if (args.qualityTier === "high") {
+      reasons.push("OOH high tier: prefer maximum detail pass (upscale stub follows in pipeline).");
+    }
+    return { pathId: "fal-ai/flux-general", kind: "TEXT_TO_IMAGE" };
+  }
+
+  if (t.productionMode === "SOCIAL") {
+    const fam = t.socialContentFamily;
+    if (fam === "TEXT_LED" || fam === "STATEMENT") {
+      reasons.push(
+        "SOCIAL text-led/statement: simpler scene — flux-general; reserve clarity for type overlay.",
+      );
+      return { pathId: "fal-ai/flux-general", kind: "TEXT_TO_IMAGE" };
+    }
+    if (fam === "OFFER_CTA") {
+      reasons.push("SOCIAL offer: promo-forward raster — flux-general with retail-safe bias.");
+      return { pathId: "fal-ai/flux-general", kind: "TEXT_TO_IMAGE" };
+    }
+    if (hasStyle && fam === "LIFESTYLE") {
+      reasons.push("SOCIAL lifestyle + brand style — LoRA text-to-image for DNA lock.");
+      return { pathId: "fal-ai/flux-lora", kind: "LORA_TEXT_TO_IMAGE" };
+    }
+    reasons.push("SOCIAL product/ lifestyle default — flux-general for batch variety control.");
+    return { pathId: "fal-ai/flux-general", kind: "TEXT_TO_IMAGE" };
+  }
 
   if (args.hasBaseImageForEdit) {
     if (hasStyle) {

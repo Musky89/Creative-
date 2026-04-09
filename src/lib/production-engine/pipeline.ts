@@ -11,6 +11,7 @@ import {
 import { buildComposedArtifactStubs } from "./composer";
 import { evaluateProductionOutput } from "./review";
 import { buildHandoffPackage } from "./handoff";
+import { buildAllSocialVariants } from "./mode-ooh-social";
 
 /**
  * End-to-end stub pipeline for the standalone engine (no I/O).
@@ -28,7 +29,22 @@ export function runProductionEngineStub(
     productionPlan,
     input.layoutArchetype,
   );
-  const layerManifest = buildLayerManifest(compositionPlanDocument, input);
+  const socialVariants =
+    input.mode === "SOCIAL" ? buildAllSocialVariants(input) : undefined;
+  const socialIdx = socialVariants?.length
+    ? Math.min(
+        Math.max(0, input.socialVariantIndex ?? 0),
+        socialVariants.length - 1,
+      )
+    : 0;
+  const socialSlot = socialVariants?.[socialIdx];
+  const layerManifest = buildLayerManifest(
+    compositionPlanDocument,
+    input,
+    socialSlot
+      ? { headline: socialSlot.headline, cta: socialSlot.cta }
+      : undefined,
+  );
   const assemblyExplanation = buildAssemblyExplanation(
     compositionPlanDocument,
     input,
@@ -47,6 +63,7 @@ export function runProductionEngineStub(
     operationalPlan,
     falRouting,
     visualExecution,
+    socialVariants,
     jobs,
     compositionPlanDocument,
     layerManifest,

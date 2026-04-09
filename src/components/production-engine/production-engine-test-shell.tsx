@@ -81,6 +81,19 @@ type ComposePreviewPayload = {
   compositionPlanDocument: unknown;
   layerManifest: unknown;
   assemblyExplanation: string[];
+  review?: {
+    verdict: string;
+    checklist: unknown[];
+    summary: string;
+    modeReviewSummary?: string[];
+  };
+  socialSlot?: {
+    index: number;
+    family: string;
+    headline: string;
+    cta: string;
+    visualVariationHint: string;
+  };
   preview?: { mimeType: string; width: number; height: number; dataBase64: string };
   error?: string;
   message?: string;
@@ -218,9 +231,12 @@ export function ProductionEngineTestShell() {
               {composeLoading ? "Composing…" : "Compose preview (Sharp)"}
             </button>
             <span className="self-center text-xs text-zinc-500">
-              Local preview updates as you type (when valid). Optional:{" "}
+              Optional JSON:{" "}
               <code className="text-zinc-400">heroImageUrl</code>,{" "}
-              <code className="text-zinc-400">layoutArchetype</code>.
+              <code className="text-zinc-400">layoutArchetype</code>, SOCIAL:{" "}
+              <code className="text-zinc-400">socialBatchPreset</code> (1|7|15|30),{" "}
+              <code className="text-zinc-400">socialVariantIndex</code>,{" "}
+              <code className="text-zinc-400">socialContentFamilies</code>.
             </span>
           </div>
           {apiError && (
@@ -308,6 +324,33 @@ export function ProductionEngineTestShell() {
           </Section>
         </div>
       </div>
+
+      {active?.socialVariants && active.socialVariants.length > 0 && (
+        <Section title="SOCIAL batch plan (variants)">
+          <div className="max-h-64 overflow-auto text-xs">
+            <table className="w-full border-collapse text-left text-zinc-400">
+              <thead>
+                <tr className="border-b border-zinc-800 text-zinc-500">
+                  <th className="py-1 pr-2">#</th>
+                  <th className="py-1 pr-2">Family</th>
+                  <th className="py-1 pr-2">Headline</th>
+                  <th className="py-1">CTA</th>
+                </tr>
+              </thead>
+              <tbody>
+                {active.socialVariants.map((v, i) => (
+                  <tr key={i} className="border-b border-zinc-800/80">
+                    <td className="py-1 pr-2 font-mono text-zinc-500">{i}</td>
+                    <td className="py-1 pr-2 text-emerald-400/90">{v.family}</td>
+                    <td className="py-1 pr-2">{v.headline.slice(0, 56)}</td>
+                    <td className="py-1">{v.cta.slice(0, 40)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+      )}
 
       {active && planSplit && (
         <div className="space-y-4">
@@ -439,6 +482,14 @@ export function ProductionEngineTestShell() {
             </pre>
           </Section>
           <Section title="Review / evaluation">
+            {active.review.modeReviewSummary && (
+              <div className="mb-3 rounded border border-zinc-700 bg-zinc-950/80 p-2">
+                <p className="mb-1 text-xs font-semibold text-amber-200/90">
+                  Mode-specific review
+                </p>
+                <Bullets items={active.review.modeReviewSummary} />
+              </div>
+            )}
             <pre className="max-h-56 overflow-auto font-mono text-xs text-zinc-400">
               {JSON.stringify(active.review, null, 2)}
             </pre>
@@ -449,6 +500,20 @@ export function ProductionEngineTestShell() {
             </pre>
           </Section>
         </div>
+      )}
+
+      {composePreview?.socialSlot && (
+        <Section title="Compose API — SOCIAL slot used">
+          <pre className="max-h-40 overflow-auto font-mono text-xs text-zinc-400">
+            {JSON.stringify(composePreview.socialSlot, null, 2)}
+          </pre>
+        </Section>
+      )}
+
+      {composePreview?.review?.modeReviewSummary && (
+        <Section title="Compose API — mode review">
+          <Bullets items={composePreview.review.modeReviewSummary} />
+        </Section>
       )}
 
       {composePreview?.preview && (

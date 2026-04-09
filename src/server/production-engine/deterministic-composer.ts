@@ -78,6 +78,9 @@ export type DeterministicComposeInput = {
   /** Primary FAL (or stub) image — http(s) URL or data URL. */
   heroImageUrl?: string | null;
   secondaryImageUrl?: string | null;
+  /** Override platform type (e.g. SOCIAL variant headline/CTA). */
+  headlineText?: string;
+  ctaText?: string;
 };
 
 export type DeterministicComposeResult = {
@@ -167,6 +170,26 @@ export async function runDeterministicComposeSharp(
   for (const f of plan.finishingLayers) {
     if (f.kind === "SCRIM") {
       const op = f.opacity ?? 0.4;
+      if (f.id === "ooh-readability-scrim") {
+        const sw = Math.floor(W * 0.42);
+        const grad = Buffer.from(
+          `<svg width="${sw}" height="${H}">
+          <defs>
+            <linearGradient id="og" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#000" stop-opacity="${op}"/>
+              <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#og)"/>
+        </svg>`,
+        );
+        const scrimPng = await sharp(grad).png().toBuffer();
+        base = await sharp(base)
+          .composite([{ input: scrimPng, left: 0, top: 0, blend: "over" }])
+          .png()
+          .toBuffer();
+        continue;
+      }
       const scrimH =
         f.id === "bottom-scrim" ? Math.floor(H * 0.34) : Math.floor(H * 0.45);
       const top = f.id === "bottom-scrim" ? H - scrimH : 0;
@@ -189,11 +212,24 @@ export async function runDeterministicComposeSharp(
     }
   }
 
+  function oohShortHeadline(s: string): string {
+    const words = s.trim().split(/\s+/).filter(Boolean);
+    if (words.length <= 8) return s.trim();
+    return `${words.slice(0, 8).join(" ")}…`;
+  }
+
+  const headlineStr =
+    args.headlineText?.trim() ??
+    (input.mode === "OOH"
+      ? oohShortHeadline(input.selectedHeadline)
+      : input.selectedHeadline);
+  const ctaStr = args.ctaText?.trim() ?? input.selectedCta;
+
   const hl = plan.headlinePlacement;
   const headlineSvg = textSvg({
     width: hl.width,
     height: hl.height,
-    text: input.selectedHeadline,
+    text: headlineStr,
     fontSize: Math.max(18, Math.floor(hl.height * 0.42)),
     fontWeight: 700,
     fill: "#f4f4f5",
@@ -213,7 +249,10 @@ export async function runDeterministicComposeSharp(
   const ctaSvg = textSvg({
     width: ct.width,
     height: ct.height,
-    text: input.selectedCta,
+    text:
+      input.mode === "OOH"
+        ? ctaStr.split(/\s+/).slice(0, 5).join(" ")
+        : ctaStr,
     fontSize: Math.max(14, Math.floor(ct.height * 0.38)),
     fontWeight: 600,
     fill: "#a1a1aa",

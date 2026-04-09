@@ -3,6 +3,7 @@
  */
 
 import type { ProductionMode } from "./modes";
+import type { SocialContentFamily } from "./mode-ooh-social";
 
 export const GENERATION_TARGET_TYPES = [
   "HERO_PHOTO",
@@ -43,4 +44,10 @@ export type GenerationTarget = {
   loraRef?: string;
   desiredBatchSize: number;
   evaluationFocus: string[];
+  /** SOCIAL: content family for this slice of the batch. */
+  socialContentFamily?: SocialContentFamily;
+  /** SOCIAL: index within batch (0-based). */
+  socialVariantIndex?: number;
+  /** OOH: label for hero vs plate vs proof. */
+  oohVariantLabel?: string;
 };

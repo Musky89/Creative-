@@ -6,6 +6,10 @@ import type { ProductionEngineInput } from "./types";
 import type { ProductionPlanDocument } from "./production-plan-schema";
 import type { GenerationTarget, RealismBias } from "./generation-targets";
 import type { QualityTier } from "./fal-contracts";
+import {
+  buildAllSocialVariants,
+  socialBatchCount,
+} from "./mode-ooh-social";
 
 function realismFromPlan(plan: ProductionPlanDocument): RealismBias {
   return plan.realismBias;
@@ -85,62 +89,126 @@ export function deriveGenerationTargets(
   }
 
   if (mode === "OOH") {
+    const oohNeg = [
+      ...negRules(input),
+      "busy street clutter competing with subject",
+      "multiple faces competing for attention",
+      "small type or fine print inside the image",
+      "social-style UI chrome or mock phone frames",
+    ];
     targets.push({
-      id: tid("ooh-hero"),
+      id: tid("ooh-board"),
       targetType: "HERO_PHOTO",
       productionMode: mode,
-      roleInOutput: "Primary billboard / large-format hero visual.",
+      oohVariantLabel: "board-hero",
+      roleInOutput: "Primary billboard raster — single focal, distance-readable silhouette.",
       ...baseHero,
-      evaluationFocus: [...baseHero.evaluationFocus, "distance legibility", "focal clarity"],
+      subjectIntent: `${plan.heroAssetIntent} Billboard: bold subject scale; readable at 50m equivalent; leave 30%+ negative field for platform type.`,
+      backgroundIntent:
+        "Soft environmental read or clean gradient — must not fight headline island.",
+      compositionIntent:
+        "Single center of gravity; rule of thirds bias; no dual heroes.",
+      lightingIntent:
+        "High subject/background separation; avoid muddy midtones at distance.",
+      negativeRules: oohNeg,
+      desiredBatchSize: qualityTier === "high" ? 2 : 1,
+      evaluationFocus: [
+        "distance legibility",
+        "single focal dominance",
+        "negative space budget",
+        "clutter rejection",
+        "print handoff (no embedded tiny type)",
+      ],
     });
     targets.push({
-      id: tid("ooh-bg"),
+      id: tid("ooh-plate"),
       targetType: "BACKGROUND_PLATE",
       productionMode: mode,
-      roleInOutput: "Simplified plate for type lockup tests.",
-      subjectIntent: "Minimal environment plate; negative space for headline.",
-      backgroundIntent: "Clean gradient or environmental soft read.",
-      compositionIntent: "Upper third clear for type.",
-      lightingIntent: baseHero.lightingIntent,
+      oohVariantLabel: "type-proof-plate",
+      roleInOutput: "Simplified plate for headline/CTA contrast check at print shop.",
+      subjectIntent:
+        "Minimal field: gradient or soft texture only — no competing subject.",
+      backgroundIntent: "Clean; supports white or dark type overlay testing.",
+      compositionIntent: "Upper-left or upper-third kept open for headline block.",
+      lightingIntent: "Even; no harsh vignette on type zones.",
       realismBias: realism,
       brandVisualConstraints: brandVc,
       referenceSummary: refSummary(input),
-      negativeRules: negRules(input),
+      negativeRules: oohNeg,
       styleModelRef: input.visualStyleRef,
       loraRef: baseHero.loraRef,
       desiredBatchSize: 1,
-      evaluationFocus: ["negative space", "contrast for type"],
+      evaluationFocus: ["type island contrast", "safe margin discipline"],
     });
     return targets;
   }
 
   if (mode === "SOCIAL") {
-    targets.push({
-      id: tid("social-hero"),
-      targetType: "LIFESTYLE_SCENE",
-      productionMode: mode,
-      roleInOutput: "Feed / story hero for campaign family.",
-      ...baseHero,
-      desiredBatchSize: Math.max(batch, 2),
-    });
-    targets.push({
-      id: tid("social-variant"),
-      targetType: "DETAIL_CROP",
-      productionMode: mode,
-      roleInOutput: "Crop-safe detail for carousel or alt aspect.",
-      subjectIntent: "Macro or product detail matching hero world.",
-      backgroundIntent: baseHero.backgroundIntent,
-      compositionIntent: "Center-weighted; safe for 1:1 and 4:5.",
-      lightingIntent: baseHero.lightingIntent,
-      realismBias: realism,
-      brandVisualConstraints: brandVc,
-      referenceSummary: refSummary(input),
-      negativeRules: negRules(input),
-      styleModelRef: input.visualStyleRef,
-      loraRef: baseHero.loraRef,
-      desiredBatchSize: 1,
-      evaluationFocus: ["crop safety", "family consistency"],
-    });
+    const n = socialBatchCount(input.socialBatchPreset);
+    const variants = buildAllSocialVariants(input);
+    for (let i = 0; i < n; i++) {
+      const v = variants[i]!;
+      const isTextLed = v.family === "TEXT_LED";
+      const isStatement = v.family === "STATEMENT";
+      const isOffer = v.family === "OFFER_CTA";
+      const typeHint =
+        v.family === "PRODUCT_HERO"
+          ? "HERO_PHOTO"
+          : v.family === "LIFESTYLE"
+            ? "LIFESTYLE_SCENE"
+            : v.family === "STATEMENT"
+              ? "LIFESTYLE_SCENE"
+              : v.family === "OFFER_CTA"
+                ? "RETAIL_PROMO_VISUAL"
+                : "LIFESTYLE_SCENE";
+      const targetType =
+        typeHint === "HERO_PHOTO"
+          ? "HERO_PHOTO"
+          : typeHint === "RETAIL_PROMO_VISUAL"
+            ? "RETAIL_PROMO_VISUAL"
+            : "LIFESTYLE_SCENE";
+
+      targets.push({
+        id: tid(`social-${v.family.toLowerCase()}-${i}`),
+        targetType,
+        productionMode: mode,
+        socialContentFamily: v.family,
+        socialVariantIndex: i,
+        roleInOutput: `Social slot ${i + 1}/${n} — ${v.family.replace(/_/g, " ").toLowerCase()}.`,
+        subjectIntent: `${v.visualVariationHint} Campaign: ${input.selectedConcept.conceptName}. ${plan.heroAssetIntent.slice(0, 120)}`,
+        backgroundIntent: isTextLed
+          ? "Subdued plate; 50%+ calm field for typography dominance."
+          : "Supports thumb-stop zone clarity; motif from references.",
+        compositionIntent: isStatement
+          ? "Bold negative space; subject smaller or corner-anchored."
+          : isOffer
+            ? "Promo-readable band; product still recognizable."
+            : "Crop-safe for 1:1 / 4:5; hero zone upper or center.",
+        lightingIntent:
+          i % 3 === 0
+            ? "Bright key, high clarity for feed."
+            : i % 3 === 1
+              ? "Softer editorial light; variety vs previous slot."
+              : "Contrast pop for scroll stop.",
+        realismBias: realism,
+        brandVisualConstraints: `${brandVc} | family:${v.family} | slot:${i}`,
+        referenceSummary: refSummary(input),
+        negativeRules: [
+          ...negRules(input),
+          "clone of previous slot composition",
+          "random aspect crop that breaks campaign DNA",
+        ],
+        styleModelRef: input.visualStyleRef,
+        loraRef: baseHero.loraRef,
+        desiredBatchSize: 1,
+        evaluationFocus: [
+          "family coherence",
+          "non-duplicate vs siblings",
+          "scroll-stop",
+          "safe crop",
+        ],
+      });
+    }
     return targets;
   }
 
@@ -229,7 +297,6 @@ export function deriveGenerationTargets(
     return targets;
   }
 
-  // Fallback: ingredient / product split for generic
   targets.push({
     id: tid("hero"),
     targetType: "HERO_PHOTO",

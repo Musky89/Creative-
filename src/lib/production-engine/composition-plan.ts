@@ -9,6 +9,11 @@ import {
   compositionPlanDocumentSchema,
   type CompositionPlanDocument,
 } from "./composition-plan-schema";
+import { buildAllSocialVariants } from "./mode-ooh-social";
+import {
+  applyOohCompositionTweaks,
+  applySocialCompositionTweaks,
+} from "./composition-mode-tweaks";
 
 /**
  * Builds validated COMPOSITION_PLAN from mode, optional override, and production plan hints.
@@ -28,7 +33,7 @@ export function buildCompositionPlanDocument(
     height,
   });
 
-  const raw: CompositionPlanDocument = {
+  let raw: CompositionPlanDocument = {
     productionMode: input.mode,
     layoutArchetype: archetype,
     canvasWidth: fromRects.canvasWidth,
@@ -51,5 +56,23 @@ export function buildCompositionPlanDocument(
     },
   };
 
-  return compositionPlanDocumentSchema.parse(raw);
+  raw = compositionPlanDocumentSchema.parse(raw);
+
+  if (input.mode === "OOH") {
+    raw = compositionPlanDocumentSchema.parse(applyOohCompositionTweaks(raw));
+  }
+
+  if (input.mode === "SOCIAL") {
+    const variants = buildAllSocialVariants(input);
+    const idx = Math.min(
+      Math.max(0, input.socialVariantIndex ?? 0),
+      variants.length - 1,
+    );
+    const family = variants[idx]!.family;
+    raw = compositionPlanDocumentSchema.parse(
+      applySocialCompositionTweaks(raw, family),
+    );
+  }
+
+  return raw;
 }

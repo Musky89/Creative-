@@ -10,6 +10,11 @@ import type { RoutedFalExecution } from "./fal-contracts";
 import type { CompositionPlanDocument } from "./composition-plan-schema";
 import type { CompositionLayerManifestEntry } from "./composition-plan-schema";
 import type { LayoutArchetype } from "./layout-archetypes";
+import type {
+  SocialBatchPreset,
+  SocialContentFamily,
+  SocialVariantCopy,
+} from "./mode-ooh-social";
 
 export { PRODUCTION_MODES, type ProductionMode } from "./modes";
 
@@ -66,6 +71,12 @@ export type ProductionEngineInput = {
   /** Optional raster URLs for server compose (FAL output or stock). */
   heroImageUrl?: string;
   secondaryImageUrl?: string;
+  /** SOCIAL: batch size preset (default 1). */
+  socialBatchPreset?: SocialBatchPreset;
+  /** SOCIAL: subset of families to cycle; default all five. */
+  socialContentFamilies?: SocialContentFamily[];
+  /** SOCIAL: compose this index only in single-frame preview (default 0). */
+  socialVariantIndex?: number;
 };
 
 export type ProductionPlanStep = {
@@ -139,6 +150,8 @@ export type ReviewEvaluation = {
   verdict: ReviewVerdict;
   checklist: { id: string; label: string; ok: boolean; note?: string }[];
   summary: string;
+  /** OOH / SOCIAL mode-specific narrative for Studio. */
+  modeReviewSummary?: string[];
 };
 
 export type HandoffPackage = {
@@ -157,6 +170,8 @@ export type ProductionEngineRunResult = {
   falRouting: FalRouteDecision;
   /** FAL-first visual layer: targets + per-target routes and stub contracts. */
   visualExecution: VisualExecutionBundle;
+  /** SOCIAL only: planned copy/visual variation per slot. */
+  socialVariants?: SocialVariantCopy[];
   jobs: ProductionJob[];
   /** Validated platform-owned layout plan. */
   compositionPlanDocument: CompositionPlanDocument;

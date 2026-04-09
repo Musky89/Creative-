@@ -5,6 +5,8 @@ import {
   buildCompositionPlanDocument,
   buildLayerManifest,
   buildAssemblyExplanation,
+  evaluateProductionOutput,
+  buildAllSocialVariants,
 } from "@/lib/production-engine";
 import { runDeterministicComposeSharp } from "@/server/production-engine/deterministic-composer";
 
@@ -31,11 +33,28 @@ export async function POST(req: Request) {
     productionPlan,
     input.layoutArchetype,
   );
-  const manifest = buildLayerManifest(plan, input);
-  const explanation = buildAssemblyExplanation(plan, input, manifest);
-
   const heroUrl = input.heroImageUrl?.trim() || null;
   const secUrl = input.secondaryImageUrl?.trim() || null;
+
+  const socialVariants =
+    input.mode === "SOCIAL" ? buildAllSocialVariants(input) : null;
+  const socialIdx = socialVariants?.length
+    ? Math.min(
+        Math.max(0, input.socialVariantIndex ?? 0),
+        socialVariants.length - 1,
+      )
+    : 0;
+  const socialSlot = socialVariants?.[socialIdx];
+
+  const manifest = buildLayerManifest(
+    plan,
+    input,
+    socialSlot
+      ? { headline: socialSlot.headline, cta: socialSlot.cta }
+      : undefined,
+  );
+  const explanation = buildAssemblyExplanation(plan, input, manifest);
+  const review = evaluateProductionOutput(input, productionPlan);
 
   try {
     const { pngBuffer, width, height } = await runDeterministicComposeSharp({
@@ -43,12 +62,25 @@ export async function POST(req: Request) {
       plan,
       heroImageUrl: heroUrl || null,
       secondaryImageUrl: secUrl || null,
+      headlineText: socialSlot?.headline,
+      ctaText: socialSlot?.cta,
     });
 
     return NextResponse.json({
       compositionPlanDocument: plan,
       layerManifest: manifest,
       assemblyExplanation: explanation,
+      review,
+      socialSlot:
+        input.mode === "SOCIAL" && socialSlot
+          ? {
+              index: socialIdx,
+              family: socialSlot.family,
+              headline: socialSlot.headline,
+              cta: socialSlot.cta,
+              visualVariationHint: socialSlot.visualVariationHint,
+            }
+          : undefined,
       preview: {
         mimeType: "image/png",
         width,
@@ -65,6 +97,7 @@ export async function POST(req: Request) {
         compositionPlanDocument: plan,
         layerManifest: manifest,
         assemblyExplanation: explanation,
+        review,
       },
       { status: 500 },
     );

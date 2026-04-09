@@ -14,9 +14,13 @@ export function buildVisualExecutionBundle(
 
   const routerInputs: FalRouterInput[] = targets.map((target) => {
     const hasBase =
+      !!input.brandAssets?.logoUrl &&
       target.targetType !== "HERO_PHOTO" &&
       target.targetType !== "LIFESTYLE_SCENE" &&
-      !!input.brandAssets?.logoUrl;
+      target.targetType !== "BACKGROUND_PLATE" &&
+      target.targetType !== "RETAIL_PROMO_VISUAL" &&
+      target.productionMode !== "SOCIAL" &&
+      target.productionMode !== "OOH";
 
     const refs: string[] = [];
     if (input.brandAssets?.logoUrl?.trim()) {

@@ -3,6 +3,7 @@
  */
 
 import type { ProductionMode } from "./modes";
+import { oohCanvasDimensions } from "./mode-ooh-social";
 import type { LayoutArchetype } from "./layout-archetypes";
 import type {
   CompositionPlanDocument,
@@ -15,7 +16,7 @@ export function defaultCanvasForMode(mode: ProductionMode): {
 } {
   switch (mode) {
     case "OOH":
-      return { width: 1920, height: 640 };
+      return oohCanvasDimensions();
     case "SOCIAL":
       return { width: 1080, height: 1350 };
     case "PACKAGING":

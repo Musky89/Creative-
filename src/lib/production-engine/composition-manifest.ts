@@ -7,7 +7,10 @@ import type {
 export function buildLayerManifest(
   doc: CompositionPlanDocument,
   input: ProductionEngineInput,
+  textOverride?: { headline: string; cta: string },
 ): CompositionLayerManifestEntry[] {
+  const hl = textOverride?.headline ?? input.selectedHeadline;
+  const ct = textOverride?.cta ?? input.selectedCta;
   const entries: CompositionLayerManifestEntry[] = [];
   let z = 0;
 
@@ -75,7 +78,7 @@ export function buildLayerManifest(
       width: doc.headlinePlacement.width,
       height: doc.headlinePlacement.height,
     },
-    description: `Headline: "${input.selectedHeadline.slice(0, 80)}${input.selectedHeadline.length > 80 ? "…" : ""}"`,
+    description: `Headline: "${hl.slice(0, 80)}${hl.length > 80 ? "…" : ""}"`,
   });
 
   entries.push({
@@ -88,7 +91,7 @@ export function buildLayerManifest(
       width: doc.ctaPlacement.width,
       height: doc.ctaPlacement.height,
     },
-    description: `CTA: "${input.selectedCta}"`,
+    description: `CTA: "${ct}"`,
   });
 
   entries.push({
