@@ -14,7 +14,37 @@ This document defines **how** to implement the strategic stack (executable brand
 | **Optional server routes** | APIs under `/api/experimental/agentic-os/*` only. |
 | **Feature flag** | `AGENTIC_CREATIVE_OS_ENABLED` (env). When `false`, routes return 404 or redirect; zero behavior change for rest of app. |
 | **Data isolation** | Prefer new Prisma models with explicit prefix (`AgenticBrandGraph`, `AgenticCaseFile`, …) **or** separate SQLite/JSON store for v0 — document choice per phase. |
-| **No rewrites** | Do not refactor `src/server/orchestrator/*`, `src/lib/production-engine/*`, or lab shell **on this branch** except to add **optional** re-export or adapter files that old code does not import. |
+| **No edits to legacy files** | On this branch, **do not modify** files under `src/lib/production-engine/`, `src/components/creative-testing-lab/`, `src/server/orchestrator/`, existing lab APIs, etc. **Reading** them via import is OK (you are not changing their source). |
+
+---
+
+## 1.5 End-to-end testing without touching prior code — clone, import, or HTTP?
+
+**Goal:** Full E2E on `experiment/agentic-creative-operating-system` while **zero diffs** to everything you already shipped.
+
+### What we do **not** do
+
+- **Do not duplicate** `production-engine` or `creative-testing-lab` into a second tree and evolve both. That becomes two versions to merge later and guarantees drift.
+
+### What we **do** do (pick one integration style)
+
+| Approach | Touch existing files? | E2E coverage | Notes |
+|----------|------------------------|--------------|--------|
+| **A. HTTP-only bridge** | **None** | Call live app: `fetch(APP_BASE_URL + '/api/creative-testing-lab/pipeline')` (and compose, fal-execute) from **`/api/experimental/agentic-os/*` only** | Strongest isolation: experimental code never imports production-engine. Requires dev server URL in env for self-calls. |
+| **B. Read-only imports** | **None** (imports don’t edit files) | `import { runProductionEngineStub, … } from '@/lib/production-engine'` **only inside** `src/lib/agentic-creative-os/` | Simpler, same process, tree-shaken. Still “uses” current engine as a **library**; you are not cloning it. |
+| **C. True fork (last resort)** | None | Reimplement minimal planner/router in `agentic-creative-os` | Maximum independence, **large** cost; only if you must run without any shared code. |
+
+**Recommendation for your requirement (“don’t touch previous code”):** use **A** for anything that must prove “we didn’t even import it,” or **B** for speed — both satisfy **no file changes** in legacy paths. Default recommendation: **B** until you need hard process isolation, then add **A** behind an env `AGENTIC_OS_ENGINE_BRIDGE=http`.
+
+### UI and APIs
+
+- **All new UI** lives under `src/app/experimental/agentic-os/**` — not a clone of `creative-testing-lab-shell.tsx`; a **new** shell that can call the same **HTTP** endpoints as the lab if you want parity without copying components.
+- **All new routes** under `src/app/api/experimental/agentic-os/**`.
+- **Brand graph / case files / agents** live only in `src/lib/agentic-creative-os/**`.
+
+### Git discipline
+
+- Merge requests that touch `production-engine` or lab **do not belong** on this branch; if something is missing upstream, open a **separate** PR to the parent branch with a minimal, behavior-neutral change, then rebase this experiment — or use HTTP to the already-deployed API.
 
 ---
 
@@ -37,7 +67,7 @@ Every run produces a **case file**: inputs (graph versions), agent transcripts, 
 - Planner / strategist (locks constraints)
 - Generator (explores inside envelope)
 - Brand critic + compliance critic (structured JSON verdicts)
-- Composer handoff (calls **existing** `runProductionEngineStub` / compose APIs **as a client** from experimental routes only — optional integration point)
+- Composer handoff (optional: **HTTP** to existing compose/pipeline APIs, or **read-only import** of engine helpers — see §1.5; never edit legacy route files from this branch)
 
 ### 2.4 Verification layer
 
