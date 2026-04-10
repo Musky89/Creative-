@@ -18,9 +18,11 @@
     "qa:bootstrap": "npx --yes tsx scripts/private-dev-qa-bootstrap.ts",
     "preflight": "npx --yes tsx scripts/preflight-dev.ts",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:standalone-agentic-os": "npx --yes tsx scripts/test-standalone-agentic-os.ts"
   },
   "dependencies": {
+    "@fal-ai/client": "^1.9.5",
     "@prisma/adapter-pg": "^7.6.0",
     "@prisma/client": "^7.6.0",
     "dotenv": "^17.4.0",
@@ -32,6 +34,7 @@
     "pngjs": "^7.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "sharp": "^0.34.5",
     "zod": "^4.3.6"
   },
   "prisma": {

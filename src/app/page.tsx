@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import Link from "next/link";
 import { listClients } from "@/server/domain/clients";
 import {
@@ -14,6 +16,55 @@ import {
   briefWorkflowHeadline,
   headlineLabel,
 } from "@/lib/brief-workflow-summary";
+import { IsolatedBuildSurfaces } from "@/components/dev/isolated-build-surfaces";
+
+function getIsolatedSurfaces(): {
+  href: string;
+  title: string;
+  description: string;
+  envNote?: string;
+}[] {
+  const appDir = path.join(process.cwd(), "src/app");
+  const hasPage = (segment: string) => fs.existsSync(path.join(appDir, segment, "page.tsx"));
+
+  const surfaces: {
+    href: string;
+    title: string;
+    description: string;
+    envNote?: string;
+  }[] = [];
+
+  if (hasPage("production-engine")) {
+    surfaces.push({
+      href: "/production-engine",
+      title: "Creative Production Engine",
+      description:
+        "Standalone planner, FAL routing, composition, handoff — full production-engine test shell.",
+    });
+  }
+
+  if (hasPage("creative-testing-lab")) {
+    surfaces.push({
+      href: "/creative-testing-lab",
+      title: "Creative Testing Lab",
+      description:
+        "Rich brand + creative inputs, demo presets (Nike/Apple/Coke-style seeds + URLs), FAL, compose, run history, export.",
+      envNote: "FAL_KEY for live generation. Presets merge from localStorage on first load.",
+    });
+  }
+
+  if (hasPage("standalone-agentic-os")) {
+    surfaces.push({
+      href: "/standalone-agentic-os",
+      title: "Agentic Creative OS (standalone)",
+      description:
+        "Greenfield: 4 seeded brands, 8 campaigns, 5 channels — proposal → verify → critic → case file.",
+      envNote: "STANDALONE_AGENTIC_OS_ENABLED=1. Optional OPENAI_API_KEY for LLM path.",
+    });
+  }
+
+  return surfaces;
+}
 
 export default async function DashboardPage() {
   let clients: Awaited<ReturnType<typeof listClients>>;
@@ -35,6 +86,7 @@ export default async function DashboardPage() {
           title="Home"
           description="Your workspace — clients and open work."
         />
+        <IsolatedBuildSurfaces surfaces={getIsolatedSurfaces()} />
         <div className="max-w-xl">
           <DatabaseUnavailableNotice />
         </div>
@@ -50,6 +102,8 @@ export default async function DashboardPage() {
         tone="muted"
         action={<ButtonLink href="/clients/new">New client</ButtonLink>}
       />
+
+      <IsolatedBuildSurfaces surfaces={getIsolatedSurfaces()} />
 
       <div className="mb-10 grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-zinc-800/90 bg-zinc-900/40 px-5 py-4">
