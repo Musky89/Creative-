@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import Link from "next/link";
 import { listClients } from "@/server/domain/clients";
 import {
@@ -15,6 +17,64 @@ import {
   headlineLabel,
 } from "@/lib/brief-workflow-summary";
 import { briefRecordToWorkPlan } from "@/lib/workflow/brief-work-plan";
+import { IsolatedBuildSurfaces } from "@/components/dev/isolated-build-surfaces";
+
+function getIsolatedSurfaces(): {
+  href: string;
+  title: string;
+  description: string;
+  envNote?: string;
+}[] {
+  const appDir = path.join(process.cwd(), "src/app");
+  const hasPage = (segment: string) => fs.existsSync(path.join(appDir, segment, "page.tsx"));
+
+  const surfaces: {
+    href: string;
+    title: string;
+    description: string;
+    envNote?: string;
+  }[] = [];
+
+  if (hasPage("production-engine")) {
+    surfaces.push({
+      href: "/production-engine",
+      title: "Creative Production Engine",
+      description:
+        "Standalone planner, FAL routing preview, composition, and handoff — not wired into Studio.",
+    });
+  }
+
+  if (hasPage("creative-testing-lab")) {
+    surfaces.push({
+      href: "/creative-testing-lab",
+      title: "Creative Testing Lab",
+      description:
+        "Founder-style lab: presets, run history, FAL execution, compose, QA export — isolated API namespace.",
+      envNote: "Requires FAL_KEY server-side for live generation.",
+    });
+  }
+
+  if (hasPage("standalone-agentic-os")) {
+    surfaces.push({
+      href: "/standalone-agentic-os",
+      title: "Agentic Creative OS (standalone)",
+      description:
+        "Greenfield brand graph → campaign → verify → critic → case file. No shared imports with Production Engine.",
+      envNote: "Set STANDALONE_AGENTIC_OS_ENABLED=1 or the route returns 404.",
+    });
+  }
+
+  if (hasPage("experimental/agentic-os")) {
+    surfaces.push({
+      href: "/experimental/agentic-os",
+      title: "Agentic OS (experimental scaffold)",
+      description: "Earlier gated scaffold on branches that include experimental routes.",
+      envNote: "Set AGENTIC_CREATIVE_OS_ENABLED=1 when this route exists.",
+    });
+  }
+
+  return surfaces;
+}
 
 export default async function DashboardPage() {
   try {
@@ -33,6 +93,8 @@ export default async function DashboardPage() {
           tone="muted"
           action={<ButtonLink href="/clients/new">New client</ButtonLink>}
         />
+
+        <IsolatedBuildSurfaces surfaces={getIsolatedSurfaces()} />
 
         <div className="mb-10 grid gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-zinc-800/90 bg-zinc-900/40 px-5 py-4">
