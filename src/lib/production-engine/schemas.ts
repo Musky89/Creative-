@@ -10,6 +10,8 @@ import {
   FASHION_OUTPUT_FAMILIES,
   IDENTITY_ROUTE_KEYS,
 } from "./mode-identity-fashion-export";
+import { socialOutputTargetSchema, socialPlatformIdSchema } from "./channel-specs";
+import { packagingDielineDocumentSchema } from "./packaging-dieline";
 
 const productionModeSchema = z.enum(PRODUCTION_MODES);
 
@@ -84,6 +86,28 @@ export const productionEngineInputSchema = z.object({
   socialBatchPreset: socialBatchPresetSchema,
   socialContentFamilies: z.array(socialFamilySchema).optional(),
   socialVariantIndex: z.number().int().min(0).max(99).optional(),
+  /** SOCIAL: canvas = platform spec; use showcase_master for 4:5 “build once” then repurpose */
+  socialOutputTarget: socialOutputTargetSchema.optional(),
+  /** SOCIAL: when composing showcase master, API may return extra resized PNGs */
+  socialRepurposePlatformIds: z.array(socialPlatformIdSchema).optional(),
+  /** PACKAGING: optional dieline tightens safe margins */
+  packagingDieline: packagingDielineDocumentSchema.optional(),
+  /** Post-compose QA rules */
+  outputVerificationRules: z
+    .object({
+      bannedSubstrings: z.array(z.string()).optional(),
+      requireLegalStripNonEmpty: z.boolean().optional(),
+    })
+    .optional(),
+  /** Handoff / workflow */
+  handoffApproval: z
+    .object({
+      status: z.enum(["draft", "in_review", "approved"]),
+      approvedAt: z.string().optional(),
+      approvedBy: z.string().optional(),
+      notes: z.string().optional(),
+    })
+    .optional(),
   packagingVariant: z.enum(PACKAGING_VARIANT_KEYS).optional(),
   retailPosVariant: z.enum(RETAIL_POS_VARIANT_KEYS).optional(),
   fashionBatchPreset: z.enum(["1", "4"]).optional(),

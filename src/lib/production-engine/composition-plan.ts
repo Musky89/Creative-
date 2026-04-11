@@ -20,6 +20,7 @@ import {
   applyExportPresentationCompositionTweaks,
 } from "./composition-mode-tweaks";
 import { getPackagingVariantSpec } from "./mode-packaging-retail";
+import { applyPackagingDielineToPlan } from "./packaging-dieline";
 import { buildAllFashionVariants } from "./mode-identity-fashion-export";
 
 /**
@@ -31,7 +32,7 @@ export function buildCompositionPlanDocument(
   layoutArchetypeOverride?: CompositionPlanDocument["layoutArchetype"],
 ): CompositionPlanDocument {
   const archetype = layoutArchetypeOverride ?? defaultArchetypeForMode(input.mode);
-  const { width, height } = defaultCanvasForMode(input.mode);
+  const { width, height } = defaultCanvasForMode(input.mode, input);
 
   const fromRects = buildRectsForArchetype({
     mode: input.mode,
@@ -159,6 +160,11 @@ export function buildCompositionPlanDocument(
         anchor: "ne",
       },
     });
+    if (input.packagingDieline) {
+      raw = compositionPlanDocumentSchema.parse(
+        applyPackagingDielineToPlan(raw, input.packagingDieline),
+      );
+    }
   }
 
   if (input.mode === "RETAIL_POS") {

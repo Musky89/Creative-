@@ -4,21 +4,31 @@
 
 import type { ProductionMode } from "./modes";
 import { oohCanvasDimensions } from "./mode-ooh-social";
+import type { ProductionEngineInput } from "./types";
+import { resolveSocialCanvasDimensions } from "./channel-specs";
 import type { LayoutArchetype } from "./layout-archetypes";
 import type {
   CompositionPlanDocument,
   PlacementRect,
 } from "./composition-plan-schema";
 
-export function defaultCanvasForMode(mode: ProductionMode): {
+export function defaultCanvasForMode(
+  mode: ProductionMode,
+  input?: Pick<ProductionEngineInput, "mode" | "socialOutputTarget">,
+): {
   width: number;
   height: number;
 } {
   switch (mode) {
     case "OOH":
       return oohCanvasDimensions();
-    case "SOCIAL":
+    case "SOCIAL": {
+      if (input?.mode === "SOCIAL") {
+        const d = resolveSocialCanvasDimensions(input.socialOutputTarget);
+        return { width: d.width, height: d.height };
+      }
       return { width: 1080, height: 1350 };
+    }
     case "PACKAGING":
       return { width: 1200, height: 1600 };
     case "RETAIL_POS":
