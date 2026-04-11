@@ -3,7 +3,7 @@
  * Keeps production-engine schema as single source of truth.
  */
 
-import type { ProductionEngineInput } from "../production-engine/types";
+import type { BrandAssetFonts, ProductionEngineInput } from "../production-engine/types";
 import type { ProductionMode } from "../production-engine/modes";
 import type { QualityTier } from "../production-engine/fal-contracts";
 import type { LayoutArchetype } from "../production-engine/layout-archetypes";
@@ -20,6 +20,14 @@ export type LabBrandForm = {
   visualLanguage: string;
   colorPalette: string;
   fontNotes: string;
+  /** Deterministic composer: headline text face (optional for backward-compatible presets) */
+  composerFontHeadlineMode?: "default" | "google_fonts" | "client_upload";
+  composerFontHeadlineGoogle?: string;
+  composerFontHeadlineFileDataUrl?: string;
+  composerFontCtaSameAsHeadline?: boolean;
+  composerFontCtaMode?: "default" | "google_fonts" | "client_upload";
+  composerFontCtaGoogle?: string;
+  composerFontCtaFileDataUrl?: string;
   brandRulesCi: string;
   competitorNotes: string;
   marketRegion: string;
@@ -154,6 +162,63 @@ export function mapLabToProductionEngineInput(args: {
           })
       : undefined;
 
+  const hlMode = brand.composerFontHeadlineMode ?? "default";
+  const ctaSame = brand.composerFontCtaSameAsHeadline !== false;
+  const ctaMode = brand.composerFontCtaMode ?? "default";
+
+  const fonts: BrandAssetFonts[] = [];
+  if (hlMode === "google_fonts" && brand.composerFontHeadlineGoogle?.trim()) {
+    const fam = brand.composerFontHeadlineGoogle.trim();
+    fonts.push({
+      family: fam,
+      role: "headline",
+      source: "public_catalog",
+      catalogSource: "google_fonts",
+      googleFontFamily: fam,
+      sourceNote: brand.fontNotes.trim() || "Google Fonts (headline)",
+    });
+  } else if (
+    hlMode === "client_upload" &&
+    brand.composerFontHeadlineFileDataUrl?.trim()
+  ) {
+    fonts.push({
+      family: "Client upload (headline)",
+      role: "headline",
+      source: "client_upload",
+      fontFileUrl: brand.composerFontHeadlineFileDataUrl.trim(),
+      sourceNote: brand.fontNotes.trim() || "Licensed client font",
+    });
+  } else if (brand.fontNotes.trim()) {
+    fonts.push({
+      family: brand.fontNotes.slice(0, 120),
+      source: "default",
+      sourceNote: "Lab notes only — use Google/upload above for composed output",
+    });
+  }
+
+  if (!ctaSame) {
+    if (ctaMode === "google_fonts" && brand.composerFontCtaGoogle?.trim()) {
+      const fam = brand.composerFontCtaGoogle.trim();
+      fonts.push({
+        family: fam,
+        role: "cta",
+        source: "public_catalog",
+        catalogSource: "google_fonts",
+        googleFontFamily: fam,
+      });
+    } else if (
+      ctaMode === "client_upload" &&
+      brand.composerFontCtaFileDataUrl?.trim()
+    ) {
+      fonts.push({
+        family: "Client upload (CTA)",
+        role: "cta",
+        source: "client_upload",
+        fontFileUrl: brand.composerFontCtaFileDataUrl.trim(),
+      });
+    }
+  }
+
   const referenceSummaries = buildReferenceSummariesFromLab({ creative, assets });
 
   return {
@@ -181,9 +246,7 @@ export function mapLabToProductionEngineInput(args: {
       logoUrl: assets.logoUrl,
       logoDescription: brand.clientName ? `${brand.clientName} logo` : undefined,
       colors,
-      fonts: brand.fontNotes.trim()
-        ? [{ family: brand.fontNotes.slice(0, 120), sourceNote: "Lab notes" }]
-        : undefined,
+      fonts: fonts.length ? fonts : undefined,
     },
     visualStyleRef: args.visualStyleRef?.trim() || undefined,
     modelRef: args.modelRef?.trim() || undefined,

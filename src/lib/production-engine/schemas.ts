@@ -31,6 +31,12 @@ const brandAssetsSchema = z
           family: z.string(),
           weights: z.array(z.string()).optional(),
           sourceNote: z.string().optional(),
+          role: z.enum(["headline", "body", "cta", "display"]).optional(),
+          source: z.enum(["default", "public_catalog", "client_upload"]).optional(),
+          catalogSource: z.enum(["google_fonts"]).optional(),
+          googleFontFamily: z.string().optional(),
+          fontFileUrl: z.string().optional(),
+          embeddedFontFamily: z.string().optional(),
         }),
       )
       .optional(),

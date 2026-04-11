@@ -12,6 +12,12 @@ import {
   retailPosComposerCopy,
 } from "@/lib/production-engine/mode-packaging-retail";
 import type { IdentityRouteKey } from "@/lib/production-engine/mode-identity-fashion-export";
+import {
+  fontFaceBlockForSvg,
+  fontFamilyCss,
+  resolveTypographyForRole,
+  type ResolvedFont,
+} from "@/lib/production-engine/typography-resolve";
 
 function escapeXml(s: string): string {
   return s
@@ -21,6 +27,11 @@ function escapeXml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/** Attribute-safe (double-quoted) — keep single quotes for CSS font stacks */
+function escapeXmlAttr(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
 function textSvg(args: {
   width: number;
   height: number;
@@ -28,6 +39,7 @@ function textSvg(args: {
   fontSize: number;
   fontWeight: number;
   fill: string;
+  resolvedFont?: ResolvedFont;
 }): Buffer {
   const maxChars = Math.max(12, Math.floor(args.width / (args.fontSize * 0.55)));
   const t = escapeXml(
@@ -35,10 +47,18 @@ function textSvg(args: {
       ? `${args.text.slice(0, maxChars - 1)}…`
       : args.text,
   );
+  const ff = args.resolvedFont
+    ? fontFaceBlockForSvg(args.resolvedFont)
+    : "";
+  const fam = fontFamilyCss(args.resolvedFont ?? { kind: "default" });
+  const defs = ff
+    ? `<defs><style type="text/css"><![CDATA[${ff}]]></style></defs>`
+    : "";
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${args.width}" height="${args.height}">
+  ${defs}
   <text x="6" y="${Math.min(args.height * 0.55, args.fontSize + 8)}"
-    font-family="DejaVu Sans, Liberation Sans, Arial, sans-serif"
+    font-family="${escapeXmlAttr(fam)}"
     font-size="${args.fontSize}"
     font-weight="${args.fontWeight}"
     fill="${args.fill}">${t}</text>
@@ -54,6 +74,7 @@ function multilineTextSvg(args: {
   fontWeight: number;
   fill: string;
   lineHeight: number;
+  resolvedFont?: ResolvedFont;
 }): Buffer {
   const maxChars = Math.max(16, Math.floor(args.width / (args.fontSize * 0.52)));
   const rawLines = args.text.split(/\n/).flatMap((para) => {
@@ -84,9 +105,17 @@ function multilineTextSvg(args: {
       return `<tspan x="6" y="${y}">${t}</tspan>`;
     })
     .join("");
+  const ff = args.resolvedFont
+    ? fontFaceBlockForSvg(args.resolvedFont)
+    : "";
+  const fam = fontFamilyCss(args.resolvedFont ?? { kind: "default" });
+  const defs = ff
+    ? `<defs><style type="text/css"><![CDATA[${ff}]]></style></defs>`
+    : "";
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${args.width}" height="${args.height}">
-  <text font-family="DejaVu Sans, Liberation Sans, Arial, sans-serif"
+  ${defs}
+  <text font-family="${escapeXmlAttr(fam)}"
     font-size="${args.fontSize}"
     font-weight="${args.fontWeight}"
     fill="${args.fill}">${tspans}</text>
@@ -161,6 +190,15 @@ export async function runDeterministicComposeSharp(
   const { plan, input } = args;
   const W = plan.canvasWidth;
   const H = plan.canvasHeight;
+
+  const headlineWeight = input.mode === "RETAIL_POS" ? 800 : 700;
+  const headlineFont = await resolveTypographyForRole(
+    input.brandAssets,
+    "headline",
+    headlineWeight,
+  );
+  const ctaFont = await resolveTypographyForRole(input.brandAssets, "cta", 600);
+  const bodyFont = await resolveTypographyForRole(input.brandAssets, "body", 500);
 
   const bgHex = input.brandAssets?.colors?.find((c) => c.role === "background")?.hex ?? "#1a1a1c";
   let base = await solidColorBuffer(W, H, bgHex);
@@ -315,6 +353,7 @@ export async function runDeterministicComposeSharp(
         fontSize: Math.min(22, Math.floor(b.height * 0.42)),
         fontWeight: 800,
         fill: "#fafafa",
+        resolvedFont: headlineFont,
       });
       base = await sharp(base)
         .composite([
@@ -448,6 +487,7 @@ export async function runDeterministicComposeSharp(
       input.mode === "PACKAGING" || input.mode === "IDENTITY"
         ? "#18181b"
         : "#f4f4f5",
+    resolvedFont: headlineFont,
   });
   base = await sharp(base)
     .composite([
@@ -477,6 +517,7 @@ export async function runDeterministicComposeSharp(
       input.mode === "PACKAGING" || input.mode === "IDENTITY"
         ? "#3f3f46"
         : "#a1a1aa",
+    resolvedFont: ctaFont,
   });
   base = await sharp(base)
     .composite([
@@ -499,6 +540,7 @@ export async function runDeterministicComposeSharp(
       fontWeight: 500,
       fill: "#27272a",
       lineHeight: Math.max(14, Math.floor(il.strategyStrip.height * 0.32)),
+      resolvedFont: bodyFont,
     });
     base = await sharp(base)
       .composite([
@@ -523,6 +565,7 @@ export async function runDeterministicComposeSharp(
         fontSize: Math.max(11, Math.floor(rect.height * 0.42)),
         fontWeight: 700,
         fill: "#18181b",
+        resolvedFont: headlineFont,
       });
       base = await sharp(base)
         .composite([
@@ -546,6 +589,7 @@ export async function runDeterministicComposeSharp(
       fontWeight: 400,
       fill: "#e4e4e7",
       lineHeight: 24,
+      resolvedFont: bodyFont,
     });
     base = await sharp(base)
       .composite([
@@ -564,6 +608,7 @@ export async function runDeterministicComposeSharp(
       fontSize: Math.max(11, Math.floor(plan.exportLayout.footerStrip.height * 0.36)),
       fontWeight: 500,
       fill: "#71717a",
+      resolvedFont: bodyFont,
     });
     base = await sharp(base)
       .composite([
@@ -586,6 +631,7 @@ export async function runDeterministicComposeSharp(
       fontSize: Math.max(12, Math.floor(sec.height * 0.32)),
       fontWeight: 500,
       fill: "#52525b",
+      resolvedFont: bodyFont,
     });
     base = await sharp(base)
       .composite([
@@ -601,6 +647,7 @@ export async function runDeterministicComposeSharp(
       fontSize: Math.max(10, Math.floor(leg.height * 0.28)),
       fontWeight: 400,
       fill: "#71717a",
+      resolvedFont: bodyFont,
     });
     base = await sharp(base)
       .composite([
@@ -619,6 +666,7 @@ export async function runDeterministicComposeSharp(
       fontSize: Math.max(12, Math.floor(urg.height * 0.36)),
       fontWeight: 700,
       fill: "#fca5a5",
+      resolvedFont: headlineFont,
     });
     base = await sharp(base)
       .composite([
@@ -655,6 +703,7 @@ export async function runDeterministicComposeSharp(
       fontSize: Math.max(12, Math.floor(lg.height * 0.35)),
       fontWeight: 500,
       fill: "#71717a",
+      resolvedFont: headlineFont,
     });
     base = await sharp(base)
       .composite([
