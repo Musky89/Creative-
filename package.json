@@ -19,7 +19,8 @@
     "preflight": "npx --yes tsx scripts/preflight-dev.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:standalone-agentic-os": "npx --yes tsx scripts/test-standalone-agentic-os.ts"
+    "test:standalone-agentic-os": "npx --yes tsx scripts/test-standalone-agentic-os.ts",
+    "smoke:production-quality": "npx --yes tsx scripts/smoke-production-quality.ts"
   },
   "dependencies": {
     "@fal-ai/client": "^1.9.5",

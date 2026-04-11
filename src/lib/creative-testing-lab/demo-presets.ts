@@ -9,7 +9,7 @@
  */
 
 import type { ProductionMode } from "../production-engine/modes";
-import type { LabBrandForm, LabCreativeForm } from "./map-to-production-input";
+import type { LabBrandForm, LabCreativeForm, LabComposeExtras } from "./map-to-production-input";
 import type { LabExecutionPathUi } from "./run-history";
 
 export const LAB_DEMO_PRESETS_STORAGE_KEY = "creative-testing-lab-demo-presets-version";
@@ -45,6 +45,8 @@ export type LabFullPreset = {
    * No runtime link to the orchestrator — documentation for testers only.
    */
   simulatedUpstreamSummary?: string;
+  /** Optional compose-preview controls (platform canvas, repurpose, packaging dieline, QA) */
+  composeExtras?: LabComposeExtras & { socialRepurposePlatformIds?: string[] };
 };
 
 const nikeBrand = (): LabBrandForm => ({

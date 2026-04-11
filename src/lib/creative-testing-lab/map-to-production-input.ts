@@ -4,6 +4,8 @@
  */
 
 import type { ProductionEngineInput } from "../production-engine/types";
+import type { SocialPlatformId } from "../production-engine/channel-specs";
+import { packagingDielineDocumentSchema } from "../production-engine/packaging-dieline";
 import type { ProductionMode } from "../production-engine/modes";
 import type { QualityTier } from "../production-engine/fal-contracts";
 import type { LayoutArchetype } from "../production-engine/layout-archetypes";
@@ -76,6 +78,18 @@ export function buildReferenceSummariesFromLab(args: {
   return lines;
 }
 
+export type LabComposeExtras = {
+  /** SOCIAL: which platform dimensions to compose (default showcase 4:5) */
+  socialOutputPlatformId?: SocialPlatformId;
+  /** SOCIAL: when composing showcase master, also return resized PNGs for these platforms */
+  socialRepurposePlatformIds?: SocialPlatformId[];
+  /** PACKAGING: optional JSON for packagingDielineDocument */
+  packagingDielineJson?: string;
+  /** Post-compose QA: one banned phrase per line */
+  bannedSubstringsText?: string;
+  handoffStatus?: "draft" | "in_review" | "approved";
+};
+
 export function mapLabToProductionEngineInput(args: {
   mode: ProductionMode;
   brand: LabBrandForm;
@@ -85,8 +99,9 @@ export function mapLabToProductionEngineInput(args: {
   layoutArchetype?: LayoutArchetype;
   visualStyleRef?: string;
   modelRef?: string;
+  composeExtras?: LabComposeExtras;
 }): ProductionEngineInput {
-  const { brand, creative, assets, mode } = args;
+  const { brand, creative, assets, mode, composeExtras } = args;
 
   const brandRulesSummary = [
     brand.mustSignal && `Must signal: ${brand.mustSignal}`,
@@ -156,6 +171,34 @@ export function mapLabToProductionEngineInput(args: {
 
   const referenceSummaries = buildReferenceSummariesFromLab({ creative, assets });
 
+  let packagingDieline: ProductionEngineInput["packagingDieline"];
+  if (composeExtras?.packagingDielineJson?.trim()) {
+    try {
+      const parsed = JSON.parse(composeExtras.packagingDielineJson) as unknown;
+      packagingDieline = packagingDielineDocumentSchema.parse(parsed);
+    } catch {
+      packagingDieline = undefined;
+    }
+  }
+
+  const bannedLines =
+    composeExtras?.bannedSubstringsText
+      ?.split(/\n/)
+      .map((s) => s.trim())
+      .filter(Boolean) ?? [];
+
+  const socialOutputTarget =
+    mode === "SOCIAL" && composeExtras?.socialOutputPlatformId
+      ? composeExtras.socialOutputPlatformId === "showcase_master"
+        ? { kind: "showcase_master" as const }
+        : {
+            kind: "platform" as const,
+            platformId: composeExtras.socialOutputPlatformId,
+          }
+      : mode === "SOCIAL"
+        ? { kind: "showcase_master" as const }
+        : undefined;
+
   return {
     mode,
     briefSummary: briefSummary || "Creative Testing Lab run",
@@ -192,5 +235,13 @@ export function mapLabToProductionEngineInput(args: {
     heroImageUrl: assets.heroImageUrl,
     secondaryImageUrl: assets.secondaryImageUrl,
     tertiaryImageUrl: assets.tertiaryImageUrl,
+    socialOutputTarget,
+    packagingDieline,
+    socialRepurposePlatformIds:
+      mode === "SOCIAL" ? composeExtras?.socialRepurposePlatformIds : undefined,
+    outputVerificationRules: bannedLines.length > 0 ? { bannedSubstrings: bannedLines } : undefined,
+    handoffApproval: composeExtras?.handoffStatus
+      ? { status: composeExtras.handoffStatus }
+      : undefined,
   };
 }
