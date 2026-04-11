@@ -1263,6 +1263,143 @@ export function CreativeTestingLabShell() {
                 onChange={(e) => setBrand({ ...brand, fontNotes: e.target.value })}
               />
             </Field>
+            <div className="sm:col-span-2 rounded-xl border border-violet-900/40 bg-violet-950/15 p-4">
+              <p className="text-sm font-semibold text-violet-200/90">Composer typography (deterministic)</p>
+              <p className="mt-1 text-xs text-zinc-500">
+                Headline + CTA in Sharp compose: Google Fonts (server fetch) or licensed client upload (.woff2 /
+                .woff / .ttf). Does not change FAL image generation.
+              </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2 rounded-lg border border-zinc-800 bg-zinc-950/40 p-3 text-xs text-zinc-500">
+              <p className="font-medium text-zinc-400">Headline face</p>
+              <select
+                className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-200"
+                value={brand.composerFontHeadlineMode ?? "default"}
+                onChange={(e) =>
+                  setBrand({
+                    ...brand,
+                    composerFontHeadlineMode: e.target.value as "default" | "google_fonts" | "client_upload",
+                  })
+                }
+              >
+                <option value="default">Default (DejaVu / system sans)</option>
+                <option value="google_fonts">Google Fonts (OFL catalog)</option>
+                <option value="client_upload">Client font file (licensed)</option>
+              </select>
+              {(brand.composerFontHeadlineMode ?? "default") === "google_fonts" ? (
+                <input
+                  className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
+                  placeholder="Family name, e.g. Oswald, Bebas Neue, Inter"
+                  value={brand.composerFontHeadlineGoogle ?? ""}
+                  onChange={(e) => setBrand({ ...brand, composerFontHeadlineGoogle: e.target.value })}
+                />
+              ) : null}
+              {(brand.composerFontHeadlineMode ?? "default") === "client_upload" ? (
+                <div className="mt-2">
+                  <input
+                    type="file"
+                    accept=".woff2,.woff,.ttf,font/woff2,font/woff"
+                    className="text-xs text-zinc-500"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      const fd = new FormData();
+                      fd.set("file", f);
+                      const res = await fetch("/api/creative-testing-lab/upload-font", {
+                        method: "POST",
+                        body: fd,
+                      });
+                      const data = (await res.json()) as { dataUrl?: string; error?: string };
+                      if (!res.ok) {
+                        setError(data.error ?? "Font upload failed");
+                        return;
+                      }
+                      if (data.dataUrl) {
+                        setBrand({ ...brand, composerFontHeadlineFileDataUrl: data.dataUrl });
+                        setError(null);
+                      }
+                      e.target.value = "";
+                    }}
+                  />
+                  {brand.composerFontHeadlineFileDataUrl ? (
+                    <p className="mt-1 text-[11px] text-emerald-400/90">Font embedded for compose ✓</p>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+            <div className="sm:col-span-2 rounded-lg border border-zinc-800 bg-zinc-950/40 p-3 text-xs text-zinc-500">
+              <label className="flex items-center gap-2 text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={brand.composerFontCtaSameAsHeadline !== false}
+                  onChange={(e) =>
+                    setBrand({ ...brand, composerFontCtaSameAsHeadline: e.target.checked })
+                  }
+                />
+                CTA uses same font as headline
+              </label>
+              {brand.composerFontCtaSameAsHeadline === false ? (
+                <>
+                  <p className="mt-3 font-medium text-zinc-400">CTA face</p>
+                  <select
+                    className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-200"
+                    value={brand.composerFontCtaMode ?? "default"}
+                    onChange={(e) =>
+                      setBrand({
+                        ...brand,
+                        composerFontCtaMode: e.target.value as "default" | "google_fonts" | "client_upload",
+                      })
+                    }
+                  >
+                    <option value="default">Default</option>
+                    <option value="google_fonts">Google Fonts</option>
+                    <option value="client_upload">Client font file</option>
+                  </select>
+                  {(brand.composerFontCtaMode ?? "default") === "google_fonts" ? (
+                    <input
+                      className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
+                      placeholder="Google Font family name"
+                      value={brand.composerFontCtaGoogle ?? ""}
+                      onChange={(e) => setBrand({ ...brand, composerFontCtaGoogle: e.target.value })}
+                    />
+                  ) : null}
+                  {(brand.composerFontCtaMode ?? "default") === "client_upload" ? (
+                    <div className="mt-2">
+                      <input
+                        type="file"
+                        accept=".woff2,.woff,.ttf"
+                        className="text-xs text-zinc-500"
+                        onChange={async (e) => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          const fd = new FormData();
+                          fd.set("file", f);
+                          const res = await fetch("/api/creative-testing-lab/upload-font", {
+                            method: "POST",
+                            body: fd,
+                          });
+                          const data = (await res.json()) as { dataUrl?: string; error?: string };
+                          if (!res.ok) {
+                            setError(data.error ?? "Font upload failed");
+                            return;
+                          }
+                          if (data.dataUrl) {
+                            setBrand({ ...brand, composerFontCtaFileDataUrl: data.dataUrl });
+                            setError(null);
+                          }
+                          e.target.value = "";
+                        }}
+                      />
+                      {brand.composerFontCtaFileDataUrl ? (
+                        <p className="mt-1 text-[11px] text-emerald-400/90">CTA font embedded ✓</p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+            </div>
+            </div>
             <Field label="Brand rules / CI notes" className="sm:col-span-2">
               <textarea
                 className="h-20 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"

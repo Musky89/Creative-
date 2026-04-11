@@ -31,10 +31,25 @@ import type { HandoffPackageExtended } from "./handoff-types";
 
 export { PRODUCTION_MODES, type ProductionMode } from "./modes";
 
+/** Legacy + extended typography (see typography-resolve.ts). */
+export type BrandTypographySource = "default" | "public_catalog" | "client_upload";
+
 export type BrandAssetFonts = {
+  /** Human-readable name (e.g. "Oswald", "Client custom") */
   family: string;
   weights?: string[];
   sourceNote?: string;
+  /** headline | body | cta | display — composer picks by role */
+  role?: "headline" | "body" | "cta" | "display";
+  /** How to resolve this face for SVG text */
+  source?: BrandTypographySource;
+  /** When source is public_catalog + google_fonts */
+  catalogSource?: "google_fonts";
+  googleFontFamily?: string;
+  /** When source is client_upload — data URL or https to woff2/woff/ttf */
+  fontFileUrl?: string;
+  /** CSS family name for embedded @font-face (optional; derived if omitted) */
+  embeddedFontFamily?: string;
 };
 
 export type BrandAssetColors = {
