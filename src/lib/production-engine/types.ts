@@ -27,6 +27,8 @@ import type {
   FashionVariantCopy,
   IdentityRouteKey,
 } from "./mode-identity-fashion-export";
+import type { SocialOutputTarget, SocialPlatformId } from "./channel-specs";
+import type { PackagingDielineDocument } from "./packaging-dieline";
 import type { HandoffPackageExtended } from "./handoff-types";
 
 export { PRODUCTION_MODES, type ProductionMode } from "./modes";
@@ -92,6 +94,22 @@ export type ProductionEngineInput = {
   socialContentFamilies?: SocialContentFamily[];
   /** SOCIAL: compose this index only in single-frame preview (default 0). */
   socialVariantIndex?: number;
+  /** SOCIAL: target aspect / platform dimensions for compose */
+  socialOutputTarget?: SocialOutputTarget;
+  /** PACKAGING: optional dieline for margin discipline */
+  packagingDieline?: PackagingDielineDocument;
+  outputVerificationRules?: {
+    bannedSubstrings?: string[];
+    requireLegalStripNonEmpty?: boolean;
+  };
+  handoffApproval?: {
+    status: "draft" | "in_review" | "approved";
+    approvedAt?: string;
+    approvedBy?: string;
+    notes?: string;
+  };
+  /** SOCIAL: after master compose, also return resized exports for these platforms */
+  socialRepurposePlatformIds?: SocialPlatformId[];
   /** PACKAGING: SKU/line variant for band color + ribbon (default ORIGINAL). */
   packagingVariant?: PackagingVariantKey;
   /** RETAIL_POS: layout emphasis preset. */

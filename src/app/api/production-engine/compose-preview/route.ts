@@ -13,9 +13,12 @@ import {
   buildExportDeckSections,
   buildVisualExecutionBundle,
   buildHandoffPackage,
+  verifyComposedOutputContext,
+  resolveSocialCanvasDimensions,
   type VisualExecutionBundleOptions,
 } from "@/lib/production-engine";
 import { runDeterministicComposeSharp } from "@/server/production-engine/deterministic-composer";
+import { repurposeSocialPngToPlatforms } from "@/server/production-engine/social-repurpose";
 
 const visualOptsSchema = z
   .object({
@@ -171,6 +174,34 @@ export async function POST(req: Request) {
       ctaText: socialSlot?.cta ?? fashionSlot?.cta,
     });
 
+    const composeVerification = verifyComposedOutputContext({
+      input,
+      plan,
+      socialVariants: socialVariants ?? undefined,
+    });
+
+    const socialPlatformMeta =
+      input.mode === "SOCIAL"
+        ? resolveSocialCanvasDimensions(input.socialOutputTarget)
+        : undefined;
+
+    let socialRepurpose:
+      | { platformId: string; width: number; height: number; dataBase64: string }[]
+      | undefined;
+    const isShowcaseMaster =
+      input.mode === "SOCIAL" &&
+      resolveSocialCanvasDimensions(input.socialOutputTarget).platformId === "showcase_master";
+    if (input.mode === "SOCIAL" && input.socialRepurposePlatformIds?.length && isShowcaseMaster) {
+      socialRepurpose = (
+        await repurposeSocialPngToPlatforms(pngBuffer, input.socialRepurposePlatformIds)
+      ).map((r) => ({
+        platformId: r.platformId,
+        width: r.width,
+        height: r.height,
+        dataBase64: r.pngBuffer.toString("base64"),
+      }));
+    }
+
     return NextResponse.json({
       compositionPlanDocument: plan,
       layerManifest: manifest,
@@ -187,6 +218,9 @@ export async function POST(req: Request) {
       },
       assemblyExplanation: explanation,
       review,
+      composeVerification,
+      socialPlatform: socialPlatformMeta,
+      socialRepurpose,
       packagingVariantSpec:
         input.mode === "PACKAGING"
           ? getPackagingVariantSpec(input.packagingVariant ?? "ORIGINAL")
@@ -228,10 +262,18 @@ export async function POST(req: Request) {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    const socialVariantsErr =
+      input.mode === "SOCIAL" ? buildAllSocialVariants(input) : null;
+    const composeVerificationErr = verifyComposedOutputContext({
+      input,
+      plan,
+      socialVariants: socialVariantsErr ?? undefined,
+    });
     return NextResponse.json(
       {
         error: "Compose failed",
         message: msg,
+        composeVerification: composeVerificationErr,
         compositionPlanDocument: plan,
         layerManifest: manifest,
         handoffLayerManifest: handoff.layerManifestStructured,

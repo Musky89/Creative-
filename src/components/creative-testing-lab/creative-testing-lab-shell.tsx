@@ -15,6 +15,10 @@ import {
   type LabAssetUrls,
 } from "@/lib/creative-testing-lab/map-to-production-input";
 import {
+  SOCIAL_PLATFORM_SPECS,
+  type SocialPlatformId,
+} from "@/lib/production-engine/channel-specs";
+import {
   RUN_HISTORY_VERSION,
   MAX_STORED_RUNS,
   type LabTestRun,
@@ -262,6 +266,30 @@ export function CreativeTestingLabShell() {
   const [extraRefUrlDraft, setExtraRefUrlDraft] = useState("");
   const [extraRefNameDraft, setExtraRefNameDraft] = useState("");
 
+  const [socialOutputPlatformId, setSocialOutputPlatformId] =
+    useState<SocialPlatformId>("showcase_master");
+  const [socialRepurposeIds, setSocialRepurposeIds] = useState<SocialPlatformId[]>([]);
+  const [packagingDielineJson, setPackagingDielineJson] = useState("");
+  const [bannedSubstringsText, setBannedSubstringsText] = useState("");
+  const [handoffStatus, setHandoffStatus] = useState<"" | "draft" | "in_review" | "approved">("");
+
+  const labComposeExtras = useMemo(
+    () => ({
+      socialOutputPlatformId,
+      socialRepurposePlatformIds: socialRepurposeIds.length ? socialRepurposeIds : undefined,
+      packagingDielineJson: packagingDielineJson.trim() || undefined,
+      bannedSubstringsText: bannedSubstringsText.trim() || undefined,
+      handoffStatus: handoffStatus || undefined,
+    }),
+    [
+      socialOutputPlatformId,
+      socialRepurposeIds,
+      packagingDielineJson,
+      bannedSubstringsText,
+      handoffStatus,
+    ],
+  );
+
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [runHistory, setRunHistory] = useState<LabTestRun[]>([]);
   const [outputMarks, setOutputMarks] = useState<Record<string, OutputReviewMark>>({});
@@ -309,6 +337,7 @@ export function CreativeTestingLabShell() {
                 outputMarks,
                 compareA,
                 compareB,
+                labComposeExtras,
                 cachedPipelineResult: pipelineResult ?? r.cachedPipelineResult,
                 falResultsSnapshot: falResults ?? r.falResultsSnapshot,
               }
@@ -340,6 +369,7 @@ export function CreativeTestingLabShell() {
     outputMarks,
     compareA,
     compareB,
+    labComposeExtras,
     pipelineResult,
     falResults,
     mergeRunIntoHistory,
@@ -421,6 +451,12 @@ export function CreativeTestingLabShell() {
     setCompareB(run.compareB ?? null);
     setPipelineResult(run.cachedPipelineResult ?? null);
     setFalResults(run.falResultsSnapshot ?? null);
+    const lx = run.labComposeExtras;
+    setSocialOutputPlatformId((lx?.socialOutputPlatformId as SocialPlatformId) ?? "showcase_master");
+    setSocialRepurposeIds((lx?.socialRepurposePlatformIds as SocialPlatformId[]) ?? []);
+    setPackagingDielineJson(lx?.packagingDielineJson ?? "");
+    setBannedSubstringsText(lx?.bannedSubstringsText ?? "");
+    setHandoffStatus(lx?.handoffStatus ?? "");
     setComposeData(null);
     const n = run.cachedPipelineResult?.visualExecution.targets.length ?? 0;
     setSelectedTargetIndices(n ? [0] : []);
@@ -446,9 +482,10 @@ export function CreativeTestingLabShell() {
       visualQualityTier: qualityTier,
       visualStyleRef: styleModelRef || undefined,
       modelRef: loraRef || undefined,
+      composeExtras: labComposeExtras,
     });
     return input;
-  }, [mode, brand, creative, assets, qualityTier, styleModelRef, loraRef]);
+  }, [mode, brand, creative, assets, qualityTier, styleModelRef, loraRef, labComposeExtras]);
 
   const visualBundleOptions = useMemo(
     () => ({
@@ -574,6 +611,7 @@ export function CreativeTestingLabShell() {
             manualScores: reviewScores,
             manualNotes: reviewNotes,
             composeMeta: null,
+            labComposeExtras,
           };
         const merged: LabTestRun = {
           ...base,
@@ -605,6 +643,7 @@ export function CreativeTestingLabShell() {
           productionPlan: pr.productionPlan,
           falExecutions: falExecPlanned,
           cachedPipelineResult: pr,
+          labComposeExtras,
         };
         return [...prev.filter((r) => r.id !== runId), merged];
       });
@@ -784,6 +823,7 @@ export function CreativeTestingLabShell() {
               outputMarks,
               compareA,
               compareB,
+              labComposeExtras,
               cachedPipelineResult: pipelineResult ?? r.cachedPipelineResult,
               falResultsSnapshot: falResults ?? r.falResultsSnapshot,
             }
@@ -817,6 +857,7 @@ export function CreativeTestingLabShell() {
       outputMarks,
       compareA,
       compareB,
+      labComposeExtras,
       cachedPipelineResult: pipelineResult ?? run.cachedPipelineResult,
       falResultsSnapshot: falResults ?? run.falResultsSnapshot,
       updatedAt: new Date().toISOString(),
@@ -874,6 +915,11 @@ export function CreativeTestingLabShell() {
     setAssetUrlDrafts({ logo: "", hero: "", secondary: "", tertiary: "" });
     setExtraRefUrlDraft("");
     setExtraRefNameDraft("");
+    setSocialOutputPlatformId("showcase_master");
+    setSocialRepurposeIds([]);
+    setPackagingDielineJson("");
+    setBannedSubstringsText("");
+    setHandoffStatus("");
     startNewRun();
   }
 
@@ -972,6 +1018,7 @@ export function CreativeTestingLabShell() {
         tertiaryUrl: tertiaryDataUrl,
         extraRefs: extraRefs.map((r) => ({ id: r.id, name: r.name, url: r.dataUrl })),
       },
+      composeExtras: { ...labComposeExtras },
     };
     persistPresets([...presets.filter((x) => x.name !== name), p]);
     setPresetName("");
@@ -1009,6 +1056,20 @@ export function CreativeTestingLabShell() {
       secondary: s?.secondaryUrl?.startsWith("http") ? s.secondaryUrl : "",
       tertiary: s?.tertiaryUrl?.startsWith("http") ? s.tertiaryUrl : "",
     });
+    const cx = p.composeExtras;
+    if (cx) {
+      setSocialOutputPlatformId((cx.socialOutputPlatformId as SocialPlatformId) ?? "showcase_master");
+      setSocialRepurposeIds((cx.socialRepurposePlatformIds as SocialPlatformId[]) ?? []);
+      setPackagingDielineJson(cx.packagingDielineJson ?? "");
+      setBannedSubstringsText(cx.bannedSubstringsText ?? "");
+      setHandoffStatus(cx.handoffStatus ?? "");
+    } else {
+      setSocialOutputPlatformId("showcase_master");
+      setSocialRepurposeIds([]);
+      setPackagingDielineJson("");
+      setBannedSubstringsText("");
+      setHandoffStatus("");
+    }
   }
 
   const modeCfg = listProductionModes().find((m) => m.id === mode);
@@ -1420,6 +1481,103 @@ export function CreativeTestingLabShell() {
                 ))}
               </div>
             </div>
+          </div>
+        </Card>
+
+        <Card
+          title="Compose & handoff (engine)"
+          subtitle="Platform canvas for SOCIAL, optional packaging dieline, lightweight QA bans, and handoff status — all map into ProductionEngineInput."
+        >
+          <div className="space-y-4 text-sm">
+            {mode === "SOCIAL" ? (
+              <div className="space-y-3 rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
+                <p className="text-xs font-medium text-zinc-400">
+                  Social: build once (showcase 4:5 master), then repurpose to more ratios in one compose call.
+                </p>
+                <Field label="Compose canvas (platform dimensions)">
+                  <select
+                    className="w-full max-w-xl rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
+                    value={socialOutputPlatformId}
+                    onChange={(e) =>
+                      setSocialOutputPlatformId(e.target.value as SocialPlatformId)
+                    }
+                  >
+                    {Object.values(SOCIAL_PLATFORM_SPECS).map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.label} — {s.width}×{s.height}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <div>
+                  <p className="mb-2 text-xs text-zinc-500">
+                    Also return resized exports (only when canvas is Showcase master 1080×1350)
+                  </p>
+                  <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto">
+                    {Object.values(SOCIAL_PLATFORM_SPECS)
+                      .filter((s) => s.id !== "showcase_master")
+                      .map((s) => (
+                        <label
+                          key={s.id}
+                          className="flex cursor-pointer items-center gap-2 rounded border border-zinc-800 bg-black/30 px-2 py-1 text-xs text-zinc-400"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={socialRepurposeIds.includes(s.id)}
+                            disabled={socialOutputPlatformId !== "showcase_master"}
+                            onChange={(e) => {
+                              setSocialRepurposeIds((prev) =>
+                                e.target.checked
+                                  ? [...prev, s.id]
+                                  : prev.filter((x) => x !== s.id),
+                              );
+                            }}
+                          />
+                          {s.label}
+                        </label>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {mode === "PACKAGING" ? (
+              <Field label="Packaging dieline (JSON, optional)" className="sm:col-span-2">
+                <textarea
+                  className="h-28 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-xs"
+                  placeholder={`{"version":1,"bleedPx":0,"panels":[{"id":"legal","x":0,"y":0.88,"width":1,"height":0.12,"role":"legal"}]}`}
+                  value={packagingDielineJson}
+                  onChange={(e) => setPackagingDielineJson(e.target.value)}
+                />
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  Panels use normalized 0–1 coords on the pack face; legal/barcode roles bump bottom safe margin.
+                </p>
+              </Field>
+            ) : null}
+
+            <Field label="Banned substrings (compose QA, one per line)">
+              <textarea
+                className="h-20 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
+                placeholder="competitor name&#10;unapproved claim"
+                value={bannedSubstringsText}
+                onChange={(e) => setBannedSubstringsText(e.target.value)}
+              />
+            </Field>
+
+            <Field label="Handoff status (metadata in export notes)">
+              <select
+                className="w-full max-w-md rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
+                value={handoffStatus}
+                onChange={(e) =>
+                  setHandoffStatus(e.target.value as typeof handoffStatus)
+                }
+              >
+                <option value="">— not set —</option>
+                <option value="draft">draft</option>
+                <option value="in_review">in_review</option>
+                <option value="approved">approved</option>
+              </select>
+            </Field>
           </div>
         </Card>
       </div>
@@ -2077,12 +2235,72 @@ export function CreativeTestingLabShell() {
 
           {composeData?.preview ? (
             <OutputSection title="Composed output" summary="Sharp deterministic compose + platform type.">
+              {(composeData.socialPlatform as { label?: string; width?: number; height?: number } | undefined)
+                ?.label ? (
+                <p className="mb-2 text-xs text-zinc-500">
+                  Canvas:{" "}
+                  {(composeData.socialPlatform as { label: string }).label} (
+                  {(composeData.socialPlatform as { width: number }).width}×
+                  {(composeData.socialPlatform as { height: number }).height})
+                </p>
+              ) : null}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={`data:${(composeData.preview as { mimeType: string }).mimeType};base64,${(composeData.preview as { dataBase64: string }).dataBase64}`}
                 alt="Composed"
                 className="max-h-[480px] rounded-xl border border-zinc-700 shadow-lg"
               />
+              {Array.isArray(composeData.socialRepurpose) &&
+              (composeData.socialRepurpose as { platformId: string }[]).length > 0 ? (
+                <div className="mt-4">
+                  <p className="mb-2 text-xs font-medium text-zinc-400">
+                    Repurposed exports (cover-crop from showcase master)
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {(composeData.socialRepurpose as {
+                      platformId: string;
+                      width: number;
+                      height: number;
+                      dataBase64: string;
+                    }[]).map((r) => (
+                      <div key={r.platformId} className="text-center">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={`data:image/png;base64,${r.dataBase64}`}
+                          alt={r.platformId}
+                          className="max-h-40 rounded-lg border border-zinc-700"
+                        />
+                        <p className="mt-1 font-mono text-[10px] text-zinc-500">
+                          {r.platformId} {r.width}×{r.height}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {composeData.composeVerification ? (
+                <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
+                  <p className="mb-2 text-xs font-medium text-zinc-400">Compose verification</p>
+                  <ul className="space-y-1 text-xs">
+                    {(
+                      composeData.composeVerification as {
+                        passed: boolean;
+                        checks: { id: string; label: string; passed: boolean; detail?: string }[];
+                      }
+                    ).checks.map((c) => (
+                      <li
+                        key={c.id}
+                        className={c.passed ? "text-emerald-400/90" : "text-amber-300/90"}
+                      >
+                        {c.passed ? "✓" : "○"} {c.label}
+                        {c.detail ? (
+                          <span className="ml-1 text-zinc-500">({c.detail})</span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </OutputSection>
           ) : null}
 

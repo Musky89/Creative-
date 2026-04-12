@@ -67,8 +67,9 @@ function buildProductionNotes(args: {
   plan: ProductionPlanDocument;
   profile: HandoffExportProfile;
   qualityTier?: QualityTier;
+  input?: ProductionEngineInput;
 }): string[] {
-  const { mode, plan, profile, qualityTier } = args;
+  const { mode, plan, profile, qualityTier, input } = args;
   const lines: string[] = [
     `Mode: ${mode} — ${profile.label}`,
     `Export preset: ${profile.presetId}`,
@@ -78,6 +79,13 @@ function buildProductionNotes(args: {
   ];
   if (qualityTier) {
     lines.push(`Visual quality tier: ${qualityTier}`);
+  }
+  const ha = input?.handoffApproval;
+  if (ha) {
+    lines.push(
+      `Handoff status: ${ha.status}${ha.approvedBy ? ` — ${ha.approvedBy}` : ""}${ha.approvedAt ? ` @ ${ha.approvedAt}` : ""}`,
+    );
+    if (ha.notes?.trim()) lines.push(`Approval notes: ${ha.notes.trim()}`);
   }
   lines.push(...profile.deliveryNotes);
   return lines;
@@ -148,6 +156,7 @@ export function buildHandoffPackage(
     plan,
     profile: exportProfile,
     qualityTier,
+    input,
   });
 
   const targets = plan.exportTargets ?? cfg.exportFormats;

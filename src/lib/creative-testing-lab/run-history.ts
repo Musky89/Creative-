@@ -6,7 +6,7 @@
 import type { ProductionMode } from "../production-engine/modes";
 import type { ProductionEngineInput, ProductionEngineRunResult } from "../production-engine/types";
 import type { ProductionPlanDocument } from "../production-engine/production-plan-schema";
-import type { LabBrandForm, LabCreativeForm } from "./map-to-production-input";
+import type { LabBrandForm, LabCreativeForm, LabComposeExtras } from "./map-to-production-input";
 
 export type LabExecutionPathUi =
   | "router"
@@ -24,7 +24,7 @@ export type LabAssetBundle = {
 };
 
 export const RUN_HISTORY_KEY = "creative-testing-lab-runs-v2";
-export const RUN_HISTORY_VERSION = 3;
+export const RUN_HISTORY_VERSION = 4;
 export const MAX_STORED_RUNS = 28;
 
 export type OutputReviewMark = "preferred" | "rejected" | "refine" | "none";
@@ -115,6 +115,8 @@ export type LabTestRun = {
   /** Side-by-side compare picks (restored with full run) */
   compareA?: string | null;
   compareB?: string | null;
+  /** Compose-preview extras (platform repurpose, dieline JSON, QA bans, handoff status) */
+  labComposeExtras?: LabComposeExtras & { socialRepurposePlatformIds?: string[] };
 };
 
 export function pathIdToKindLabel(pathId: string): string {
@@ -146,6 +148,11 @@ export function summarizeProductionInput(input: ProductionEngineInput): Record<s
     secondaryImageUrl: stripUrl(input.secondaryImageUrl),
     tertiaryImageUrl: stripUrl(input.tertiaryImageUrl),
     referenceCount: input.referenceSummaries?.length ?? 0,
+    socialOutputTarget: input.socialOutputTarget,
+    packagingDielinePanelCount: input.packagingDieline?.panels.length,
+    socialRepurposePlatformIds: input.socialRepurposePlatformIds,
+    bannedSubstringCount: input.outputVerificationRules?.bannedSubstrings?.length,
+    handoffStatus: input.handoffApproval?.status,
   };
 }
 
@@ -160,7 +167,7 @@ export function loadRuns(): LabTestRun[] {
         (r) =>
           r &&
           typeof r.id === "string" &&
-          (r.version === 2 || r.version === RUN_HISTORY_VERSION),
+          (r.version === 2 || r.version === 3 || r.version === RUN_HISTORY_VERSION),
       )
       .map((r) => ({ ...r, version: RUN_HISTORY_VERSION } as LabTestRun));
   } catch {
