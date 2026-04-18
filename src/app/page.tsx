@@ -63,6 +63,16 @@ function getIsolatedSurfaces(): {
     });
   }
 
+  if (hasPage("ad-corpus-ingestion")) {
+    surfaces.push({
+      href: "/ad-corpus-ingestion",
+      title: "Ad corpus ingestion (framework)",
+      description:
+        "ML-oriented creative records schema, connector contract, sample demo — for licensed datasets and partner feeds only.",
+      envNote: "AD_CORPUS_INGESTION_ENABLED=1. See docs/ad-corpus/ARCHITECTURE.md for lawful acquisition.",
+    });
+  }
+
   return surfaces;
 }
 
