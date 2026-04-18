@@ -33,4 +33,26 @@ export const SAMPLE_CREATIVE_WORKS: CreativeWorkRecord[] = [
     },
     contentFingerprint: "sha256:demo-001",
   },
+  {
+    id: "sample-metadata-learning-002",
+    era: { yearFrom: 2020, yearTo: 2021 },
+    brand: { name: "Example brand (illustrative)", category: "Retail" },
+    medium: "social",
+    assets: [],
+    copy: {
+      headline: "Example headline — replace with text you transcribed yourself",
+      body: "Use rows like this for personal learning: store patterns and copy you noted, not scraped image binaries.",
+      language: "en",
+    },
+    tags: ["learning", "metadata-only"],
+    provenance: {
+      sourceId: "manual-notes",
+      sourceName: "Manual research / fair-use notes",
+      rightsClass: "metadata_only_learning",
+      licenseNotes:
+        "No ad image stored. Link out for reference; ML on text/tags only unless you add open-license media.",
+      canonicalUrl: "https://example.com/replace-with-real-reference",
+    },
+    contentFingerprint: "sha256:demo-002",
+  },
 ];

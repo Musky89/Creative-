@@ -1,6 +1,7 @@
 /**
  * ML-oriented corpus records for advertising creative works.
- * Designed for licensed datasets, partner feeds, and first-party uploads — not for unlicensed bulk scraping.
+ * Supports licensed sources, first-party uploads, and **personal-learning** rows where you only store
+ * metadata / open-licensed assets / text summaries — not bulk copies of copyrighted ads from third-party sites.
  */
 
 import { z } from "zod";
@@ -21,6 +22,10 @@ export const rightsClassSchema = z.enum([
   "partner_feed",
   "public_domain",
   "first_party_upload",
+  /** Headline, category, dates, URLs, case-study text — no stored image/video from third parties */
+  "metadata_only_learning",
+  /** e.g. Wikimedia Commons, CC-licensed stock — attribution in provenance.licenseNotes */
+  "open_license_media",
   "research_exception_documented",
   "unknown",
 ]);
@@ -62,17 +67,22 @@ export const creativeWorkRecordSchema = z.object({
     .optional(),
   medium: creativeMediumSchema,
   channelHints: z.array(z.string()).optional(),
-  /** Raw assets — URLs to your storage, not hotlinked third-party hosts in production */
-  assets: z.array(
-    z.object({
-      role: z.enum(["hero", "logo", "full_layout", "video", "audio", "thumbnail"]),
-      mimeType: z.string(),
-      storageUri: z.string(),
-      width: z.number().int().optional(),
-      height: z.number().int().optional(),
-      durationSec: z.number().optional(),
-    }),
-  ),
+  /**
+   * Raw assets — prefer URLs in **your** storage after lawful download.
+   * For learning-only, leave empty and use copy + tags + canonicalUrl (metadata_only_learning).
+   */
+  assets: z
+    .array(
+      z.object({
+        role: z.enum(["hero", "logo", "full_layout", "video", "audio", "thumbnail"]),
+        mimeType: z.string(),
+        storageUri: z.string(),
+        width: z.number().int().optional(),
+        height: z.number().int().optional(),
+        durationSec: z.number().optional(),
+      }),
+    )
+    .default([]),
   copy: z
     .object({
       headline: z.string().optional(),

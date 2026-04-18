@@ -4,6 +4,8 @@
 
 Provide a **framework** for building a large-scale, ML-ready corpus of advertising-related creative works: structured records, provenance, deduplication hooks, and feature-vector slots. This repo **does not** implement mass scraping of third-party commercial ad archives.
 
+For **personal learning** without building a rights-cleared image library, see **`PERSONAL_LEARNING.md`** (metadata-only rows, open-license media, APIs).
+
 ## Why not “scrape billions of ads”
 
 - **Copyright:** Advertisements are creative works; copying and redistributing them at scale typically requires rights.
