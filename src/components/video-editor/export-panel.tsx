@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { TimelineSegment, VideoFile } from "@/lib/video-editor/types";
 import { formatDuration } from "@/lib/video-editor/utils";
 
@@ -28,10 +28,13 @@ export function ExportPanel({ timeline, videos }: ExportPanelProps) {
     0
   );
 
-  const videoMap: Record<string, string> = {};
-  for (const v of videos) {
-    videoMap[v.id] = v.path;
-  }
+  const videoMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const v of videos) {
+      map[v.id] = v.path;
+    }
+    return map;
+  }, [videos]);
 
   const handleExport = useCallback(async () => {
     if (!sorted.length) return;

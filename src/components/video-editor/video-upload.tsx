@@ -99,6 +99,7 @@ export function VideoUpload({
         </div>
         <div className="flex gap-3">
           {video.thumbnailUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={video.thumbnailUrl}
               alt="Thumbnail"
