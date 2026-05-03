@@ -94,7 +94,8 @@ function transcriptAnalysis(transcript: string, bannedWords: string[]) {
   const fillerSet = new Set([...DEFAULT_FILLERS, ...bannedWords.map((w) => w.trim().toLowerCase()).filter(Boolean)]);
   const noiseSet = new Set(NOISE_TOKENS);
   const hits: TranscriptHit[] = [];
-  const cleanedLines = transcript.split(/\r?\n/).map((line, lineIndex) => {
+  const normalizedTranscript = transcript.replace(/\\n/g, "\n");
+  const cleanedLines = normalizedTranscript.split(/\r?\n/).map((line, lineIndex) => {
     const timecode = extractTimecode(line);
     const tokens = line.split(/(\s+)/);
     const output: string[] = [];
