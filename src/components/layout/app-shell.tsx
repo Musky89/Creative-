@@ -19,6 +19,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               Clients
             </Link>
             <Link
+              href="/video-editor"
+              className="transition-colors hover:text-zinc-100"
+            >
+              Video Editor
+            </Link>
+            <Link
               href="/production-engine"
               className="transition-colors hover:text-zinc-100"
             >
